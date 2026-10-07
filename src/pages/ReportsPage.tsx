@@ -32,6 +32,7 @@ import {
   CashReceiptData,
 } from "@/lib/generateCashReceiptPdf";
 import { openDocumentUrl, openDocumentInNativeViewer } from "@/lib/documentViewer";
+import StockReportDashboard from "@/components/reports/StockReportDashboard";
 import {
   Dialog,
   DialogContent,
@@ -804,6 +805,8 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+      ) : activeTab === "stock" ? (
+        <StockReportDashboard products={products} orders={orders} search={search} />
       ) : activeTab === "sales" ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
