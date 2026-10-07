@@ -10,14 +10,121 @@ import {
   X,
   Edit,
   Loader2,
+  AlertTriangle,
+  BarChart3,
+  Boxes,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  FolderTree,
+  MapPin,
+  PieChart,
+  Shapes,
+  TrendingUp,
+  Warehouse as WarehouseIcon,
+  XCircle,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { PageHeader, EmptyState, fmtMoney, fmtNum } from "@/components/erp-ui";
+import { EmptyState, fmtMoney, fmtNum } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  BarsBySite,
+  CATEGORY_COLORS,
+  Donut,
+  EVOLUTION_DAYS,
+  Evolution,
+  OTHER_COLOR,
+  categoryOf,
+  computeEvolution,
+  costOf,
+  statusOf,
+  stockOf,
+  thresholdOf,
+} from "@/components/stock/stockCharts";
+
+const ALL = "all";
+const PAGE_SIZE = 8;
+
+type StatusFilter = "all" | "ok" | "low" | "out";
+const STATUS_FILTERS: Array<{ id: StatusFilter; label: string; dot?: string }> = [
+  { id: "all", label: "Tous" },
+  { id: "ok", label: "Normal", dot: "bg-emerald-500" },
+  { id: "low", label: "Stock faible", dot: "bg-amber-500" },
+  { id: "out", label: "Rupture", dot: "bg-red-500" },
+];
+
+function GlassCard({ title, icon: Icon, children }: any) {
+  return (
+    <section className="min-w-0 rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_10px_30px_-18px_rgba(15,61,104,0.35)] backdrop-blur">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-900">
+        <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-cyan-50 to-blue-100 text-[#0F3D68]">
+          <Icon className="h-4 w-4" />
+        </span>
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function KpiTile({ icon: Icon, glow, label, value, hint, active, onClick }: any) {
+  const clickable = typeof onClick === "function";
+  const Tag: any = clickable ? "button" : "div";
+  return (
+    <Tag
+      {...(clickable ? { type: "button", onClick, "aria-pressed": !!active } : {})}
+      className={`group relative flex min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border bg-white/90 p-3.5 text-left shadow-[0_10px_30px_-18px_rgba(15,61,104,0.35)] transition-all ${
+        active ? "border-cyan-400 ring-2 ring-cyan-300/50" : "border-slate-200/80"
+      } ${clickable ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-16px_rgba(15,61,104,0.45)]" : ""}`}
+    >
+      <span className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br ${glow} text-white shadow-[0_8px_20px_-8px_rgba(15,61,104,0.7)]`}>
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="text-[11px] font-semibold text-slate-500">{label}</span>
+      <span className="break-words text-lg font-black leading-tight tracking-tight text-slate-900 tabular-nums">{value}</span>
+      <span className={`truncate text-[11px] ${active ? "font-semibold text-cyan-700" : "text-slate-500"}`}>{hint}</span>
+    </Tag>
+  );
+}
+
+function HeroSelect({ value, onChange, options }: any) {
+  return (
+    <span className="relative min-w-0">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 w-full min-w-[150px] appearance-none rounded-xl border border-white/15 bg-white/10 pl-3 pr-8 text-sm font-medium text-white backdrop-blur focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/30 [&>option]:text-slate-900"
+      >
+        {options.map((o: any) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-100/70" />
+    </span>
+  );
+}
+
+function TreeButton({ active, onClick, children }: any) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${
+        active ? "bg-gradient-to-r from-cyan-50 to-blue-50 font-semibold text-[#0F3D68] ring-1 ring-cyan-200" : "text-slate-700 hover:bg-slate-50"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function StockPage() {
   const { has } = useAuth();
@@ -29,6 +136,14 @@ export default function StockPage() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [newProductModal, setNewProductModal] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Filtres de l'écran Stock
+  const [orders, setOrders] = useState<any[]>([]);
+  const [site, setSite] = useState(ALL);
+  const [depot, setDepot] = useState(ALL);
+  const [category, setCategory] = useState(ALL);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [page, setPage] = useState(1);
 
   // Image upload states
   const [imagePreview, setImagePreview] = useState<string>("");
@@ -52,6 +167,11 @@ export default function StockPage() {
 
   useEffect(() => {
     loadData();
+    // Commandes : uniquement pour la courbe d'évolution (facultatif)
+    api
+      .get("/orders")
+      .then(({ data }) => setOrders(Array.isArray(data) ? data : []))
+      .catch(() => setOrders([]));
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -65,6 +185,102 @@ export default function StockPage() {
       return matchQ;
     });
   }, [products, search]);
+
+  const whById = useMemo(() => new Map(warehouses.map((w) => [w.id, w])), [warehouses]);
+  const siteOf = (p: any) => ((whById.get(p.warehouse_id)?.city || "").split(",")[0] || "").trim() || "Non affecté";
+  const depotOf = (p: any) => whById.get(p.warehouse_id)?.name || "Non affecté";
+
+  const allSites = useMemo(() => Array.from(new Set(products.map(siteOf))).sort(), [products, whById]);
+  const allDepots = useMemo(
+    () => Array.from(new Set(products.filter((p) => site === ALL || siteOf(p) === site).map(depotOf))).sort(),
+    [products, whById, site]
+  );
+  const allCategories = useMemo(() => Array.from(new Set(products.map(categoryOf))).sort(), [products]);
+
+  // Couleur fixe par catégorie (ne change pas quand on filtre)
+  const colorByCategory = useMemo(() => {
+    const totals = new Map<string, number>();
+    products.forEach((p) => totals.set(categoryOf(p), (totals.get(categoryOf(p)) || 0) + stockOf(p) * costOf(p)));
+    const m = new Map<string, string>();
+    Array.from(totals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([c], i) => m.set(c, CATEGORY_COLORS[i] || OTHER_COLOR));
+    return m;
+  }, [products]);
+
+  // Site + dépôt + recherche (base de l'arbre des catégories)
+  const inSite = useMemo(
+    () => filteredProducts.filter((p) => (site === ALL || siteOf(p) === site) && (depot === ALL || depotOf(p) === depot)),
+    [filteredProducts, site, depot, whById]
+  );
+  const scoped = useMemo(() => inSite.filter((p) => category === ALL || categoryOf(p) === category), [inSite, category]);
+
+  const totalValue = scoped.reduce((s, p) => s + stockOf(p) * costOf(p), 0);
+  const totalUnits = scoped.reduce((s, p) => s + stockOf(p), 0);
+  const lowCount = scoped.filter((p) => statusOf(p).key === "low").length;
+  const outCount = scoped.filter((p) => statusOf(p).key === "out").length;
+  const siteCount = new Set(scoped.map(siteOf)).size;
+  const depotCount = new Set(scoped.map(depotOf)).size;
+  const catCount = new Set(scoped.map(categoryOf)).size;
+  const statusCounts: Record<StatusFilter, number> = {
+    all: scoped.length,
+    ok: scoped.length - lowCount - outCount,
+    low: lowCount,
+    out: outCount,
+  };
+
+  const bySite = useMemo(() => {
+    const m = new Map<string, { value: number; depots: Set<string> }>();
+    scoped.forEach((p) => {
+      const e = m.get(siteOf(p)) || { value: 0, depots: new Set<string>() };
+      e.value += stockOf(p) * costOf(p);
+      e.depots.add(depotOf(p));
+      m.set(siteOf(p), e);
+    });
+    return Array.from(m.entries())
+      .map(([site, e]) => ({ site, value: e.value, depots: e.depots.size }))
+      .sort((a, b) => b.value - a.value);
+  }, [scoped, whById]);
+
+  const byCategory = useMemo(() => {
+    const m = new Map<string, number>();
+    scoped.forEach((p) => m.set(categoryOf(p), (m.get(categoryOf(p)) || 0) + stockOf(p) * costOf(p)));
+    return Array.from(m.entries())
+      .map(([label, value]) => ({ label, value, color: colorByCategory.get(label) || OTHER_COLOR }))
+      .sort((a, b) => b.value - a.value);
+  }, [scoped, colorByCategory]);
+
+  const evolution = useMemo(() => computeEvolution(scoped, orders, totalValue), [scoped, orders, totalValue]);
+
+  const categoryTree = useMemo(() => {
+    const m = new Map<string, any[]>();
+    inSite.forEach((p) => m.set(categoryOf(p), [...(m.get(categoryOf(p)) || []), p]));
+    return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0], "fr"));
+  }, [inSite]);
+
+  const rows = useMemo(
+    () =>
+      scoped
+        .filter((p) => statusFilter === "all" || statusOf(p).key === statusFilter)
+        .sort((a, b) => a.name.localeCompare(b.name, "fr")),
+    [scoped, statusFilter]
+  );
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const curPage = Math.min(page, pages);
+  const visible = rows.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
+
+  const toggleStatus = (key: StatusFilter) => {
+    setStatusFilter((cur) => (cur === key ? "all" : key));
+    setPage(1);
+  };
+  const clearFilters = () => {
+    setSearch("");
+    setSite(ALL);
+    setDepot(ALL);
+    setCategory(ALL);
+    setStatusFilter("all");
+    setPage(1);
+  };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -193,154 +409,358 @@ export default function StockPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Gestion des Stocks & Dépôts"
-        subtitle="Inventaires, photos d'articles, alertes et valorisation"
-        right={
-          has("stock.write") && (
-            <Button
-              size="sm"
-              onClick={openNewModal}
-              className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white shadow-xs"
-            >
-              <Plus className="h-4 w-4 mr-1.5" /> Nouveau Produit
-            </Button>
-          )
-        }
-      />
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input
-            placeholder="Rechercher par article, code, catégorie..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 rounded-xl bg-white border-slate-200 text-xs shadow-2xs"
+      {/* En-tête */}
+      <section className="relative overflow-clip rounded-3xl bg-gradient-to-br from-[#081A30] via-[#0F3D68] to-[#0C5A86] p-5 text-white shadow-[0_20px_50px_-25px_rgba(15,61,104,0.8)] sm:p-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.12]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+          }}
+        />
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-indigo-500/25 blur-3xl" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-200">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_8px_2px_rgba(103,232,249,0.7)]" />
+              Stock en direct
+            </div>
+            <h1 className="mt-2 text-3xl font-black tracking-tight">Stock</h1>
+            <p className="text-sm text-blue-100/80">Vue d'ensemble de votre stock sur tous les sites et dépôts</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold backdrop-blur">
+              <CalendarDays className="h-4 w-4 text-cyan-200" />
+              {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+            </span>
+            {has("stock.write") && (
+              <Button
+                size="sm"
+                onClick={openNewModal}
+                className="h-9 rounded-xl bg-cyan-400 px-4 font-bold text-[#06213D] shadow-[0_0_20px_-4px_rgba(34,211,238,0.9)] hover:bg-cyan-300"
+              >
+                <Plus className="mr-1.5 h-4 w-4" /> Nouveau produit
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="relative mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-cyan-100" />
+            <input
+              placeholder="Rechercher un produit, un code, une catégorie…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="h-10 w-full rounded-xl border border-white/15 bg-white/10 pl-9 pr-3 text-sm text-white placeholder:text-blue-100/60 backdrop-blur focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/30"
+            />
+          </div>
+          <HeroSelect
+            value={site}
+            onChange={(v: string) => {
+              setSite(v);
+              setDepot(ALL);
+              setPage(1);
+            }}
+            options={[{ value: ALL, label: "Tous les sites" }, ...allSites.map((s) => ({ value: s, label: s }))]}
+          />
+          <HeroSelect
+            value={depot}
+            onChange={(v: string) => {
+              setDepot(v);
+              setPage(1);
+            }}
+            options={[{ value: ALL, label: "Tous les dépôts" }, ...allDepots.map((d) => ({ value: d, label: d }))]}
+          />
+          <HeroSelect
+            value={category}
+            onChange={(v: string) => {
+              setCategory(v);
+              setPage(1);
+            }}
+            options={[{ value: ALL, label: "Toutes les catégories" }, ...allCategories.map((c) => ({ value: c, label: c }))]}
           />
         </div>
-      </div>
+      </section>
 
       {loading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
-      ) : filteredProducts.length === 0 ? (
-        <EmptyState
-          icon={Package}
-          title="Aucun produit en stock"
-          subtitle="Ajoutez des articles ou réinitialisez la recherche."
-        />
+      ) : products.length === 0 ? (
+        <EmptyState icon={Package} title="Aucun produit en stock" subtitle="Ajoutez votre premier article avec « Nouveau produit »." />
       ) : (
-        <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="p-3.5 text-center w-14">Photo</th>
-                  <th className="p-3.5">Code</th>
-                  <th className="p-3.5">Désignation</th>
-                  <th className="p-3.5">Catégorie</th>
-                  <th className="p-3.5 text-right">Prix Achat</th>
-                  <th className="p-3.5 text-right">Prix Vente</th>
-                  <th className="p-3.5 text-right">Stock Actuel</th>
-                  <th className="p-3.5 text-center">Statut</th>
-                  {has("stock.write") && <th className="p-3.5 text-center">Actions</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredProducts.map((prod) => {
-                  const stock = prod.stock ?? prod.current_stock ?? 0;
-                  const threshold = prod.alert_threshold || 10;
-                  const isLow = stock <= threshold;
-                  const isOut = stock <= 0;
-
-                  return (
-                    <tr key={prod.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-2 text-center">
-                        {prod.image_url ? (
-                          <img
-                            src={prod.image_url}
-                            alt={prod.name}
-                            referrerPolicy="no-referrer"
-                            className="w-10 h-10 rounded-lg object-cover mx-auto border border-slate-200 shadow-2xs"
-                            onError={(e) => {
-                              (e.target as any).src = "https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=100&auto=format&fit=crop&q=60";
-                            }}
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
-                            <ImageIcon className="w-5 h-5 opacity-40" />
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-3.5 font-mono font-bold text-slate-600">{prod.code}</td>
-                      <td className="p-3.5">
-                        <div className="font-semibold text-slate-900">{prod.name}</div>
-                        {prod.badge && (
-                          <span className="inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                            {prod.badge}
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3.5 text-slate-500">{prod.category || "Général"}</td>
-                      <td className="p-3.5 text-right font-mono text-slate-600">
-                        {fmtMoney(prod.cost_price || 0)}
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <div className="font-mono font-bold text-slate-900">
-                          {fmtMoney(prod.sell_price || 0)}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          {((prod.price_fc || Math.round(prod.sell_price * 2500))).toLocaleString()} FC
-                        </div>
-                      </td>
-                      <td className="p-3.5 text-right font-extrabold text-slate-900 text-sm">
-                        {fmtNum(stock)} <span className="text-slate-400 text-xs font-normal">{prod.unit || "u"}</span>
-                      </td>
-                      <td className="p-3.5 text-center">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            isOut
-                              ? "bg-red-50 text-red-700 border border-red-200"
-                              : isLow
-                              ? "bg-amber-50 text-amber-700 border border-amber-200"
-                              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          }`}
-                        >
-                          {isOut ? "Rupture" : isLow ? "Stock Faible" : "Normal"}
-                        </span>
-                      </td>
-                      {has("stock.write") && (
-                        <td className="p-3.5 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditModal(prod)}
-                              title="Modifier produit & photo"
-                              className="h-7 w-7 p-0 rounded-lg border-slate-200 text-slate-600 hover:text-slate-900"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setAdjustingProduct(prod)}
-                              className="h-7 text-[11px] rounded-lg border-slate-200"
-                            >
-                              <Sliders className="h-3 w-3 mr-1" /> Ajuster
-                            </Button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <>
+          {/* Indicateurs */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+            <KpiTile icon={Boxes} glow="from-blue-500 to-indigo-600" label="Total produits" value={fmtNum(scoped.length)} hint={`${fmtNum(totalUnits)} unités`} />
+            <KpiTile icon={Shapes} glow="from-violet-500 to-fuchsia-600" label="Catégories" value={fmtNum(catCount)} hint="Différentes catégories" />
+            <KpiTile icon={MapPin} glow="from-emerald-500 to-teal-600" label="Sites" value={fmtNum(siteCount)} hint="Sites actifs" />
+            <KpiTile icon={WarehouseIcon} glow="from-cyan-500 to-sky-600" label="Dépôts" value={fmtNum(depotCount)} hint="Dépôts au total" />
+            <KpiTile icon={Database} glow="from-[#0F3D68] to-[#1D6FB8]" label="Valeur du stock" value={fmtMoney(totalValue)} hint="Au prix d'achat" />
+            <KpiTile
+              icon={AlertTriangle}
+              glow="from-amber-400 to-orange-500"
+              label="Stock faible"
+              value={fmtNum(lowCount)}
+              hint={statusFilter === "low" ? "Filtre actif · retirer" : "Voir les produits"}
+              active={statusFilter === "low"}
+              onClick={() => toggleStatus("low")}
+            />
+            <KpiTile
+              icon={XCircle}
+              glow="from-rose-500 to-red-600"
+              label="Ruptures"
+              value={fmtNum(outCount)}
+              hint={statusFilter === "out" ? "Filtre actif · retirer" : "Voir les produits"}
+              active={statusFilter === "out"}
+              onClick={() => toggleStatus("out")}
+            />
           </div>
-        </div>
+
+          {/* Graphiques */}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <GlassCard title="Valeur du stock par site" icon={BarChart3}>
+              <BarsBySite rows={bySite} />
+            </GlassCard>
+            <GlassCard title="Répartition du stock par catégorie" icon={PieChart}>
+              <Donut slices={byCategory} total={totalValue} />
+            </GlassCard>
+            <GlassCard title={`Évolution du stock (valeur, ${EVOLUTION_DAYS} j)`} icon={TrendingUp}>
+              <Evolution points={evolution} />
+              <p className="mt-2 text-[11px] text-slate-500">Reconstituée à partir des commandes validées.</p>
+            </GlassCard>
+          </div>
+
+          {/* Catégories + produits */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
+            <GlassCard title="Catégories de produits" icon={FolderTree}>
+              <ul className="space-y-0.5 text-xs">
+                <li>
+                  <TreeButton active={category === ALL} onClick={() => { setCategory(ALL); setPage(1); }}>
+                    <FolderTree className="h-3.5 w-3.5" />
+                    <span className="flex-1">Toutes</span>
+                    <span className="tabular-nums text-slate-500">({inSite.length})</span>
+                  </TreeButton>
+                </li>
+                {categoryTree.map(([c, items]) => (
+                  <li key={c}>
+                    <TreeButton active={category === c} onClick={() => { setCategory(category === c ? ALL : c); setPage(1); }}>
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorByCategory.get(c) || OTHER_COLOR }} />
+                      <span className="min-w-0 flex-1 truncate">{c}</span>
+                      <span className="tabular-nums text-slate-500">({items.length})</span>
+                    </TreeButton>
+                    {category === c && (
+                      <ul className="ml-5 border-l border-cyan-200 py-1 pl-2">
+                        {items.map((p: any) => (
+                          <li key={p.id} className="truncate py-0.5 text-[11px] text-slate-500">{p.name}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </GlassCard>
+
+            <GlassCard title="Produits en stock" icon={Package}>
+              <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                {STATUS_FILTERS.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => { setStatusFilter(f.id); setPage(1); }}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all ${
+                      statusFilter === f.id
+                        ? "border-[#0F3D68] bg-[#0F3D68] text-white shadow-[0_0_14px_-4px_rgba(15,61,104,0.8)]"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    {f.dot && <span className={`h-1.5 w-1.5 rounded-full ${f.dot}`} />}
+                    {f.label}
+                    <span className="tabular-nums opacity-70">{statusCounts[f.id]}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] border-collapse text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
+                      <th className="px-2.5 py-3 font-semibold">Produit</th>
+                      <th className="px-2.5 py-3 text-right font-semibold">Prix achat</th>
+                      <th className="px-2.5 py-3 text-right font-semibold">Prix vente</th>
+                      <th className="px-2.5 py-3 font-semibold">Stock</th>
+                      <th className="px-2.5 py-3 text-right font-semibold">Valeur</th>
+                      <th className="px-2.5 py-3 text-center font-semibold">Statut</th>
+                      {has("stock.write") && <th className="px-2.5 py-3 text-center font-semibold">Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {visible.map((prod) => {
+                      const stock = stockOf(prod);
+                      const threshold = thresholdOf(prod);
+                      const st = statusOf(prod);
+                      const gauge = Math.min(100, threshold > 0 ? (stock / (threshold * 4)) * 100 : stock > 0 ? 100 : 0);
+                      return (
+                        <tr key={prod.id} className="group transition-colors hover:bg-cyan-50/40">
+                          <td className="px-2.5 py-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              {prod.image_url ? (
+                                <img
+                                  src={prod.image_url}
+                                  alt={prod.name}
+                                  referrerPolicy="no-referrer"
+                                  className="h-11 w-11 shrink-0 rounded-xl border border-slate-200 object-cover shadow-xs"
+                                  onError={(e) => {
+                                    (e.target as any).src = "https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=100&auto=format&fit=crop&q=60";
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+                                  <ImageIcon className="h-5 w-5 opacity-50" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <div className="truncate font-semibold text-slate-900">{prod.name}</div>
+                                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                  <span className="font-mono text-[10px] text-slate-500">{prod.code}</span>
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
+                                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: colorByCategory.get(categoryOf(prod)) || OTHER_COLOR }} />
+                                    {prod.category || "Général"}
+                                  </span>
+                                  {prod.badge && (
+                                    <span className="rounded border border-indigo-200 bg-indigo-50 px-1.5 text-[9px] font-bold text-indigo-700">{prod.badge}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-2.5 py-3 text-right font-mono text-slate-600">{fmtMoney(prod.cost_price || 0)}</td>
+                          <td className="px-2.5 py-3 text-right">
+                            <div className="font-mono font-bold text-slate-900">{fmtMoney(prod.sell_price || 0)}</div>
+                            <div className="font-mono text-[10px] text-slate-400">
+                              {(prod.price_fc || Math.round(prod.sell_price * 2500)).toLocaleString()} FC
+                            </div>
+                          </td>
+                          <td className="px-2.5 py-3">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-sm font-extrabold tabular-nums text-slate-900">{fmtNum(stock)}</span>
+                              <span className="text-[10px] text-slate-400">{prod.unit || "u"}</span>
+                            </div>
+                            <div className="mt-1 h-1 w-20 overflow-hidden rounded-full bg-slate-100" title={`Seuil d'alerte : ${fmtNum(threshold)}`}>
+                              <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${gauge}%` }} />
+                            </div>
+                          </td>
+                          <td className="px-2.5 py-3 text-right font-semibold tabular-nums text-slate-800">{fmtMoney(stock * (prod.cost_price || 0))}</td>
+                          <td className="px-2.5 py-3 text-center">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold ${st.cls}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
+                              {st.label === "Faible" ? "Stock faible" : st.label}
+                            </span>
+                          </td>
+                          {has("stock.write") && (
+                            <td className="px-2.5 py-3 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openEditModal(prod)}
+                                  title="Modifier produit & photo"
+                                  className="h-8 w-8 rounded-lg border-slate-200 p-0 text-slate-600 hover:border-cyan-300 hover:text-[#0F3D68]"
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setAdjustingProduct(prod)}
+                                  className="h-8 rounded-lg border-slate-200 text-[11px] hover:border-cyan-300 hover:text-[#0F3D68]"
+                                >
+                                  <Sliders className="mr-1 h-3.5 w-3.5" /> Ajuster
+                                </Button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                    {!visible.length && (
+                      <tr>
+                        <td colSpan={7} className="p-10 text-center text-slate-500">
+                          Aucun produit ne correspond à ces filtres.{" "}
+                          <button type="button" onClick={clearFilters} className="font-semibold text-[#0F3D68] underline">
+                            Effacer les filtres
+                          </button>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                <span>
+                  Affichage de {visible.length} sur {rows.length} produit(s)
+                </span>
+                <div className="flex items-center gap-1">
+                  <button type="button" disabled={curPage <= 1} onClick={() => setPage(curPage - 1)} aria-label="Page précédente" className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 bg-white disabled:opacity-40">
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setPage(n)}
+                      className={`h-7 min-w-7 rounded-lg px-2 font-semibold ${n === curPage ? "bg-[#0F3D68] text-white shadow-[0_0_12px_-4px_rgba(15,61,104,0.9)]" : "border border-slate-200 bg-white text-slate-700"}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button type="button" disabled={curPage >= pages} onClick={() => setPage(curPage + 1)} aria-label="Page suivante" className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 bg-white disabled:opacity-40">
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+
+          {/* Stock par site */}
+          <GlassCard title="Stock par site" icon={MapPin}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {bySite.map((s) => {
+                const pct = totalValue > 0 ? Math.round((s.value / totalValue) * 100) : 0;
+                return (
+                  <button
+                    key={s.site}
+                    type="button"
+                    onClick={() => { setSite(site === s.site ? ALL : s.site); setDepot(ALL); setPage(1); }}
+                    className={`rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${site === s.site ? "border-cyan-400 bg-cyan-50/50" : "border-slate-200 bg-white"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-[#0F3D68]" />
+                      <span className="font-bold text-slate-900">{s.site}</span>
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-500">{s.depots} dépôt(s)</div>
+                    <div className="mt-1 text-xs text-slate-700">
+                      Valeur : <strong className="tabular-nums">{fmtMoney(s.value)}</strong>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-[#1D6FB8]" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="w-9 text-right text-[11px] font-semibold tabular-nums text-slate-700">{pct} %</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </GlassCard>
+        </>
       )}
 
       {/* ADJUST STOCK MODAL */}
@@ -410,7 +830,7 @@ export default function StockPage() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreateProduct} className="space-y-3.5 pt-2 text-xs">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+              <div className="px-2.5 py-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
                 <Label className="text-xs font-bold text-slate-800 flex items-center justify-between">
                   <span>Photo du Produit</span>
                   <span className="text-[11px] font-normal text-slate-500">Visible dans la Boutique & Stock</span>
@@ -538,7 +958,7 @@ export default function StockPage() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleUpdateProduct} className="space-y-3.5 pt-2 text-xs">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+              <div className="px-2.5 py-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
                 <Label className="text-xs font-bold text-slate-800 flex items-center justify-between">
                   <span>Photo du Produit</span>
                   <span className="text-[11px] font-normal text-slate-500">Mise à jour en direct</span>
