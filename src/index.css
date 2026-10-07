@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@media print {
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  /* Hide app shell, navigation, modals backdrop and action buttons */
+  nav,
+  aside,
+  header,
+  .no-print,
+  button,
+  .print\:hidden,
+  [data-radix-portal] > div:first-child:not([role="dialog"]),
+  .sonner-toaster {
+    display: none !important;
+  }
+  /* Make printable modal fill the page cleanly */
+  .fixed.inset-0 {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  [role="dialog"] {
+    position: static !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    transform: none !important;
+  }
+  .printable-area {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

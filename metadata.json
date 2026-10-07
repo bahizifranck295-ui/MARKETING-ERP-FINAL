@@ -1,0 +1,6 @@
+{
+  "name": "ERP Distribution",
+  "description": "Plateforme de gestion intégrée (CRM, Ventes, Caisse, Stock, Crédits, Comptabilité)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
