@@ -194,6 +194,9 @@ export interface OrderItem {
   total_qty?: number;
   line_total: number;
   line_total_fc?: number;
+  // Source du stock fixée à la création de la vente
+  stock_source?: "embarked" | "on_order";
+  embarked_id?: string;
 }
 
 export interface Order {

@@ -20,7 +20,7 @@ import {
   ALL_PERMISSION_CODES,
 } from "./db";
 import { mountStockStructureRoutes } from "./stockStructure";
-import { applyOrderStockOut, mountDeliveryRoutes } from "./delivery";
+import { applyOrderStockOut, mountDeliveryRoutes, tagOrderStockSource } from "./delivery";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "erp_secret_jwt_key_2026";
 
@@ -961,6 +961,8 @@ apiRouter.post("/orders", authenticate, (req, res) => {
     updated_at: new Date().toISOString(),
   };
 
+  // Origine du stock de chaque ligne (stock embarqué du marketeur ou sur commande)
+  tagOrderStockSource(newOrder);
   db.orders.unshift(newOrder);
   res.status(201).json(newOrder);
 });

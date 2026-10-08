@@ -24,6 +24,7 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [stocks, setStocks] = useState<any[]>([]);
   const [moves, setMoves] = useState<any[]>([]);
+  const [salesRows, setSalesRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Formulaire de déstockage : Dépôt → Produit → Quantité → Marketeur → Chauffeur
@@ -41,6 +42,10 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
 
   const load = async () => {
     try {
+      api
+        .get("/delivery/embarked/sales")
+        .then(({ data }) => setSalesRows(Array.isArray(data) ? data : []))
+        .catch(() => setSalesRows([]));
       const calls = [api.get("/delivery/embarked"), api.get("/delivery/embarked/movements")];
       if (canManage) calls.push(api.get("/stock/depots"), api.get("/products"), api.get("/stock/levels"), api.get("/delivery/marketers"), api.get("/delivery/vehicles"));
       const [s, m, d, p, l, mk, v] = await Promise.all(calls);
@@ -91,7 +96,8 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
   };
 
   const stock = stocks.find((s) => s.id === selected);
-  const sales = moves.filter((m) => m.type === "sale" && m.embarked_id === selected).slice(0, 30);
+  // Ventes terrain du marketeur (commandes issues de son stock embarqué)
+  const sales = salesRows.filter((r) => r.embarked_id === selected).slice(0, 50);
   const filteredMoves = moves.filter(
     (m) =>
       (filters.marketer === "all" || m.marketer_id === filters.marketer) &&
@@ -279,21 +285,24 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
               <li key={m.id} className="space-y-1 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-semibold text-slate-800">{m.product_name}</span>
-                  <span className="shrink-0 font-black tabular-nums text-slate-900">{fmtNum(-m.quantity)} u.</span>
+                  <span className="shrink-0 font-black tabular-nums text-slate-900">{fmtNum(m.quantity)} u.</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-slate-500">
                   <span className="font-mono font-bold text-[#0F3D68]">{m.order_code || "—"}</span>
                   <span className="font-bold tabular-nums text-slate-800">{m.amount != null ? fmtMoney(m.amount) : "—"}</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-slate-500">
-                  <span className="truncate">{m.client_name} · {fmtDateTime(m.at)}</span>
-                  {m.order_status ? <StatusBadge status={m.order_status} /> : <span>reste {fmtNum(m.balance_after)}</span>}
+                  <span className="truncate">{m.client_name} · {fmtDateTime(m.created_at)}</span>
+                  <StatusBadge status={m.order_status} />
                 </div>
-                {m.order_id && onInvoice && (
+                {m.order_status === "pending_approval" && (
+                  <div className="text-[10px] font-semibold text-amber-700">En attente d'approbation dans Commandes · le camion sera déstocké à l'approbation</div>
+                )}
+                {onInvoice && !["pending_approval", "cancelled", "rejected"].includes(m.order_status) && (
                   <button
                     type="button"
                     onClick={() =>
-                      onInvoice({ id: m.order_id, code: m.order_code, client_name: m.client_name, created_at: m.at, total: m.amount || 0, items: [] })
+                      onInvoice({ id: m.order_id, code: m.order_code, client_name: m.client_name, created_at: m.created_at, total: m.amount || 0, items: [] })
                     }
                     className="inline-flex items-center gap-1 rounded-lg border border-[#0F3D68]/20 bg-[#0F3D68]/5 px-2 py-1 text-[10px] font-bold text-[#0F3D68] hover:bg-[#0F3D68]/10"
                     title="Ouvrir la facture dans le visualiseur du navigateur (nouvel onglet)"
@@ -303,7 +312,7 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
                 )}
               </li>
             ))}
-            {!sales.length && <li className="py-8 text-center text-slate-500">Aucune vente depuis ce stock embarqué.</li>}
+            {!sales.length && <li className="py-8 text-center text-slate-500">Aucune vente terrain depuis ce stock embarqué.</li>}
           </ul>
         </GlassCard>
       </div>

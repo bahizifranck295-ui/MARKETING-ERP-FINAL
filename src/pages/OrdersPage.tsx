@@ -298,6 +298,7 @@ export default function OrdersPage() {
                   <div className="text-xs text-slate-500">
                     Par : {ord.marketer_name || "Vendeur"} • {ord.items?.length || 0} article(s)
                   </div>
+                  <StockOriginBadge order={ord} />
                   {ord.status === "cancelled" && ord.rejection_reason && (
                     <div className="text-[11px] text-red-600 bg-red-50 px-2 py-0.5 rounded-lg inline-block">
                       Motif : {ord.rejection_reason}
@@ -424,6 +425,7 @@ export default function OrdersPage() {
                 <div className="min-w-0">
                   <span className="text-[8.5px] text-slate-400 block font-semibold uppercase">Commercial</span>
                   <span className="font-medium text-slate-800 truncate block text-[10.5px]">{selectedOrder.marketer_name || "Direction Commerciale"}</span>
+                  <StockOriginBadge order={selectedOrder} />
                 </div>
                 <div className="min-w-0">
                   <span className="text-[8.5px] text-slate-400 block font-semibold uppercase">Paiement</span>
@@ -700,5 +702,20 @@ export default function OrdersPage() {
         }}
       />
     </div>
+  );
+}
+
+// Origine du stock enregistrée à la création de la vente
+function StockOriginBadge({ order }: { order: any }) {
+  const origin = order?.stock_origin;
+  if (origin !== "embarked" && origin !== "mixed") return null;
+  return (
+    <span
+      className="inline-flex max-w-full items-center gap-1 truncate rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800"
+      title="Déstockage à l'approbation : stock embarqué du marketeur, jamais le dépôt"
+    >
+      {origin === "embarked" ? "STOCK EMBARQUÉ" : "STOCK EMBARQUÉ + SUR COMMANDE"}
+      {order.embarked_label ? ` · ${String(order.embarked_label).replace(/^Stock embarqué · /, "")}` : ""}
+    </span>
   );
 }
