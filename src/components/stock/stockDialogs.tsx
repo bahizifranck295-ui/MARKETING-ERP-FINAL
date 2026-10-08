@@ -124,6 +124,7 @@ export function DepotFormDialog({ site, onClose, onSaved }: { site: any; onClose
         manager_user_id: f.depot_manager.value || undefined,
         location: f.depot_location.value,
         description: f.depot_description.value,
+        capacity: f.depot_capacity.value,
         is_active: active,
       });
       toast.success(`Dépôt ${data.name} créé sur le site ${site.name}`);
@@ -183,6 +184,11 @@ export function DepotFormDialog({ site, onClose, onSaved }: { site: any; onClose
               <Label htmlFor="depot_location" className="text-xs font-semibold">Localisation</Label>
               <input id="depot_location" name="depot_location" placeholder="Quartier, avenue…" className={fieldCls} />
             </div>
+          </div>
+          <div>
+            <Label htmlFor="depot_capacity" className="text-xs font-semibold">Capacité du dépôt (unités)</Label>
+            <input id="depot_capacity" name="depot_capacity" type="number" min={1} step="1" placeholder="Ex. 5000" className={fieldCls} />
+            <p className="mt-1 text-[10px] text-slate-500">Quantité totale de marchandise que le dépôt peut contenir. Laissez vide si elle n'est pas limitée.</p>
           </div>
           <div>
             <Label htmlFor="depot_description" className="text-xs font-semibold">Description</Label>

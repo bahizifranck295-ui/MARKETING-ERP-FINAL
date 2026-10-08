@@ -112,6 +112,7 @@ export interface Warehouse {
   site_id?: string;
   manager?: string;
   manager_user_id?: string;
+  capacity?: number;
   description?: string;
   is_active: boolean;
   created_at: string;

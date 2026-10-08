@@ -201,13 +201,38 @@ function productStats(warehouseIds: Set<string>) {
 
 function depotView(w: Warehouse) {
   const site = sites().find((s) => s.id === w.site_id);
+  const stats = productStats(new Set([w.id]));
+  const capacity = Number(w.capacity) || 0;
   return {
     ...w,
     site_name: site?.name || "",
     site_code: site?.code || "",
     label: warehouseLabel(w),
-    ...productStats(new Set([w.id])),
+    ...stats,
+    // Occupation du dépôt par rapport à sa capacité (en unités)
+    free_capacity: capacity ? Math.max(0, capacity - stats.quantity) : null,
+    occupancy: capacity ? Math.round((stats.quantity / capacity) * 100) : null,
   };
+}
+
+// Capacité : quantité totale qu'un dépôt peut contenir (vide = illimitée)
+function depotQuantity(warehouseId: string) {
+  return levels()
+    .filter((l) => l.warehouse_id === warehouseId)
+    .reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+}
+function capacityError(w: Warehouse, incoming: number) {
+  const capacity = Number(w.capacity) || 0;
+  if (!capacity || incoming <= 0) return null;
+  const free = capacity - depotQuantity(w.id);
+  return incoming > free
+    ? `Capacité dépassée : ${warehouseLabel(w)} peut encore recevoir ${Math.max(0, free)} unité(s) (capacité ${capacity})`
+    : null;
+}
+function parseCapacity(v: any): number | undefined | "invalid" {
+  if (v === undefined || v === null || String(v).trim() === "") return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : "invalid";
 }
 
 function nextTransferCode() {
@@ -300,11 +325,14 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     if (db.warehouses.some((w) => norm(w.code) === norm(code))) return res.status(409).json({ detail: `Le code ${code} est déjà utilisé` });
     if (db.warehouses.some((w) => w.site_id === site.id && norm(w.name) === norm(name)))
       return res.status(409).json({ detail: `Le site ${site.name} a déjà un dépôt « ${name} »` });
+    const capacity = parseCapacity(b.capacity);
+    if (capacity === "invalid") return res.status(400).json({ detail: "La capacité doit être un nombre supérieur à 0" });
     const w: Warehouse = {
       id: uuidv4(),
       code,
       name,
       site_id: site.id,
+      capacity,
       manager_user_id: managerUser?.id,
       manager: managerUser?.full_name || "",
       address: String(b.location || "").trim(),
@@ -326,6 +354,11 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     if (b.manager !== undefined) w.manager = String(b.manager).trim();
     if (b.location !== undefined) w.address = String(b.location).trim();
     if (b.description !== undefined) w.description = String(b.description).trim();
+    if (b.capacity !== undefined) {
+      const capacity = parseCapacity(b.capacity);
+      if (capacity === "invalid") return res.status(400).json({ detail: "La capacité doit être un nombre supérieur à 0" });
+      w.capacity = capacity;
+    }
     if (b.is_active !== undefined) w.is_active = !!b.is_active;
     w.updated_at = nowIso();
     res.json(depotView(w));
@@ -366,6 +399,8 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     if (!p) return res.status(400).json({ detail: "Produit introuvable" });
     const delta = Number(req.body?.quantity);
     if (!Number.isFinite(delta) || delta === 0) return res.status(400).json({ detail: "Indiquez une quantité à ajouter (+) ou à retirer (-)" });
+    const capErr = capacityError(w, delta);
+    if (capErr) return res.status(400).json({ detail: capErr });
     const lvl = getLevel(p.id, w.id, delta > 0);
     const current = lvl?.quantity || 0;
     if (current + delta < 0)
@@ -394,6 +429,8 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     if (!p) return res.status(400).json({ detail: "Produit introuvable" });
     const qty = Number(req.body?.quantity) || 0;
     if (qty < 0 || !Number.isFinite(qty)) return res.status(400).json({ detail: "La quantité initiale doit être positive" });
+    const capErr = capacityError(w, qty);
+    if (capErr) return res.status(400).json({ detail: capErr });
     const lvl = getLevel(p.id, w.id, true)!;
     lvl.quantity += qty;
     if (req.body?.location_ref !== undefined) lvl.location_ref = String(req.body.location_ref).trim() || undefined;
@@ -436,6 +473,8 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
         detail: `Quantité insuffisante : ${available} disponible(s) dans ${warehouseLabel(from)} pour ${p.name}`,
       });
 
+    const capErr = capacityError(to, qty);
+    if (capErr) return res.status(400).json({ detail: capErr });
     const dst = getLevel(p.id, to.id, true)!;
     src!.quantity -= qty;
     dst.quantity += qty;

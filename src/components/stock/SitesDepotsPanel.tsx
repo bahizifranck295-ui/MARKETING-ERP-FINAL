@@ -23,6 +23,26 @@ import { Button } from "@/components/ui/button";
 import { ActivePill, GlassCard, KpiTile, ProductPhoto, StatusPill, fmtDateTime, stockStatus } from "@/components/stock/ui";
 import { AddProductToDepotDialog, AdjustInDepotDialog, DepotFormDialog, SiteFormDialog, TransferDialog } from "@/components/stock/stockDialogs";
 
+// Occupation du dépôt par rapport à sa capacité
+function CapacityGauge({ depot }: { depot: any }) {
+  if (!depot.capacity) return <span className="text-[11px] text-slate-400">Non définie</span>;
+  const pct = Math.min(100, depot.occupancy || 0);
+  const tone = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-gradient-to-r from-cyan-400 to-emerald-500";
+  return (
+    <div className="min-w-[120px]" title={`${fmtNum(depot.free_capacity)} unité(s) libre(s)`}>
+      <div className="flex justify-between text-[10px] text-slate-500">
+        <span className="tabular-nums">
+          {fmtNum(depot.quantity)} / {fmtNum(depot.capacity)}
+        </span>
+        <span className="font-semibold tabular-nums text-slate-700">{depot.occupancy} %</span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 type View = { level: "sites" } | { level: "site"; siteId: string } | { level: "depot"; siteId: string; depotId: string };
 
 function Breadcrumb({ items }: { items: Array<{ label: string; onClick?: () => void }> }) {
@@ -225,6 +245,7 @@ export default function SitesDepotsPanel({
                     <th className="px-2.5 py-3 font-semibold">Dépôt</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Produits</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Quantité</th>
+                    <th className="px-2.5 py-3 font-semibold">Capacité</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Valeur du stock</th>
                     <th className="px-2.5 py-3 text-center font-semibold">Statut</th>
                     <th className="px-2.5 py-3 text-center font-semibold">Actions</th>
@@ -248,6 +269,9 @@ export default function SitesDepotsPanel({
                         </td>
                         <td className="px-2.5 py-3 text-right font-semibold tabular-nums">{fmtNum(d.product_count)}</td>
                         <td className="px-2.5 py-3 text-right tabular-nums">{fmtNum(d.quantity)}</td>
+                        <td className="px-2.5 py-3">
+                          <CapacityGauge depot={d} />
+                        </td>
                         <td className="px-2.5 py-3 text-right font-semibold tabular-nums">{fmtMoney(d.value)}</td>
                         <td className="px-2.5 py-3 text-center">
                           <ActivePill active={d.is_active !== false} />
@@ -266,7 +290,7 @@ export default function SitesDepotsPanel({
                     ))}
                   {!depots.some((d) => d.site_id === site.id) && (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-500">
+                      <td colSpan={7} className="p-8 text-center text-slate-500">
                         Ce site n'a pas encore de dépôt. Ajoutez-en un avec « Nouveau dépôt ».
                       </td>
                     </tr>
@@ -327,7 +351,17 @@ export default function SitesDepotsPanel({
 
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <KpiTile icon={Boxes} glow="from-blue-500 to-indigo-600" label="Produits" value={fmtNum(detail.depot.product_count)} hint="Présents dans ce dépôt" />
-                <KpiTile icon={Layers} glow="from-cyan-500 to-sky-600" label="Quantité totale" value={fmtNum(detail.depot.quantity)} hint="Toutes unités" />
+                <KpiTile
+                  icon={Layers}
+                  glow="from-cyan-500 to-sky-600"
+                  label="Quantité totale"
+                  value={fmtNum(detail.depot.quantity)}
+                  hint={
+                    detail.depot.capacity
+                      ? `Capacité ${fmtNum(detail.depot.capacity)} · ${detail.depot.occupancy} % occupé · ${fmtNum(detail.depot.free_capacity)} libres`
+                      : "Capacité non définie"
+                  }
+                />
                 <KpiTile icon={Database} glow="from-[#0F3D68] to-[#1D6FB8]" label="Valeur du stock" value={fmtMoney(detail.depot.value)} hint="Au prix d'achat" />
                 <KpiTile icon={TriangleAlert} glow="from-amber-400 to-orange-500" label="Stock faible" value={fmtNum(detail.depot.low_count)} hint="Sous le seuil d'alerte" />
               </div>
