@@ -197,6 +197,8 @@ export interface OrderItem {
   // Source du stock fixée à la création de la vente
   stock_source?: "embarked" | "on_order";
   embarked_id?: string;
+  embarked_owner_id?: string;
+  embarked_owner_name?: string;
 }
 
 export interface Order {

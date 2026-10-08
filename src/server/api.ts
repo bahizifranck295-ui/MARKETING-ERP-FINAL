@@ -20,7 +20,7 @@ import {
   ALL_PERMISSION_CODES,
 } from "./db";
 import { mountStockStructureRoutes } from "./stockStructure";
-import { applyOrderStockOut, mountDeliveryRoutes, tagOrderStockSource } from "./delivery";
+import { applyOrderStockOut, embarkedAvailability, mountDeliveryRoutes, tagOrderStockSource } from "./delivery";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "erp_secret_jwt_key_2026";
 
@@ -961,8 +961,9 @@ apiRouter.post("/orders", authenticate, (req, res) => {
     updated_at: new Date().toISOString(),
   };
 
-  // Origine du stock de chaque ligne (stock embarqué du marketeur ou sur commande)
-  tagOrderStockSource(newOrder);
+  // Origine exacte du stock de chaque ligne : stock embarqué du marketeur vendeur ou dépôt
+  const sourceError = tagOrderStockSource(newOrder, { strict: true, requested: req.body.stock_source });
+  if (sourceError) return res.status(400).json({ detail: sourceError });
   db.orders.unshift(newOrder);
   res.status(201).json(newOrder);
 });
@@ -1004,7 +1005,16 @@ apiRouter.post("/orders/:id/reject", authenticate, (req, res) => {
 
 // BOUTIQUE
 apiRouter.get("/boutique/products", authenticate, (req, res) => {
-  res.json(db.products.filter((p) => p.is_active));
+  // Stock embarqué du vendeur connecté : quantités réelles de son camion
+  const { es, byProduct } = embarkedAvailability(((req as any).user as User).id);
+  res.json(
+    db.products
+      .filter((p) => p.is_active)
+      .map((p) => {
+        const row = byProduct.get(p.id);
+        return row ? { ...p, embarked_id: es.id, embarked_label: es.marketer_name, embarked_qty: row.quantity, embarked_available: row.available } : p;
+      })
+  );
 });
 
 apiRouter.get("/boutique/my-orders", authenticate, (req, res) => {

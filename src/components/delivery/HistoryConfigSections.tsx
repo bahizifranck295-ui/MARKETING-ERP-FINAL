@@ -223,7 +223,7 @@ export function DeliveryConfigSection({ canManage, onChanged }: { canManage: boo
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <GlassCard title="Configuration des départements" icon={Settings2}>
           <p className="mb-3 text-[11px] text-slate-500">
-            Catégories créées dans Stock › Catégories. En « Stock embarqué », les produits de la catégorie vendus par un marketeur sont retirés de son camion ; en « Sur commande », ils suivent le parcours de livraison.
+            Catégories créées dans Stock › Catégories (mode de distribution indicatif). Le déstockage suit toujours la source réelle de la vente : un produit vendu depuis le camion d'un marketeur est retiré de SON stock embarqué ; une vente depuis le dépôt suit le parcours de livraison.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] border-collapse text-left text-xs">

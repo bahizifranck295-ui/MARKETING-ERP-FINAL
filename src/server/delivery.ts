@@ -142,20 +142,50 @@ function embarkedView(es: any) {
 }
 
 /**
- * À la création de la vente : enregistre la source du stock de chaque ligne.
- * - « embarked » : produit d'une catégorie en mode Stock embarqué, présent dans
- *   le camion du marketeur qui réalise la vente → lié à SON stock embarqué.
- * - « on_order » : tout le reste (fonctionnement sur commande / dépôt).
+ * Stock embarqué d'un marketeur, vu comme un vrai stock :
+ * quantité réelle dans le camion, quantité réservée par ses ventes en attente
+ * d'approbation, et quantité encore disponible à la vente.
  */
-export function tagOrderStockSource(order: Order) {
+export function embarkedAvailability(marketerId: string, exceptOrderId?: string) {
   ensureStockStructure();
-  const es = embarkedFor(order.marketer_id || "");
+  const es = embarkedFor(marketerId || "");
+  const byProduct = new Map<string, { quantity: number; reserved: number; available: number }>();
+  if (!es) return { es: null as any, byProduct };
+  for (const l of embarkedLevels().filter((x) => x.embarked_id === es.id && x.quantity > 0))
+    byProduct.set(l.product_id, { quantity: l.quantity, reserved: 0, available: l.quantity });
+  for (const o of db.orders) {
+    if (o.status !== "pending_approval" || o.id === exceptOrderId) continue;
+    for (const it of o.items || []) {
+      const row = it.stock_source === "embarked" && it.embarked_id === es.id ? byProduct.get(it.product_id) : undefined;
+      if (row) {
+        row.reserved += it.quantity;
+        row.available = Math.max(0, row.quantity - row.reserved);
+      }
+    }
+  }
+  return { es, byProduct };
+}
+
+/**
+ * À la création de la vente : enregistre la source exacte du stock de chaque ligne.
+ * - « embarked » : le produit est dans le camion du marketeur qui vend → la ligne
+ *   référence SON stock embarqué (identifiant + propriétaire).
+ * - « on_order » : sinon, ou si la vente est explicitement faite depuis le dépôt.
+ * En mode strict (création), refuse une quantité supérieure au stock embarqué disponible.
+ */
+export function tagOrderStockSource(order: Order, opts: { strict?: boolean; requested?: string } = {}): string | null {
+  const { es, byProduct } = embarkedAvailability(order.marketer_id || "", order.id);
+  const fromDepot = opts.requested === "depot" || opts.requested === "on_order";
   for (const it of order.items) {
     if (it.stock_source) continue;
-    const inTruck = !!es && (embarkedLevel(es.id, it.product_id, false)?.quantity || 0) > 0;
-    if (inTruck && modeOf(categoryOfProduct(it.product_id)) === "embarked") {
+    const row = byProduct.get(it.product_id);
+    if (es && row && !fromDepot) {
+      if (opts.strict && it.quantity > row.available)
+        return `Stock embarqué insuffisant pour ${it.product_name} : ${row.available} disponible(s) dans le camion de ${es.marketer_name}${row.reserved ? ` (${row.reserved} déjà réservé(s) par des ventes en attente)` : ""}`;
       it.stock_source = "embarked";
-      it.embarked_id = es!.id;
+      it.embarked_id = es.id;
+      it.embarked_owner_id = es.marketer_id;
+      it.embarked_owner_name = es.marketer_name;
     } else it.stock_source = "on_order";
   }
   const emb = order.items.filter((it) => it.stock_source === "embarked");
@@ -164,8 +194,10 @@ export function tagOrderStockSource(order: Order) {
   (order as any).delivery_mode = origin;
   if (emb.length && es) {
     (order as any).embarked_id = es.id;
+    (order as any).embarked_owner_id = es.marketer_id;
     (order as any).embarked_label = embarkedLabel(es);
   }
+  return null;
 }
 
 /**
@@ -185,7 +217,7 @@ export function applyOrderStockOut(order: Order, user: User): string | null {
   // Contrôles avant toute sortie
   for (const it of embarkedItems) {
     const es = embarkedStocks().find((e) => e.id === it.embarked_id);
-    if (!es) return `Le stock embarqué de ${order.marketer_name} lié à cette vente est introuvable`;
+    if (!es) return `Le stock embarqué de ${it.embarked_owner_name || order.marketer_name} lié à cette vente est introuvable`;
     const have = embarkedLevel(es.id, it.product_id, false)?.quantity || 0;
     if (have < it.quantity) return `Stock embarqué insuffisant pour ${it.product_name} : ${have} dans le camion de ${es.marketer_name}, ${it.quantity} vendu(s)`;
   }
