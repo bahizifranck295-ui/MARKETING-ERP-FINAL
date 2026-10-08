@@ -921,10 +921,11 @@ apiRouter.post("/orders", authenticate, (req, res) => {
   const totalFC = Math.round(subtotalFC);
 
   const isBoutique = source === "boutique";
-  const orderCount = db.orders.length + 1;
-  const orderCode = isBoutique
-    ? `CMD-${String(orderCount + 150).padStart(5, "0")}`
-    : `CMD-2026-${String(orderCount).padStart(4, "0")}`;
+  // Numéro unique : on avance tant que le code existe déjà
+  let orderCount = db.orders.length + 1;
+  const makeCode = (n: number) => (isBoutique ? `CMD-${String(n + 150).padStart(5, "0")}` : `CMD-2026-${String(n).padStart(4, "0")}`);
+  while (db.orders.some((o) => o.code === makeCode(orderCount))) orderCount++;
+  const orderCode = makeCode(orderCount);
 
   const isCash = payment_method === "cash";
 
@@ -964,8 +965,16 @@ apiRouter.post("/orders", authenticate, (req, res) => {
   res.status(201).json(newOrder);
 });
 
+// Même règle que l'écran Commandes : seuls les profils autorisés approuvent ou rejettent
+function canApproveOrders(user: User) {
+  if (user.role_code === "super_admin" || user.role_code === "chef_dept" || user.role_code === "dg" || (user as any).is_transversal) return true;
+  const perms = db.roles.find((r) => r.code === user.role_code)?.permissions || [];
+  return perms.includes("orders.approve") || perms.includes("orders.validate");
+}
+
 apiRouter.post("/orders/:id/approve", authenticate, (req, res) => {
   const user = (req as any).user as User;
+  if (!canApproveOrders(user)) return res.status(403).json({ detail: "Vous n'avez pas la permission d'approuver les commandes" });
   const order = db.orders.find((o) => o.id === req.params.id);
   if (!order) return res.status(404).json({ detail: "Commande introuvable" });
 
@@ -982,6 +991,7 @@ apiRouter.post("/orders/:id/approve", authenticate, (req, res) => {
 });
 
 apiRouter.post("/orders/:id/reject", authenticate, (req, res) => {
+  if (!canApproveOrders((req as any).user as User)) return res.status(403).json({ detail: "Vous n'avez pas la permission de rejeter les commandes" });
   const order = db.orders.find((o) => o.id === req.params.id);
   if (!order) return res.status(404).json({ detail: "Commande introuvable" });
   order.status = "cancelled";
