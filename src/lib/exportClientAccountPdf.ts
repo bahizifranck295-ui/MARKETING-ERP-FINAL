@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";
+import { saveFile } from "@/lib/documentViewer";
 
 export interface AccountTransactionItem {
   id: string;
@@ -96,7 +97,7 @@ function formatSoldeText(val: number | undefined): { text: string; color: [numbe
 
 export async function generateClientAccountPdf(
   options: ClientAccountExportOptions
-): Promise<void> {
+): Promise<boolean> {
   const {
     client,
     transactions,
@@ -110,7 +111,7 @@ export async function generateClientAccountPdf(
 
   if (!client) {
     toast.error("Données du client manquantes pour l'export PDF");
-    return;
+    return false;
   }
 
   const logoDataUrl = await getLogoPngDataUrl();
@@ -511,6 +512,6 @@ export async function generateClientAccountPdf(
 
   // Save the generated PDF
   const filename = `PREMIDIS_Releve_Compte_${client.code || "CLIENT"}_${new Date().toISOString().slice(0, 10)}.pdf`;
-  doc.save(filename);
-  toast.success(`Exportation PDF réussie : ${filename}`);
+  // Téléchargement réel ; la notification vient de saveFile, après réussite
+  return saveFile(doc.output("blob"), filename);
 }

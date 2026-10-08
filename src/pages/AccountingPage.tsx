@@ -135,7 +135,7 @@ export default function AccountingPage() {
         editedBy: user?.full_name || "Utilisateur",
         filtersLabel: `${modLabel[moduleFilter] || moduleFilter} · ${stLabel[statusFilter] || statusFilter}${search.trim() ? ` · « ${search.trim()} »` : ""}`,
       });
-      toast.success(`Journal exporté : ${fileName}`);
+      void fileName; // notification affichée par saveFile après le téléchargement réel
     } catch (err) {
       toast.error(extractErrorMessage(err, "Export PDF impossible"));
     } finally {

@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { saveFile } from "@/lib/documentViewer";
 
 /*
  * Export PDF du journal comptable, au format des factures PREMIDIS :
@@ -227,6 +228,6 @@ export async function exportJournalPdf({ movements, editedBy, filtersLabel }: Jo
   }
 
   const fileName = `Journal_Comptable_PREMIDIS_${now.toISOString().slice(0, 10)}.pdf`;
-  doc.save(fileName);
-  return fileName;
+  // Téléchargement réel : renvoie le nom du fichier seulement s'il a été enregistré
+  return (await saveFile(doc.output("blob"), fileName)) ? fileName : null;
 }

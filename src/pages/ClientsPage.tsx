@@ -152,17 +152,19 @@ export default function ClientsPage() {
     try {
       const enrichedClients = await fetchEnrichedClientsForExport();
       let exportedCount = 0;
+      let generated = 0;
       for (const dept of OFFICIAL_DEPARTMENTS) {
         const count = enrichedClients.filter(
           (c) => normalizeDepartment(c.department || c.business_unit) === dept
         ).length;
         if (count > 0) {
-          await generateClientsSummaryPdf(enrichedClients, { department: dept });
-          exportedCount++;
+          generated++;
+          if (await generateClientsSummaryPdf(enrichedClients, { department: dept })) exportedCount++;
           await new Promise((r) => setTimeout(r, 600));
         }
       }
-      toast.success(`${exportedCount} documents départements générés avec succès !`);
+      if (exportedCount) toast.success(`${exportedCount} / ${generated} documents départements téléchargés`);
+      else toast.error("Aucun document n'a été téléchargé");
       setIsExportModalOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Erreur lors de l'exportation séparée"));

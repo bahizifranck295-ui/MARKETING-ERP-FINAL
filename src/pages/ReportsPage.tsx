@@ -31,7 +31,7 @@ import {
   CashClosingReceiptData,
   CashReceiptData,
 } from "@/lib/generateCashReceiptPdf";
-import { openDocumentUrl, openDocumentInNativeViewer } from "@/lib/documentViewer";
+import { openDocumentUrl, openDocumentInNativeViewer, saveFile } from "@/lib/documentViewer";
 import StockReportDashboard from "@/components/reports/StockReportDashboard";
 import {
   Dialog,
@@ -306,16 +306,9 @@ export default function ReportsPage() {
       ["Articles en Alerte", lowStockCount],
     ];
 
-    const csvContent =
-      "data:text/csv;charset=utf-8,\uFEFF" + lines.map((e) => e.join(";")).join("\n");
-    const encoded = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.href = encoded;
-    link.download = `Rapport_PREMIDIS_${period}_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Rapport exporté avec succès en format CSV / Excel");
+    const csv = "\uFEFF" + lines.map((e) => e.join(";")).join("\n");
+    // Téléchargement réel ; la notification vient de saveFile, après réussite
+    saveFile(new Blob([csv], { type: "text/csv" }), `Rapport_PREMIDIS_${period}_${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
   const handlePrintReport = (docType: string) => {

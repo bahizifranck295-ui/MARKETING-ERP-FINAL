@@ -46,7 +46,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { openDocumentInNativeViewer } from "@/lib/documentViewer";
+import { openDocumentInNativeViewer, saveFile } from "@/lib/documentViewer";
 import {
   generateCashReceiptPdf,
   generateCashClosingReceiptPdf,
@@ -607,9 +607,6 @@ export default function CashPage() {
 
       // Visualiseur natif du navigateur (nouvel onglet), comme tous les documents de l'application
       await openDocumentInNativeViewer(result.dataUrl, result.fileName);
-      toast("Bordereau officiel généré avec succès !", {
-        action: { label: "Ouvrir le bordereau", onClick: () => openDocumentInNativeViewer(result.dataUrl, result.fileName) },
-      });
     } catch (err) {
       toast.dismiss("cash-slip");
       toast.error(extractErrorMessage(err, "Erreur génération reçu"));
@@ -1771,12 +1768,7 @@ export default function CashPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => {
-                  const a = document.createElement("a");
-                  a.href = slipModalData.url;
-                  a.download = `Bordereau_${Date.now()}.pdf`;
-                  a.click();
-                }}
+                onClick={() => saveFile(slipModalData.url, `Bordereau_${Date.now()}.pdf`)}
                 className="text-xs gap-1.5"
               >
                 <Download className="w-4 h-4" />

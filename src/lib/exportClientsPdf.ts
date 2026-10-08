@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";
+import { saveFile } from "@/lib/documentViewer";
 
 export interface ClientPdfItem {
   id?: string;
@@ -113,10 +114,10 @@ export interface ExportPdfOptions {
 export async function generateClientsSummaryPdf(
   clients: ClientPdfItem[],
   options?: ExportPdfOptions
-): Promise<void> {
+): Promise<boolean> {
   if (!clients || clients.length === 0) {
     toast.error("Aucun client à exporter");
-    return;
+    return false;
   }
 
   const selectedDepartment = options?.department && options.department !== "all"
@@ -130,7 +131,7 @@ export async function generateClientsSummaryPdf(
 
   if (filteredClients.length === 0) {
     toast.error(`Aucun client trouvé pour le département ${selectedDepartment}`);
-    return;
+    return false;
   }
 
   // Pre-fetch logo as data URL for jsPDF compatibility
@@ -553,6 +554,6 @@ export async function generateClientsSummaryPdf(
     ? "par_departement"
     : `departement_${selectedDepartment.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
   const filename = `PREMIDIS_Liste_clients_${deptSuffix}_${new Date().toISOString().slice(0, 10)}.pdf`;
-  doc.save(filename);
-  toast.success(`Exportation réussie : ${filename}`);
+  // Téléchargement réel ; la notification vient de saveFile, après réussite
+  return saveFile(doc.output("blob"), filename);
 }

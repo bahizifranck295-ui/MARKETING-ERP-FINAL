@@ -12,7 +12,7 @@ import { jsPDF } from "jspdf";
 import { toast } from "sonner";
 import { fmtMoney, fmtDate } from "@/components/erp-ui";
 import { api } from "@/lib/api";
-import { openDocumentInNativeViewer } from "@/lib/documentViewer";
+import { openPendingTab, presentDocument } from "@/lib/documentViewer";
 import PremidisLogo from "./PremidisLogo";
 
 export interface InvoiceItem {
@@ -90,16 +90,7 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
       setDetailsReady(false);
       return;
     }
-    try {
-      pendingTab.current = window.open("", "_blank");
-      if (pendingTab.current) {
-        pendingTab.current.document.title = `Facture ${initialOrder.code || ""}`;
-        pendingTab.current.document.body.innerHTML =
-          '<p style="font-family:sans-serif;color:#211A5C;padding:24px">Génération de la facture en cours…</p>';
-      }
-    } catch {
-      pendingTab.current = null;
-    }
+    pendingTab.current = openPendingTab(`Facture ${initialOrder.code || ""}`);
     // Charger les détails de commande si items manquants
     if (initialOrder.id && (!initialOrder.items || initialOrder.items.length === 0)) {
       setDetailsReady(false);
@@ -149,20 +140,10 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
         const contentHeight = (canvas.height * contentWidth) / canvas.width;
         pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, margin, contentWidth, Math.min(contentHeight, 297 - margin * 2), undefined, "FAST");
         pdf.setProperties({ title: fileName });
-        const blobUrl = URL.createObjectURL(pdf.output("blob"));
         const tab = pendingTab.current;
         pendingTab.current = null;
-        if (tab && !tab.closed) {
-          tab.location.href = blobUrl;
-          toast.success(`Facture ${order.code} ouverte dans un nouvel onglet`);
-        } else {
-          // Pop-up bloquée : nouvelle tentative + action manuelle
-          await openDocumentInNativeViewer(blobUrl, fileName);
-          toast(`Facture ${order.code} prête`, {
-            action: { label: "Ouvrir la facture", onClick: () => openDocumentInNativeViewer(blobUrl, fileName) },
-            duration: 15000,
-          });
-        }
+        // Visualiseur natif de Chrome (nouvel onglet) ; enregistrement dans l'aperçu Claude
+        await presentDocument(pdf.output("blob"), fileName, tab);
       } catch (err) {
         console.error("Erreur génération facture:", err);
         try {
