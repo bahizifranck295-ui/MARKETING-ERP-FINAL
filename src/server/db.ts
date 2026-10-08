@@ -111,6 +111,7 @@ export interface Warehouse {
   city?: string;
   site_id?: string;
   manager?: string;
+  manager_user_id?: string;
   description?: string;
   is_active: boolean;
   created_at: string;

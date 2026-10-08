@@ -266,6 +266,19 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     res.json(site);
   });
 
+  /* ---------- Responsables de dépôt (rôle « Gestionnaire de stock ») ---------- */
+  const MANAGER_ROLE = "gestionnaire_stock";
+  router.get("/stock/depot-managers", authenticate, (_req: any, res: any) => {
+    const role = db.roles.find((r) => r.code === MANAGER_ROLE);
+    res.json({
+      role: { code: MANAGER_ROLE, name: role?.name || "Gestionnaire de stock" },
+      users: db.users
+        .filter((u) => u.role_code === MANAGER_ROLE && u.is_active !== false)
+        .map((u) => ({ id: u.id, full_name: u.full_name, email: u.email, phone: u.phone }))
+        .sort((a, b) => a.full_name.localeCompare(b.full_name, "fr")),
+    });
+  });
+
   /* ---------- Dépôts ---------- */
   router.get("/stock/depots", authenticate, withStructure, (req: any, res: any) => {
     const siteId = req.query.site_id as string | undefined;
@@ -278,6 +291,11 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     const code = String(b.code || "").trim().toUpperCase();
     const site = sites().find((s) => s.id === b.site_id);
     if (!site) return res.status(400).json({ detail: "Un dépôt doit être rattaché à un site existant" });
+    const managerUser = b.manager_user_id
+      ? db.users.find((u) => u.id === b.manager_user_id && u.role_code === MANAGER_ROLE && u.is_active !== false)
+      : undefined;
+    if (b.manager_user_id && !managerUser)
+      return res.status(400).json({ detail: "Le responsable choisi n'a pas le rôle Gestionnaire de stock" });
     if (!name || !code) return res.status(400).json({ detail: "Le nom et le code du dépôt sont obligatoires" });
     if (db.warehouses.some((w) => norm(w.code) === norm(code))) return res.status(409).json({ detail: `Le code ${code} est déjà utilisé` });
     if (db.warehouses.some((w) => w.site_id === site.id && norm(w.name) === norm(name)))
@@ -287,7 +305,8 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
       code,
       name,
       site_id: site.id,
-      manager: String(b.manager || "").trim(),
+      manager_user_id: managerUser?.id,
+      manager: managerUser?.full_name || "",
       address: String(b.location || "").trim(),
       city: site.location || site.name,
       description: String(b.description || "").trim(),

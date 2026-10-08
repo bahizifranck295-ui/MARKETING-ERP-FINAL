@@ -103,6 +103,14 @@ export function SiteFormDialog({ onClose, onSaved }: { onClose: () => void; onSa
 export function DepotFormDialog({ site, onClose, onSaved }: { site: any; onClose: () => void; onSaved: (depot: any) => void }) {
   const [saving, setSaving] = useState(false);
   const [active, setActive] = useState(true);
+  // Responsables possibles : utilisateurs ayant le rôle « Gestionnaire de stock »
+  const [managers, setManagers] = useState<{ role: { name: string }; users: any[] } | null>(null);
+  useEffect(() => {
+    api
+      .get("/stock/depot-managers")
+      .then(({ data }) => setManagers(data))
+      .catch(() => setManagers({ role: { name: "Gestionnaire de stock" }, users: [] }));
+  }, []);
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -113,7 +121,7 @@ export function DepotFormDialog({ site, onClose, onSaved }: { site: any; onClose
         site_id: site.id,
         name: f.depot_name.value,
         code: f.depot_code.value,
-        manager: f.depot_manager.value,
+        manager_user_id: f.depot_manager.value || undefined,
         location: f.depot_location.value,
         description: f.depot_description.value,
         is_active: active,
@@ -155,7 +163,21 @@ export function DepotFormDialog({ site, onClose, onSaved }: { site: any; onClose
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label htmlFor="depot_manager" className="text-xs font-semibold">Responsable</Label>
-              <input id="depot_manager" name="depot_manager" placeholder="Nom du responsable" className={fieldCls} />
+              <select id="depot_manager" name="depot_manager" defaultValue="" className={fieldCls} disabled={!managers}>
+                <option value="">{managers ? (managers.users.length ? "Choisir un responsable…" : "Aucun utilisateur disponible") : "Chargement…"}</option>
+                {managers?.users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.full_name}
+                  </option>
+                ))}
+              </select>
+              {managers && (
+                <p className="mt-1 text-[10px] text-slate-500">
+                  {managers.users.length
+                    ? `Utilisateurs ayant le rôle « ${managers.role.name} ».`
+                    : `Créez d'abord un utilisateur avec le rôle « ${managers.role.name} » dans Utilisateurs.`}
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="depot_location" className="text-xs font-semibold">Localisation</Label>
