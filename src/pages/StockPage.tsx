@@ -49,14 +49,15 @@ import {
   stockOf,
   thresholdOf,
 } from "@/components/stock/stockCharts";
-import { GlassCard, KpiTile, StatusPill, stockStatus } from "@/components/stock/ui";
+import { GlassCard, KpiTile, ProductPhoto, StatusPill, stockStatus } from "@/components/stock/ui";
 import { CategoriesPanel, CategoryPicker } from "@/components/stock/categories";
 import SitesDepotsPanel from "@/components/stock/SitesDepotsPanel";
 import { MovementsPanel, TransfersPanel } from "@/components/stock/StockHistoryPanels";
-import StockReportDashboard from "@/components/reports/StockReportDashboard";
+import StockReportsPanel from "@/components/stock/StockReportsPanel";
 
 const ALL = "all";
 const PAGE_SIZE = 8;
+const LIVE_REFRESH_S = 15; // tableau de bord en temps réel
 
 // Sous-modules du Stock
 type Tab = "dashboard" | "products" | "categories" | "sites" | "transfers" | "movements" | "reports";
@@ -112,6 +113,14 @@ export default function StockPage() {
   const [category, setCategory] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
+  // Tableau de bord : filtres « Stock par dépôt » et ouverture directe d'un site
+  const [dashSite, setDashSite] = useState(ALL);
+  const [dashDepot, setDashDepot] = useState(ALL);
+  const [dashCat, setDashCat] = useState(ALL);
+  const [dashSearch, setDashSearch] = useState("");
+  const [dashPage, setDashPage] = useState(1);
+  const [sitesFocus, setSitesFocus] = useState<{ siteId?: string; depotId?: string; n: number }>({ n: 0 });
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
   // Image upload states
   const [imagePreview, setImagePreview] = useState<string>("");
@@ -124,6 +133,7 @@ export default function StockPage() {
       setSites(Array.isArray(s.data) ? s.data : []);
       setWarehouses(Array.isArray(d.data) ? d.data : []);
       setLevels(Array.isArray(l.data) ? l.data : []);
+      setLastSync(new Date());
     } catch {
       // le reste de la page reste utilisable
     }
@@ -143,6 +153,20 @@ export default function StockPage() {
   };
   // Mise à jour en arrière-plan : garde ouverte la vue en cours (site, dépôt…)
   const refreshInBackground = () => loadData(true);
+
+  // Temps réel : le tableau de bord se recharge seul tant qu'il est affiché
+  useEffect(() => {
+    if (tab !== "dashboard") return;
+    const t = window.setInterval(() => {
+      if (document.visibilityState !== "hidden") refreshInBackground();
+    }, LIVE_REFRESH_S * 1000);
+    return () => window.clearInterval(t);
+  }, [tab]);
+
+  const openSites = (siteId?: string, depotId?: string) => {
+    setSitesFocus((f) => ({ siteId, depotId, n: f.n + 1 }));
+    setTab("sites");
+  };
 
   useEffect(() => {
     loadData();
@@ -208,6 +232,37 @@ export default function StockPage() {
   }, [products, colorByCategory]);
 
   const evolution = useMemo(() => computeEvolution(products, orders, totalValue), [products, orders, totalValue]);
+
+  /* ----- Stock par dépôt (tableau de bord) ----- */
+  const dashInScope = useMemo(() => {
+    const ids = new Set(
+      warehouses.filter((w) => (dashSite === ALL || w.site_id === dashSite) && (dashDepot === ALL || w.id === dashDepot)).map((w) => w.id)
+    );
+    const agg = new Map<string, { qty: number; depotIds: string[] }>();
+    levels.forEach((l) => {
+      if (!ids.has(l.warehouse_id)) return;
+      const e = agg.get(l.product_id) || { qty: 0, depotIds: [] };
+      e.qty += Number(l.quantity) || 0;
+      e.depotIds.push(l.warehouse_id);
+      agg.set(l.product_id, e);
+    });
+    const q = dashSearch.trim().toLowerCase();
+    return products
+      .filter((p) => agg.has(p.id))
+      .filter((p) => !q || [p.name, p.code, p.size, p.category].some((x) => x && String(x).toLowerCase().includes(q)))
+      .map((p) => ({ p, ...agg.get(p.id)! }))
+      .sort((a, b) => a.p.name.localeCompare(b.p.name, "fr"));
+  }, [products, warehouses, levels, dashSite, dashDepot, dashSearch]);
+  const dashCategoryTree = useMemo(() => {
+    const m = new Map<string, any[]>();
+    dashInScope.forEach((r) => m.set(categoryOf(r.p), [...(m.get(categoryOf(r.p)) || []), r]));
+    return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0], "fr"));
+  }, [dashInScope]);
+  const dashRows = dashInScope.filter((r) => dashCat === ALL || categoryOf(r.p) === dashCat);
+  const dashPages = Math.max(1, Math.ceil(dashRows.length / PAGE_SIZE));
+  const dashCurPage = Math.min(dashPage, dashPages);
+  const dashVisible = dashRows.slice((dashCurPage - 1) * PAGE_SIZE, dashCurPage * PAGE_SIZE);
+  const sitesTotal = sites.reduce((s, x) => s + (Number(x.value) || 0), 0);
 
   /* ----- Produits ----- */
   const scoped = useMemo(() => filteredProducts.filter((p) => category === ALL || categoryOf(p) === category), [filteredProducts, category]);
@@ -416,7 +471,7 @@ export default function StockPage() {
               <button
                 key={t.id}
                 type="button"
-                onClick={() => setTab(t.id)}
+                onClick={() => (t.id === "sites" ? openSites() : setTab(t.id))}
                 aria-current={active ? "page" : undefined}
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all ${
                   active
@@ -441,14 +496,27 @@ export default function StockPage() {
         ) : (
           <>
             {/* Indicateurs globaux (la rupture est comptée dans « Stock faible ») */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
               <KpiTile icon={Boxes} glow="from-blue-500 to-indigo-600" label="Total produits" value={fmtNum(products.length)} hint={`${fmtNum(totalUnits)} unités`} />
               <KpiTile icon={Shapes} glow="from-violet-500 to-fuchsia-600" label="Catégories" value={fmtNum(allCategories.length)} hint="Voir les catégories" onClick={() => setTab("categories")} />
-              <KpiTile icon={MapPin} glow="from-emerald-500 to-teal-600" label="Sites" value={fmtNum(sites.length)} hint="Voir les sites" onClick={() => setTab("sites")} />
-              <KpiTile icon={WarehouseIcon} glow="from-cyan-500 to-sky-600" label="Dépôts" value={fmtNum(warehouses.length)} hint="Voir les dépôts" onClick={() => setTab("sites")} />
-              <KpiTile icon={Database} glow="from-[#0F3D68] to-[#1D6FB8]" label="Valeur du stock" value={fmtMoney(totalValue)} hint="Au prix d'achat" />
-              <KpiTile icon={AlertTriangle} glow="from-amber-400 to-orange-500" label="Stock faible" value={fmtNum(lowCount)} hint="Voir les produits" onClick={showLowStock} />
+              <KpiTile icon={MapPin} glow="from-emerald-500 to-teal-600" label="Sites" value={fmtNum(sites.length)} hint="Voir les sites" onClick={() => openSites()} />
+              <KpiTile icon={WarehouseIcon} glow="from-cyan-500 to-sky-600" label="Dépôts" value={fmtNum(warehouses.length)} hint="Voir les dépôts" onClick={() => openSites()} />
+              <KpiTile
+                icon={Database}
+                glow="from-[#0F3D68] to-[#1D6FB8]"
+                label="Valeur totale du stock"
+                value={fmtMoney(totalValue)}
+                hint="Au prix d'achat · tous dépôts"
+                className="col-span-2"
+                valueClassName="whitespace-nowrap text-[clamp(1.25rem,2.2vw,1.75rem)]"
+              />
+              <KpiTile icon={AlertTriangle} glow="from-amber-400 to-orange-500" label="Stock faible" value={fmtNum(lowCount)} hint="Voir les produits" onClick={showLowStock} className="col-span-2 xl:col-span-1" />
             </div>
+            <p className="flex items-center gap-1.5 text-[11px] text-slate-500" aria-live="polite">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              Mise à jour automatique toutes les {LIVE_REFRESH_S} secondes
+              {lastSync ? ` · dernière mise à jour à ${lastSync.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}
+            </p>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
               <GlassCard title="Valeur du stock par site" icon={BarChart3}>
@@ -462,6 +530,237 @@ export default function StockPage() {
                 <p className="mt-2 text-[11px] text-slate-500">Reconstituée à partir des commandes validées.</p>
               </GlassCard>
             </div>
+
+            {/* Catégories + stock par dépôt */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
+              <GlassCard title="Catégories de produits" icon={FolderTree}>
+                <ul className="space-y-0.5 text-xs">
+                  <li>
+                    <TreeButton active={dashCat === ALL} onClick={() => { setDashCat(ALL); setDashPage(1); }}>
+                      <FolderTree className="h-3.5 w-3.5" />
+                      <span className="flex-1">Toutes</span>
+                      <span className="tabular-nums text-slate-500">({dashInScope.length})</span>
+                    </TreeButton>
+                  </li>
+                  {dashCategoryTree.map(([c, items]) => (
+                    <li key={c}>
+                      <TreeButton active={dashCat === c} onClick={() => { setDashCat(dashCat === c ? ALL : c); setDashPage(1); }}>
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorByCategory.get(c) || OTHER_COLOR }} />
+                        <span className="min-w-0 flex-1 truncate">{c}</span>
+                        <span className="tabular-nums text-slate-500">({items.length})</span>
+                      </TreeButton>
+                      {dashCat === c && (
+                        <ul className="ml-5 border-l border-cyan-200 py-1 pl-2">
+                          {items.map((r: any) => (
+                            <li key={r.p.id} className="truncate py-0.5 text-[11px] text-slate-500">
+                              {r.p.name}
+                              {r.p.size ? ` · ${r.p.size}` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </GlassCard>
+
+              <GlassCard title="Stock par dépôt" icon={Boxes}>
+                <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <label className="text-[11px] font-semibold text-slate-600">
+                    Site
+                    <select
+                      value={dashSite}
+                      onChange={(e) => { setDashSite(e.target.value); setDashDepot(ALL); setDashPage(1); }}
+                      className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                    >
+                      <option value={ALL}>Tous les sites</option>
+                      {sites.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-[11px] font-semibold text-slate-600">
+                    Dépôt
+                    <select
+                      value={dashDepot}
+                      onChange={(e) => { setDashDepot(e.target.value); setDashPage(1); }}
+                      className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                    >
+                      <option value={ALL}>Tous les dépôts</option>
+                      {warehouses
+                        .filter((w) => dashSite === ALL || w.site_id === dashSite)
+                        .map((w) => (
+                          <option key={w.id} value={w.id}>{dashSite === ALL ? w.label : w.name}</option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="text-[11px] font-semibold text-slate-600">
+                    Catégorie
+                    <select
+                      value={dashCat}
+                      onChange={(e) => { setDashCat(e.target.value); setDashPage(1); }}
+                      className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                    >
+                      <option value={ALL}>Toutes les catégories</option>
+                      {allCategories.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-[11px] font-semibold text-slate-600">
+                    Recherche
+                    <span className="relative mt-1 block">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={dashSearch}
+                        onChange={(e) => { setDashSearch(e.target.value); setDashPage(1); }}
+                        placeholder="Rechercher un produit…"
+                        className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                      />
+                    </span>
+                  </label>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
+                        <th className="px-2.5 py-3 font-semibold">Produit</th>
+                        <th className="px-2.5 py-3 font-semibold">Catégorie</th>
+                        <th className="px-2.5 py-3 text-right font-semibold">Stock</th>
+                        <th className="px-2.5 py-3 text-right font-semibold">Seuil mini</th>
+                        <th className="px-2.5 py-3 text-right font-semibold">Valeur</th>
+                        <th className="px-2.5 py-3 text-center font-semibold">Statut</th>
+                        <th className="px-2.5 py-3 text-center font-semibold">Dépôt</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {dashVisible.map(({ p, qty, depotIds }) => {
+                        const single = depotIds.length === 1 ? warehouses.find((w) => w.id === depotIds[0]) : null;
+                        return (
+                          <tr key={p.id} className="hover:bg-cyan-50/40">
+                            <td className="px-2.5 py-3">
+                              <div className="flex min-w-0 items-center gap-2.5">
+                                <ProductPhoto src={p.image_url} />
+                                <div className="min-w-0">
+                                  <div className="truncate font-semibold text-slate-900">
+                                    {p.name}
+                                    {p.size && <span className="ml-1.5 rounded-md border border-cyan-200 bg-cyan-50 px-1.5 py-px text-[10px] font-bold text-cyan-800">{p.size}</span>}
+                                  </div>
+                                  <div className="font-mono text-[10px] text-slate-500">{p.code}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-2.5 py-3">
+                              <span className="inline-flex items-center gap-1.5 text-slate-600">
+                                <span className="h-2 w-2 rounded-full" style={{ background: colorByCategory.get(categoryOf(p)) || OTHER_COLOR }} />
+                                {p.category || "Général"}
+                              </span>
+                            </td>
+                            <td className="px-2.5 py-3 text-right font-bold tabular-nums text-slate-900">
+                              {fmtNum(qty)} <span className="text-[10px] font-normal text-slate-400">{p.unit}</span>
+                            </td>
+                            <td className="px-2.5 py-3 text-right tabular-nums text-slate-600">{fmtNum(thresholdOf(p))}</td>
+                            <td className="px-2.5 py-3 text-right font-semibold tabular-nums">{fmtMoney(qty * costOf(p))}</td>
+                            <td className="px-2.5 py-3 text-center">
+                              <StatusPill status={stockStatus(qty, thresholdOf(p))} />
+                            </td>
+                            <td className="px-2.5 py-3 text-center">
+                              {single ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openSites(single.site_id, single.id)}
+                                  className="rounded-lg px-2 py-1 text-[11px] font-semibold text-[#0F3D68] hover:bg-cyan-50 hover:underline"
+                                  title="Ouvrir ce dépôt"
+                                >
+                                  {single.name}
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-slate-500">{depotIds.length} dépôts</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {!dashVisible.length && (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-slate-500">Aucun produit dans ce périmètre.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                  <span>
+                    Affichage de {dashVisible.length} sur {dashRows.length} produit(s)
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button type="button" disabled={dashCurPage <= 1} onClick={() => setDashPage(dashCurPage - 1)} aria-label="Page précédente" className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 bg-white disabled:opacity-40">
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    {Array.from({ length: dashPages }, (_, i) => i + 1).map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setDashPage(n)}
+                        className={`h-7 min-w-7 rounded-lg px-2 font-semibold ${n === dashCurPage ? "bg-[#0F3D68] text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                    <button type="button" disabled={dashCurPage >= dashPages} onClick={() => setDashPage(dashCurPage + 1)} aria-label="Page suivante" className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 bg-white disabled:opacity-40">
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </GlassCard>
+            </div>
+
+            {/* Stock par site : chaque nouveau site apparaît automatiquement */}
+            <GlassCard
+              title="Stock par site"
+              icon={MapPin}
+              right={
+                <button type="button" onClick={() => openSites()} className="text-[11px] font-semibold text-[#0F3D68] hover:underline">
+                  Voir tous les sites
+                </button>
+              }
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {sites.map((s) => {
+                  const pct = sitesTotal > 0 ? Math.round((s.value / sitesTotal) * 100) : 0;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => openSites(s.id)}
+                      title={`Ouvrir le site ${s.name}`}
+                      className="rounded-2xl border border-slate-200 bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <MapPin className="h-4 w-4 shrink-0 text-[#0F3D68]" />
+                          <span className="truncate font-bold text-slate-900">{s.name}</span>
+                        </span>
+                        {s.is_active === false && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Inactif</span>}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-slate-500">
+                        {fmtNum(s.depot_count)} dépôt(s) · {fmtNum(s.product_count)} produit(s)
+                      </div>
+                      <div className="mt-1 text-xs text-slate-700">
+                        Valeur : <strong className="tabular-nums">{fmtMoney(s.value)}</strong>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-[#1D6FB8]" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="w-9 text-right text-[11px] font-semibold tabular-nums text-slate-700">{pct} %</span>
+                      </div>
+                    </button>
+                  );
+                })}
+                {!sites.length && <p className="text-xs text-slate-500">Aucun site. Créez-en un dans « Sites & Dépôts ».</p>}
+              </div>
+            </GlassCard>
           </>
         )
       ) : tab === "products" ? (
@@ -682,13 +981,18 @@ export default function StockPage() {
       ) : tab === "categories" ? (
         <CategoriesPanel products={products} onChanged={refreshInBackground} />
       ) : tab === "sites" ? (
-        <SitesDepotsPanel onStockChanged={refreshInBackground} />
+        <SitesDepotsPanel
+          key={sitesFocus.n}
+          initialSiteId={sitesFocus.siteId}
+          initialDepotId={sitesFocus.depotId}
+          onStockChanged={refreshInBackground}
+        />
       ) : tab === "transfers" ? (
         <TransfersPanel onStockChanged={refreshInBackground} />
       ) : tab === "movements" ? (
         <MovementsPanel />
       ) : (
-        <StockReportDashboard products={products} orders={orders} search="" />
+        <StockReportsPanel />
       )}
 
       {/* ADJUST STOCK MODAL */}

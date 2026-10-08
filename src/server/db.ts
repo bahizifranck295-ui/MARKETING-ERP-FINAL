@@ -475,6 +475,7 @@ export const db = {
   stock_levels: [] as any[],
   stock_transfers: [] as any[],
   product_categories: [] as string[],
+  stock_report_documents: [] as any[],
   accounting_movements: [] as any[],
   expense_categories: [] as string[],
   rates_config: {

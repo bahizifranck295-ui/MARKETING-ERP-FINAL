@@ -26,13 +26,13 @@ export function GlassCard({ title, icon: Icon, children, right }: any) {
   );
 }
 
-export function KpiTile({ icon: Icon, glow, label, value, hint, active, onClick }: any) {
+export function KpiTile({ icon: Icon, glow, label, value, hint, active, onClick, className = "", valueClassName = "text-lg" }: any) {
   const clickable = typeof onClick === "function";
   const Tag: any = clickable ? "button" : "div";
   return (
     <Tag
       {...(clickable ? { type: "button", onClick, "aria-pressed": !!active } : {})}
-      className={`group relative flex min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border bg-white/90 p-3.5 text-left shadow-[0_10px_30px_-18px_rgba(15,61,104,0.35)] transition-all ${
+      className={`${className} group relative flex min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border bg-white/90 p-3.5 text-left shadow-[0_10px_30px_-18px_rgba(15,61,104,0.35)] transition-all ${
         active ? "border-cyan-400 ring-2 ring-cyan-300/50" : "border-slate-200/80"
       } ${clickable ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-16px_rgba(15,61,104,0.45)]" : ""}`}
     >
@@ -40,7 +40,7 @@ export function KpiTile({ icon: Icon, glow, label, value, hint, active, onClick 
         <Icon className="h-5 w-5" />
       </span>
       <span className="text-[11px] font-semibold text-slate-500">{label}</span>
-      <span className="break-words text-lg font-black leading-tight tracking-tight text-slate-900 tabular-nums">{value}</span>
+      <span className={`${valueClassName} break-words font-black leading-tight tracking-tight text-slate-900 tabular-nums`}>{value}</span>
       <span className={`truncate text-[11px] ${active ? "font-semibold text-cyan-700" : "text-slate-500"}`}>{hint}</span>
     </Tag>
   );

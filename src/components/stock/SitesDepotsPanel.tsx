@@ -43,13 +43,28 @@ function Breadcrumb({ items }: { items: Array<{ label: string; onClick?: () => v
   );
 }
 
-export default function SitesDepotsPanel({ onStockChanged }: { onStockChanged?: () => void }) {
+export default function SitesDepotsPanel({
+  onStockChanged,
+  initialSiteId,
+  initialDepotId,
+}: {
+  onStockChanged?: () => void;
+  initialSiteId?: string;
+  initialDepotId?: string;
+}) {
   const { has } = useAuth();
   const canManage = has("warehouse.manage");
   const canTransfer = has("stock.transfer");
   const canAddStock = has("stock.adjust") || has("stock.create");
 
-  const [view, setView] = useState<View>({ level: "sites" });
+  // Ouverture directe d'un site ou d'un dépôt (depuis le tableau de bord)
+  const [view, setView] = useState<View>(
+    initialSiteId && initialDepotId
+      ? { level: "depot", siteId: initialSiteId, depotId: initialDepotId }
+      : initialSiteId
+      ? { level: "site", siteId: initialSiteId }
+      : { level: "sites" }
+  );
   const [sites, setSites] = useState<any[]>([]);
   const [depots, setDepots] = useState<any[]>([]);
   const [detail, setDetail] = useState<any>(null);
