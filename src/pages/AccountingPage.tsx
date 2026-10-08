@@ -3,11 +3,8 @@ import { toast } from "sonner";
 import {
   Calculator,
   Search,
-  RefreshCw,
-  FileSpreadsheet,
   Loader2,
   FileText,
-  Printer,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +12,7 @@ import { PageHeader, StatCard, fmtMoney } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import MovementDetailPanel from "@/components/accounting/MovementDetailPanel";
-import { printDocument } from "@/lib/print";
+import { exportJournalPdf } from "@/lib/exportJournalPdf";
 import { openDocumentInNativeViewer } from "@/lib/documentViewer";
 import {
   generateCashReceiptPdf,
@@ -23,14 +20,14 @@ import {
 } from "@/lib/generateCashReceiptPdf";
 
 export default function AccountingPage() {
-  const { has } = useAuth();
+  const { has, user } = useAuth();
   const [movements, setMovements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedMovement, setSelectedMovement] = useState<any>(null);
-  const [syncing, setSyncing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const handleViewBordereau = async (m: any) => {
@@ -105,19 +102,6 @@ export default function AccountingPage() {
     loadMovements();
   }, []);
 
-  const handleSync = async () => {
-    setSyncing(true);
-    try {
-      await api.post("/accounting/sync");
-      toast.success("Synchronisation comptable effectuée avec succès");
-      loadMovements();
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Erreur lors de la synchronisation"));
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   const handleToggleRecord = async (id: string) => {
     setTogglingId(id);
     try {
@@ -140,90 +124,23 @@ export default function AccountingPage() {
     }
   };
 
-  const handleExportCSV = () => {
-    if (movements.length === 0) return;
-    const lines = [
-      ["PREMIDIS SARL - JOURNAL GÉNÉRAL COMPTABLE"],
-      ["Date d'exportation", new Date().toLocaleString("fr-FR")],
-      [""],
-      ["Date", "Référence", "Module", "Libellé", "Compte Débit", "Compte Crédit", "Montant ($)", "Statut"],
-      ...movements.map((m) => [
-        m.date,
-        m.reference,
-        m.module,
-        `"${m.title}"`,
-        `"${m.debit_account || "411100 - Clients"}"`,
-        `"${m.credit_account || "701100 - Ventes"}"`,
-        m.amount,
-        m.is_recorded ? "Enregistré" : "En attente",
-      ]),
-    ];
-    const csvContent =
-      "data:text/csv;charset=utf-8,\uFEFF" + lines.map((e) => e.join(";")).join("\n");
-    const encoded = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.href = encoded;
-    link.download = `Journal_Comptable_PREMIDIS_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Journal comptable exporté avec succès en format CSV");
-  };
-
-  const handlePrintJournal = () => {
-    const todayStr = new Date().toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-    const rows = filteredMovements
-      .map(
-        (m) => `
-        <tr>
-          <td>${m.date}</td>
-          <td><strong>${m.reference}</strong></td>
-          <td>${m.title}</td>
-          <td>${m.debit_account || "411100"}</td>
-          <td>${m.credit_account || "701100"}</td>
-          <td style="text-align:right; font-weight:bold;">$ ${Number(m.amount).toFixed(2)}</td>
-          <td style="text-align:center;">${m.is_recorded ? "Validé" : "En attente"}</td>
-        </tr>
-      `
-      )
-      .join("");
-    const fullHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b;">
-        <div style="border-bottom: 2px solid #0f3d68; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <h1 style="color: #0f3d68; margin: 0; font-size: 22px; font-weight: 800;">PREMIDIS SARL</h1>
-            <p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b;">
-              Direction Administrative et Financière • Plan Comptable OHADA
-            </p>
-          </div>
-          <div style="text-align: right; font-size: 11px;">
-            <p style="margin: 0; font-weight: bold; color: #0f3d68;">Grand Livre & Journal Général</p>
-            <p style="margin: 2px 0 0 0; color: #64748b;">Date d'édition : ${todayStr}</p>
-          </div>
-        </div>
-        <table border="1" cellpadding="6" style="width:100%; border-collapse:collapse; font-size:11px;">
-          <thead>
-            <tr style="background:#f1f5f9;">
-              <th>Date</th>
-              <th>Référence</th>
-              <th>Libellé de l'écriture</th>
-              <th>Cpt Débit</th>
-              <th>Cpt Crédit</th>
-              <th style="text-align:right;">Montant (USD)</th>
-              <th style="text-align:center;">Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-        </table>
-      </div>
-    `;
-    printDocument({ title: "Journal Comptable PREMIDIS", html: fullHtml });
+  // Export PDF du tableau des écritures (format des factures, avec l'utilisateur de chaque opération)
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const modLabel: Record<string, string> = { all: "Tous les modules", cash: "Caisse", orders: "Ventes / Commandes", stock: "Stock" };
+      const stLabel: Record<string, string> = { all: "Tous les statuts", recorded: "Enregistrés", pending: "Non enregistrés" };
+      const fileName = await exportJournalPdf({
+        movements: filteredMovements,
+        editedBy: user?.full_name || "Utilisateur",
+        filtersLabel: `${modLabel[moduleFilter] || moduleFilter} · ${stLabel[statusFilter] || statusFilter}${search.trim() ? ` · « ${search.trim()} »` : ""}`,
+      });
+      toast.success(`Journal exporté : ${fileName}`);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Export PDF impossible"));
+    } finally {
+      setExporting(false);
+    }
   };
 
   const filteredMovements = useMemo(() => {
@@ -266,27 +183,11 @@ export default function AccountingPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={handleExportCSV}
+              onClick={handleExportPdf}
+              disabled={exporting || filteredMovements.length === 0}
               className="rounded-xl border-slate-200 text-xs text-slate-700 hover:bg-slate-50"
             >
-              <FileSpreadsheet className="h-4 w-4 mr-1 text-emerald-600" /> Export CSV
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handlePrintJournal}
-              className="rounded-xl border-slate-200 text-xs text-slate-700 hover:bg-slate-50"
-            >
-              <Printer className="h-4 w-4 mr-1 text-[#0F3D68]" /> Imprimer Journal
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSync}
-              disabled={syncing}
-              className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs"
-            >
-              <RefreshCw className={`h-4 w-4 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
-              Synchroniser
+              {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileText className="h-4 w-4 mr-1 text-rose-600" />} Export PDF
             </Button>
           </div>
         }
@@ -365,6 +266,7 @@ export default function AccountingPage() {
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
                     <th className="p-3">Réf / Date</th>
                     <th className="p-3">Libellé</th>
+                    <th className="p-3">Utilisateur</th>
                     <th className="p-3 text-right">Montant</th>
                     <th className="p-3 text-center">Statut</th>
                     <th className="p-3 text-center">Pièce / Bordereau</th>
@@ -399,6 +301,7 @@ export default function AccountingPage() {
                           <div className="font-semibold text-slate-900">{m.title}</div>
                           <div className="text-[10px] text-slate-500">{m.source}</div>
                         </td>
+                        <td className="p-3 text-slate-700">{m.user_name || m.created_by || <span className="text-slate-400">Non renseigné</span>}</td>
                         <td className="p-3 text-right font-black">
                           <span
                             className={m.amount >= 0 ? "text-emerald-600" : "text-slate-800"}
