@@ -53,7 +53,7 @@ const norm = (s: string) => s.trim().toLowerCase();
 
 const sites = () => db.sites as Site[];
 const levels = () => db.stock_levels as StockLevel[];
-const transfers = () => db.stock_transfers as StockTransfer[];
+export const transfers = () => db.stock_transfers as StockTransfer[];
 
 function siteNameFromWarehouse(w: Warehouse) {
   return ((w.city || "").split(",")[0] || "").trim() || w.name;
@@ -78,7 +78,7 @@ function defaultWarehouseId(p: Product) {
   return db.warehouses.find((w) => w.is_active !== false)?.id || db.warehouses[0]?.id;
 }
 
-function getLevel(productId: string, warehouseId: string, create: boolean) {
+export function getLevel(productId: string, warehouseId: string, create: boolean) {
   let lvl = levels().find((l) => l.product_id === productId && l.warehouse_id === warehouseId);
   if (!lvl && create) {
     lvl = { id: uuidv4(), product_id: productId, warehouse_id: warehouseId, quantity: 0, updated_at: nowIso() };
@@ -87,13 +87,18 @@ function getLevel(productId: string, warehouseId: string, create: boolean) {
   return lvl;
 }
 
+// Stock global = quantités dans les dépôts + stock embarqué dans les camions
 function sumLevels(productId: string) {
-  return levels()
+  const inDepots = levels()
     .filter((l) => l.product_id === productId)
     .reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+  const embarked = (db.embarked_levels as any[])
+    .filter((l) => l.product_id === productId)
+    .reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+  return inDepots + embarked;
 }
 
-function setGlobalStock(p: Product) {
+export function setGlobalStock(p: Product) {
   p.stock = sumLevels(p.id);
   p.current_stock = p.stock;
   p.updated_at = nowIso();
@@ -235,7 +240,7 @@ function parseCapacity(v: any): number | undefined | "invalid" {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : "invalid";
 }
 
-function nextTransferCode() {
+export function nextTransferCode() {
   const year = new Date().getFullYear();
   const n = transfers().filter((t) => t.code.startsWith(`TRF-${year}-`)).length + 1;
   return `TRF-${year}-${String(n).padStart(4, "0")}`;

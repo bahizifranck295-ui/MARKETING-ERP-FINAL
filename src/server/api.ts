@@ -20,6 +20,7 @@ import {
   ALL_PERMISSION_CODES,
 } from "./db";
 import { mountStockStructureRoutes } from "./stockStructure";
+import { applyOrderStockOut, mountDeliveryRoutes } from "./delivery";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "erp_secret_jwt_key_2026";
 
@@ -278,6 +279,8 @@ apiRouter.delete("/users/:id", authenticate, (req, res) => {
 
 // STOCK : sites, dépôts, quantités par dépôt, transferts, catégories
 mountStockStructureRoutes(apiRouter, authenticate);
+// LIVRAISON : stock embarqué, livraisons sur commande, modes par département
+mountDeliveryRoutes(apiRouter, authenticate);
 
 // WAREHOUSES
 apiRouter.get("/warehouses", authenticate, (req, res) => {
@@ -373,6 +376,7 @@ export function recordAccountingMovement(params: {
   document_name?: string;
   billetage?: any;
   operation_id?: string;
+  user_name?: string;
 }) {
   const mov = {
     id: uuidv4(),
@@ -389,6 +393,7 @@ export function recordAccountingMovement(params: {
     document_name: params.document_name,
     billetage: params.billetage,
     operation_id: params.operation_id,
+    user_name: params.user_name, // utilisateur ayant effectué l'opération
     is_recorded: false,
     status: "unrecorded",
     created_at: new Date().toISOString(),
@@ -471,6 +476,7 @@ export function recordCashInflow(params: {
       document_name: params.document_name,
       billetage: params.billetage,
       operation_id: op.id,
+      user_name: params.userName,
     });
   } catch (e) {
     console.warn("Accounting movement auto-record skipped:", e);
@@ -963,18 +969,14 @@ apiRouter.post("/orders/:id/approve", authenticate, (req, res) => {
   const order = db.orders.find((o) => o.id === req.params.id);
   if (!order) return res.status(404).json({ detail: "Commande introuvable" });
 
+  // Sortie de stock : stock embarqué du marketeur ou stock du produit selon le département
+  const stockError = applyOrderStockOut(order, user);
+  if (stockError) return res.status(400).json({ detail: stockError });
+
   order.status = "validated";
   order.approved_by = user.full_name;
   order.approved_at = new Date().toISOString();
   order.updated_at = new Date().toISOString();
-
-  for (const it of order.items) {
-    const prod = db.products.find((p) => p.id === it.product_id);
-    if (prod) {
-      prod.stock = Math.max(0, prod.stock - it.quantity);
-      prod.current_stock = prod.stock;
-    }
-  }
 
   res.json({ ...order, credit_check: getClientFinancialSnapshot(order.client_id, order.total, order.payment_method) });
 });
@@ -1430,6 +1432,7 @@ apiRouter.post("/cash/operations", authenticate, (req, res) => {
         document_name: document_name || undefined,
         billetage: billetage || undefined,
         operation_id: newOp.id,
+        user_name: user.full_name,
       });
     } catch (err) {
       console.error("Accounting movement error on outflow:", err);

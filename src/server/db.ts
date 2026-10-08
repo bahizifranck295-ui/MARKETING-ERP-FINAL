@@ -477,6 +477,12 @@ export const db = {
   stock_levels: [] as any[],
   stock_transfers: [] as any[],
   product_categories: [] as string[],
+  // Module Livraison : camions, stock embarqué des marketeurs, modes par département (voir delivery.ts)
+  vehicles: [] as any[],
+  embarked_stocks: [] as any[],
+  embarked_levels: [] as any[],
+  embarked_movements: [] as any[],
+  delivery_department_modes: {} as Record<string, "embarked" | "on_order">,
   accounting_movements: [] as any[],
   expense_categories: [] as string[],
   rates_config: {
