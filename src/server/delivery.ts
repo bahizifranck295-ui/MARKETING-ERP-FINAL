@@ -19,34 +19,18 @@ import {
  * - Sur commande : Commande → En préparation → En livraison → Livrée
  *   (statuts de commande existants : validated → prepared → shipped → delivered).
  *
- * Le mode est choisi par département (départements du CRM).
+ * Le mode est choisi par département = catégorie de produits créée dans
+ * Stock › Catégories. Il s'applique à chaque produit vendu selon sa catégorie.
  */
 
-export const DEPARTMENTS = [
-  "BOISSONS",
-  "LAIT & PRODUITS LAITIERS",
-  "PRODUITS ALIMENTAIRES",
-  "HÔTELLERIE",
-  "GRANDE DISTRIBUTION",
-  "RESTAURATION",
-  "AUTRES",
-] as const;
-
-// Même règle que le CRM (normalizeDepartment) pour rattacher un client à un département
-export function departmentOf(dept?: string | null): string {
-  const s = (dept || "").trim().toLowerCase();
-  if (!s) return "AUTRES";
-  if (s.includes("boisson")) return "BOISSONS";
-  if (s.includes("lait") || s.includes("laitier")) return "LAIT & PRODUITS LAITIERS";
-  if (s.includes("alimentaire")) return "PRODUITS ALIMENTAIRES";
-  if (s.includes("hôtellerie") || s.includes("hotellerie") || s.includes("hotel")) return "HÔTELLERIE";
-  if (s.includes("grande distribution") || s.includes("supermarché") || s.includes("distribution")) return "GRANDE DISTRIBUTION";
-  if (s.includes("restauration") || s.includes("restaurant")) return "RESTAURATION";
-  return "AUTRES";
-}
-
 type Mode = "embarked" | "on_order";
-const modeOf = (dept: string): Mode => db.delivery_department_modes[dept] || "on_order";
+const norm = (s: string) => (s || "").trim().toLowerCase();
+// Mode d'une catégorie (clé insensible à la casse)
+const modeOf = (category: string): Mode => {
+  const key = Object.keys(db.delivery_department_modes).find((k) => norm(k) === norm(category));
+  return (key && db.delivery_department_modes[key]) || "on_order";
+};
+const categoryOfProduct = (productId: string) => (db.products.find((p) => p.id === productId)?.category || "").trim() || "Sans catégorie";
 
 const nowIso = () => new Date().toISOString();
 const vehicles = () => db.vehicles as any[];
@@ -57,9 +41,9 @@ const embarkedMoves = () => db.embarked_movements as any[];
 const MARKETER_ROLES = ["marketeur", "commercial", "chef_dept"];
 const canSeeAll = (u: User) => u.role_code === "super_admin" || !!u.is_transversal || u.role_code === "chef_dept";
 
+// Catégories des produits de la commande (affichées sur les cartes)
 function orderDepartment(order: Order) {
-  const client = db.clients.find((c) => c.id === order.client_id) as any;
-  return departmentOf(client?.department || client?.business_unit);
+  return Array.from(new Set((order.items || []).map((it) => categoryOfProduct(it.product_id)))).join(", ");
 }
 
 function embarkedFor(marketerId: string, create = false, user?: User) {
@@ -162,15 +146,19 @@ function embarkedView(es: any) {
  */
 export function applyOrderStockOut(order: Order, user: User): string | null {
   ensureStockStructure();
-  const dept = orderDepartment(order);
-  if (modeOf(dept) === "embarked") {
-    const es = embarkedFor(order.marketer_id || "");
-    if (!es) return `Le département ${dept} vend depuis le stock embarqué, mais ${order.marketer_name} n'a pas de stock embarqué`;
-    for (const it of order.items) {
+  // Chaque produit suit le mode de sa catégorie
+  const embarkedItems = order.items.filter((it) => modeOf(categoryOfProduct(it.product_id)) === "embarked");
+  const otherItems = order.items.filter((it) => !embarkedItems.includes(it));
+  let es: any = null;
+  if (embarkedItems.length) {
+    es = embarkedFor(order.marketer_id || "");
+    const cats = Array.from(new Set(embarkedItems.map((it) => categoryOfProduct(it.product_id)))).join(", ");
+    if (!es) return `La catégorie ${cats} se vend depuis le stock embarqué, mais ${order.marketer_name} n'a pas de stock embarqué`;
+    for (const it of embarkedItems) {
       const have = embarkedLevel(es.id, it.product_id, false)?.quantity || 0;
       if (have < it.quantity) return `Stock embarqué insuffisant pour ${it.product_name} : ${have} dans le camion de ${es.marketer_name}, ${it.quantity} demandé(s)`;
     }
-    for (const it of order.items) {
+    for (const it of embarkedItems) {
       const p = db.products.find((x) => x.id === it.product_id);
       if (!p) continue;
       const l = embarkedLevel(es.id, p.id, false)!;
@@ -180,18 +168,16 @@ export function applyOrderStockOut(order: Order, user: User): string | null {
       recordEmbarked({ es, product: p, type: "sale", quantity: -it.quantity, reason: `Vente ${order.code}`, user_name: user.full_name, client_name: order.client_name, order_code: order.code });
     }
     (order as any).embarked_id = es.id;
-    (order as any).delivery_mode = "embarked";
-    return null;
   }
-  // Mode « Sur commande » : sortie d'origine sur le stock du produit
-  for (const it of order.items) {
+  // Produits « Sur commande » : sortie d'origine sur le stock du produit
+  for (const it of otherItems) {
     const prod = db.products.find((p) => p.id === it.product_id);
     if (prod) {
       prod.stock = Math.max(0, prod.stock - it.quantity);
       prod.current_stock = prod.stock;
     }
   }
-  (order as any).delivery_mode = "on_order";
+  (order as any).delivery_mode = !otherItems.length ? "embarked" : embarkedItems.length ? "mixed" : "on_order";
   return null;
 }
 
@@ -445,24 +431,29 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     res.json({ ...order, stage: step.label });
   });
 
-  /* ---------- Configuration des départements ---------- */
+  /* ---------- Configuration des départements (= catégories du module Stock) ---------- */
   router.get("/delivery/departments", authenticate, (_req: any, res: any) => {
+    ensureStockStructure();
     res.json(
-      DEPARTMENTS.map((name) => ({
-        name,
-        mode: modeOf(name),
-        clients: db.clients.filter((c: any) => departmentOf(c.department || c.business_unit) === name).length,
-      }))
+      [...db.product_categories]
+        .sort((a, b) => a.localeCompare(b, "fr"))
+        .map((name) => ({
+          name,
+          mode: modeOf(name),
+          products: db.products.filter((p) => p.is_active !== false && norm(p.category || "") === norm(name)).length,
+        }))
     );
   });
 
   router.put("/delivery/departments/:name", authenticate, (req: any, res: any) => {
+    ensureStockStructure();
     const u = me(req);
     if (!canSeeAll(u)) return res.status(403).json({ detail: "Seul un responsable peut modifier la configuration" });
-    const name = DEPARTMENTS.find((d) => d === req.params.name);
+    const name = db.product_categories.find((c) => norm(c) === norm(req.params.name));
     const mode = req.body?.mode;
-    if (!name) return res.status(404).json({ detail: "Département introuvable" });
+    if (!name) return res.status(404).json({ detail: "Catégorie introuvable dans Stock › Catégories" });
     if (mode !== "embarked" && mode !== "on_order") return res.status(400).json({ detail: "Mode inconnu" });
+    for (const k of Object.keys(db.delivery_department_modes)) if (norm(k) === norm(name)) delete db.delivery_department_modes[k];
     db.delivery_department_modes[name] = mode;
     res.json({ name, mode });
   });

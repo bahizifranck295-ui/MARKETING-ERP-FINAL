@@ -223,24 +223,29 @@ export function DeliveryConfigSection({ canManage, onChanged }: { canManage: boo
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <GlassCard title="Configuration des départements" icon={Settings2}>
           <p className="mb-3 text-[11px] text-slate-500">
-            Départements définis dans le CRM. En « Stock embarqué », les ventes du marketeur sont retirées de son camion ; en « Sur commande », elles suivent le parcours de livraison.
+            Catégories créées dans Stock › Catégories. En « Stock embarqué », les produits de la catégorie vendus par un marketeur sont retirés de son camion ; en « Sur commande », ils suivent le parcours de livraison.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
                   <th className="px-2.5 py-2 font-semibold">N°</th>
-                  <th className="px-2.5 py-2 font-semibold">Département</th>
-                  <th className="px-2.5 py-2 text-right font-semibold">Clients</th>
+                  <th className="px-2.5 py-2 font-semibold">Département (catégorie)</th>
+                  <th className="px-2.5 py-2 text-right font-semibold">Produits</th>
                   <th className="px-2.5 py-2 font-semibold">Mode de distribution</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
+                {!depts.length && (
+                  <tr>
+                    <td colSpan={4} className="p-6 text-center text-slate-500">Aucune catégorie. Créez-en dans Stock › Catégories.</td>
+                  </tr>
+                )}
                 {depts.map((d, i) => (
                   <tr key={d.name}>
                     <td className="px-2.5 py-2 tabular-nums text-slate-500">{String(i + 1).padStart(2, "0")}</td>
                     <td className="px-2.5 py-2 font-semibold text-slate-900">{d.name}</td>
-                    <td className="px-2.5 py-2 text-right tabular-nums">{fmtNum(d.clients)}</td>
+                    <td className="px-2.5 py-2 text-right tabular-nums">{fmtNum(d.products)}</td>
                     <td className="px-2.5 py-2">
                       <div className="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label={`Mode ${d.name}`}>
                         {[
