@@ -16,7 +16,6 @@ import {
   Search,
   Shapes,
   Warehouse as WarehouseIcon,
-  XCircle,
 } from "lucide-react";
 import { fmtMoney } from "@/components/erp-ui";
 import { api } from "@/lib/api";
@@ -195,8 +194,8 @@ export default function StockReportDashboard({ products, orders, search }: Props
 
   const totalValue = inCategory.reduce((s, p) => s + stockOf(p) * costOf(p), 0);
   const totalUnits = inCategory.reduce((s, p) => s + stockOf(p), 0);
-  const lowCount = inCategory.filter((p) => stockOf(p) > 0 && stockOf(p) <= thresholdOf(p)).length;
-  const outCount = inCategory.filter((p) => stockOf(p) <= 0).length;
+  // La rupture (stock à zéro) fait partie du « Stock faible »
+  const lowCount = inCategory.filter((p) => stockOf(p) <= thresholdOf(p)).length;
   const siteCount = new Set(inCategory.map(siteOf)).size;
   const depotCount = new Set(inCategory.map(depotOf)).size;
   const catCount = new Set(inCategory.map(categoryOf)).size;
@@ -279,14 +278,13 @@ export default function StockReportDashboard({ products, orders, search }: Props
       </div>
 
       {/* Indicateurs */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <Kpi icon={Boxes} tone="bg-blue-600" label="Total produits" value={inCategory.length.toLocaleString("fr-FR")} hint={`${totalUnits.toLocaleString("fr-FR")} unités en stock`} />
         <Kpi icon={Shapes} tone="bg-violet-600" label="Catégories" value={catCount} hint="Catégories différentes" />
         <Kpi icon={MapPin} tone="bg-emerald-600" label="Sites" value={siteCount} hint="Sites actifs" />
         <Kpi icon={WarehouseIcon} tone="bg-teal-600" label="Dépôts" value={depotCount} hint="Dépôts au total" />
         <Kpi icon={Database} tone="bg-[#0F3D68]" label="Valeur totale du stock" value={fmtMoney(totalValue)} hint="Au prix de revient" />
         <Kpi icon={AlertTriangle} tone="bg-amber-500" label="Stock faible" value={lowCount} hint="Sous le seuil minimum" />
-        <Kpi icon={XCircle} tone="bg-red-600" label="Ruptures" value={outCount} hint="Stock à zéro" />
       </div>
 
       {/* Graphiques */}
