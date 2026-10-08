@@ -417,62 +417,6 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     res.json(db.stock_movements.slice(0, 500));
   });
 
-  /* ---------- Documents de rapports (fichiers envoyés) ---------- */
-  const DOC_TYPES: Record<string, string> = {
-    pdf: "application/pdf",
-    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    xls: "application/vnd.ms-excel",
-    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    doc: "application/msword",
-    csv: "text/csv",
-  };
-  const MAX_DOC_BYTES = 5 * 1024 * 1024;
-  const docs = () => db.stock_report_documents as any[];
-  const publicDoc = ({ data_url, ...d }: any) => d;
-
-  router.get("/stock/report-documents", authenticate, (_req: any, res: any) => {
-    res.json(docs().map(publicDoc));
-  });
-
-  router.get("/stock/report-documents/:id", authenticate, (req: any, res: any) => {
-    const d = docs().find((x) => x.id === req.params.id);
-    if (!d) return res.status(404).json({ detail: "Document introuvable" });
-    res.json(d);
-  });
-
-  router.post("/stock/report-documents", authenticate, (req: any, res: any) => {
-    const b = req.body || {};
-    const name = String(b.name || "").trim();
-    const ext = (name.split(".").pop() || "").toLowerCase();
-    const dataUrl = String(b.data_url || "");
-    if (!name || !dataUrl.startsWith("data:")) return res.status(400).json({ detail: "Fichier manquant" });
-    if (!DOC_TYPES[ext]) return res.status(400).json({ detail: "Format non accepté : PDF, Excel (.xlsx, .xls), Word (.docx, .doc) ou CSV" });
-    const bytes = Math.floor(((dataUrl.length - dataUrl.indexOf(",") - 1) * 3) / 4);
-    if (bytes > MAX_DOC_BYTES) return res.status(400).json({ detail: "Le fichier dépasse 5 Mo" });
-    const doc = {
-      id: uuidv4(),
-      name,
-      format: ext,
-      mime: DOC_TYPES[ext],
-      size: bytes,
-      title: String(b.title || "").trim() || name.replace(/\.[^.]+$/, ""),
-      category: String(b.category || "Autre").trim(),
-      description: String(b.description || "").trim(),
-      uploaded_by: userName(req),
-      created_at: nowIso(),
-      data_url: dataUrl,
-    };
-    docs().unshift(doc);
-    res.status(201).json(publicDoc(doc));
-  });
-
-  router.delete("/stock/report-documents/:id", authenticate, (req: any, res: any) => {
-    const i = docs().findIndex((x) => x.id === req.params.id);
-    if (i < 0) return res.status(404).json({ detail: "Document introuvable" });
-    docs().splice(i, 1);
-    res.json({ ok: true });
-  });
-
   /* ---------- Catégories ---------- */
   router.get("/stock/categories", authenticate, withStructure, (_req: any, res: any) => {
     res.json(

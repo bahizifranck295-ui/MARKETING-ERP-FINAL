@@ -19,7 +19,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
-  FileBarChart,
   FolderTree,
   History,
   LayoutDashboard,
@@ -53,14 +52,13 @@ import { GlassCard, KpiTile, ProductPhoto, StatusPill, stockStatus } from "@/com
 import { CategoriesPanel, CategoryPicker } from "@/components/stock/categories";
 import SitesDepotsPanel from "@/components/stock/SitesDepotsPanel";
 import { MovementsPanel, TransfersPanel } from "@/components/stock/StockHistoryPanels";
-import StockReportsPanel from "@/components/stock/StockReportsPanel";
 
 const ALL = "all";
 const PAGE_SIZE = 8;
 const LIVE_REFRESH_S = 15; // tableau de bord en temps réel
 
 // Sous-modules du Stock
-type Tab = "dashboard" | "products" | "categories" | "sites" | "transfers" | "movements" | "reports";
+type Tab = "dashboard" | "products" | "categories" | "sites" | "transfers" | "movements";
 const TABS: Array<{ id: Tab; label: string; icon: any }> = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { id: "products", label: "Produits", icon: Package },
@@ -68,7 +66,6 @@ const TABS: Array<{ id: Tab; label: string; icon: any }> = [
   { id: "sites", label: "Sites & Dépôts", icon: MapPin },
   { id: "transfers", label: "Transferts", icon: ArrowRightLeft },
   { id: "movements", label: "Mouvements", icon: History },
-  { id: "reports", label: "Rapports", icon: FileBarChart },
 ];
 
 // La rupture fait partie du « Stock faible »
@@ -989,10 +986,8 @@ export default function StockPage() {
         />
       ) : tab === "transfers" ? (
         <TransfersPanel onStockChanged={refreshInBackground} />
-      ) : tab === "movements" ? (
-        <MovementsPanel />
       ) : (
-        <StockReportsPanel />
+        <MovementsPanel />
       )}
 
       {/* ADJUST STOCK MODAL */}
