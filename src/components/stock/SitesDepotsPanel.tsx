@@ -11,6 +11,7 @@ import {
   Loader2,
   MapPin,
   PackagePlus,
+  Sliders,
   Plus,
   TriangleAlert,
   User,
@@ -20,7 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney, fmtNum } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { ActivePill, GlassCard, KpiTile, ProductPhoto, StatusPill, fmtDateTime, stockStatus } from "@/components/stock/ui";
-import { AddProductToDepotDialog, DepotFormDialog, SiteFormDialog, TransferDialog } from "@/components/stock/stockDialogs";
+import { AddProductToDepotDialog, AdjustInDepotDialog, DepotFormDialog, SiteFormDialog, TransferDialog } from "@/components/stock/stockDialogs";
 
 type View = { level: "sites" } | { level: "site"; siteId: string } | { level: "depot"; siteId: string; depotId: string };
 
@@ -69,7 +70,9 @@ export default function SitesDepotsPanel({
   const [depots, setDepots] = useState<any[]>([]);
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const canAdjust = has("stock.adjust");
   const [dialog, setDialog] = useState<null | "site" | "depot" | "add" | { transferFrom: string; productId?: string }>(null);
+  const [adjusting, setAdjusting] = useState<any>(null);
 
   const site = view.level !== "sites" ? sites.find((s) => s.id === view.siteId) : null;
 
@@ -340,7 +343,7 @@ export default function SitesDepotsPanel({
                         <th className="px-2.5 py-3 text-right font-semibold">Prix achat</th>
                         <th className="px-2.5 py-3 text-right font-semibold">Valeur stock</th>
                         <th className="px-2.5 py-3 text-center font-semibold">Statut</th>
-                        {canTransfer && <th className="px-2.5 py-3 text-center font-semibold">Actions</th>}
+                        {(canTransfer || canAdjust) && <th className="px-2.5 py-3 text-center font-semibold">Actions</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -372,17 +375,31 @@ export default function SitesDepotsPanel({
                             <td className="px-2.5 py-3 text-center">
                               <StatusPill status={stockStatus(p.quantity, threshold)} />
                             </td>
-                            {canTransfer && (
+                            {(canTransfer || canAdjust) && (
                               <td className="px-2.5 py-3 text-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={p.quantity <= 0}
-                                  onClick={() => setDialog({ transferFrom: detail.depot.id, productId: p.id })}
-                                  className="h-8 rounded-lg text-[11px] hover:border-cyan-300 hover:text-[#0F3D68]"
-                                >
-                                  <ArrowRightLeft className="mr-1 h-3.5 w-3.5" /> Transférer
-                                </Button>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {canAdjust && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setAdjusting(p)}
+                                      className="h-8 rounded-lg text-[11px] hover:border-cyan-300 hover:text-[#0F3D68]"
+                                    >
+                                      <Sliders className="mr-1 h-3.5 w-3.5" /> Ajuster
+                                    </Button>
+                                  )}
+                                  {canTransfer && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={p.quantity <= 0}
+                                      onClick={() => setDialog({ transferFrom: detail.depot.id, productId: p.id })}
+                                      className="h-8 rounded-lg text-[11px] hover:border-cyan-300 hover:text-[#0F3D68]"
+                                    >
+                                      <ArrowRightLeft className="mr-1 h-3.5 w-3.5" /> Transférer
+                                    </Button>
+                                  )}
+                                </div>
                               </td>
                             )}
                           </tr>
@@ -460,6 +477,17 @@ export default function SitesDepotsPanel({
           onSaved={() => {
             setDialog(null);
             refresh();
+          }}
+        />
+      )}
+      {adjusting && detail && (
+        <AdjustInDepotDialog
+          depot={detail.depot}
+          product={adjusting}
+          onClose={() => setAdjusting(null)}
+          onSaved={() => {
+            setAdjusting(null);
+            afterStockChange();
           }}
         />
       )}

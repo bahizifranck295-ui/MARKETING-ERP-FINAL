@@ -418,3 +418,106 @@ export function TransferDialog({
     </Dialog>
   );
 }
+
+/* ---------- Ajuster la quantité d'un produit dans un dépôt ---------- */
+export function AdjustInDepotDialog({ depot, product, onClose, onSaved }: { depot: any; product: any; onClose: () => void; onSaved: () => void }) {
+  const [mode, setMode] = useState<"in" | "out">("in");
+  const [qty, setQty] = useState("");
+  const [reason, setReason] = useState("reception");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const current = Number(product.quantity) || 0;
+  const amount = Math.abs(Number(qty) || 0);
+  const next = mode === "in" ? current + amount : current - amount;
+  const tooMuch = next < 0;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.post(`/stock/depots/${depot.id}/adjust`, {
+        product_id: product.id,
+        quantity: mode === "in" ? amount : -amount,
+        reason,
+        note,
+      });
+      toast.success(`${product.name} : ${current} → ${next} dans ${depot.name}`);
+      onSaved();
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Ajustement impossible"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">Ajuster : {product.name}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3 pt-1 text-xs">
+          <div className="rounded-xl border border-cyan-200 bg-cyan-50/60 px-3 py-2 text-slate-700">
+            {depot.label || depot.name} · en stock : <strong className="text-slate-900">{current}</strong>
+          </div>
+          <div className="flex gap-2">
+            {[
+              { v: "in" as const, label: "Ajouter (+)" },
+              { v: "out" as const, label: "Retirer (−)" },
+            ].map((o) => (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => {
+                  setMode(o.v);
+                  setReason(o.v === "in" ? "reception" : "damage");
+                }}
+                aria-pressed={mode === o.v}
+                className={`h-9 flex-1 rounded-lg border text-xs font-semibold ${
+                  mode === o.v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <div>
+            <Label htmlFor="adj_qty" className="text-xs font-semibold">Quantité *</Label>
+            <input
+              id="adj_qty"
+              type="number"
+              min={1}
+              step="1"
+              required
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              className={`${fieldCls} font-bold ${tooMuch ? "border-red-300 ring-2 ring-red-200" : ""}`}
+            />
+            <p className={`mt-1 text-[11px] ${tooMuch ? "font-semibold text-red-600" : "text-slate-500"}`}>
+              {tooMuch ? `Quantité insuffisante : ${current} en stock` : amount ? `Nouveau stock dans ce dépôt : ${next}` : "Saisissez la quantité"}
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="adj_reason" className="text-xs font-semibold">Motif</Label>
+            <select id="adj_reason" value={reason} onChange={(e) => setReason(e.target.value)} className={fieldCls}>
+              <option value="reception">Réception fournisseur</option>
+              <option value="inventory_correction">Correction d'inventaire</option>
+              <option value="damage">Perte / Avarie</option>
+              <option value="return">Retour client</option>
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="adj_note" className="text-xs font-semibold">Note (facultatif)</Label>
+            <input id="adj_note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="N° de bon, remarque…" className={fieldCls} />
+          </div>
+          <DialogFooter className="gap-2 border-t border-slate-100 pt-3">
+            <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
+            <Button type="submit" disabled={saving || tooMuch || !amount} className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+              {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Valider
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

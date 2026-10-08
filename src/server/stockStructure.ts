@@ -333,6 +333,39 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     });
   });
 
+  // Ajuster la quantité d'un produit dans un dépôt (entrée +, sortie -)
+  const ADJUST_REASONS: Record<string, string> = {
+    reception: "Réception fournisseur",
+    inventory_correction: "Correction d'inventaire",
+    damage: "Perte / Avarie",
+    return: "Retour client",
+  };
+  router.post("/stock/depots/:id/adjust", authenticate, withStructure, (req: any, res: any) => {
+    const w = db.warehouses.find((x) => x.id === req.params.id);
+    if (!w) return res.status(404).json({ detail: "Dépôt introuvable" });
+    const p = db.products.find((x) => x.id === req.body?.product_id && x.is_active !== false);
+    if (!p) return res.status(400).json({ detail: "Produit introuvable" });
+    const delta = Number(req.body?.quantity);
+    if (!Number.isFinite(delta) || delta === 0) return res.status(400).json({ detail: "Indiquez une quantité à ajouter (+) ou à retirer (-)" });
+    const lvl = getLevel(p.id, w.id, delta > 0);
+    const current = lvl?.quantity || 0;
+    if (current + delta < 0)
+      return res.status(400).json({ detail: `Quantité insuffisante : ${current} disponible(s) dans ${warehouseLabel(w)} pour ${p.name}` });
+    lvl!.quantity = current + delta;
+    lvl!.updated_at = nowIso();
+    setGlobalStock(p);
+    const code = String(req.body?.reason || "inventory_correction");
+    const note = String(req.body?.note || "").trim();
+    recordMovement({
+      product: p,
+      warehouse: w,
+      quantity: delta,
+      reason: `Ajustement : ${ADJUST_REASONS[code] || code}${note ? ` (${note})` : ""}`,
+      user_name: userName(req),
+    });
+    res.json({ ...lvl, product_name: p.name, global_stock: p.stock });
+  });
+
   // Affecter un produit à un dépôt (avec quantité initiale éventuelle)
   router.post("/stock/depots/:id/products", authenticate, withStructure, (req: any, res: any) => {
     const w = db.warehouses.find((x) => x.id === req.params.id);
