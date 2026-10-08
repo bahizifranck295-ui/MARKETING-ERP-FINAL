@@ -109,6 +109,9 @@ export interface Warehouse {
   name: string;
   address?: string;
   city?: string;
+  site_id?: string;
+  manager?: string;
+  description?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -119,6 +122,7 @@ export interface Product {
   code: string;
   name: string;
   category?: string;
+  size?: string;
   unit: string;
   cost_price: number;
   sell_price: number;
@@ -466,6 +470,11 @@ export const db = {
   objectives: [] as Objective[],
   audit_logs: [] as AuditLog[],
   stock_movements: [] as any[],
+  // Module Stock : Sites → Dépôts → Produits → Quantités (voir stockStructure.ts)
+  sites: [] as any[],
+  stock_levels: [] as any[],
+  stock_transfers: [] as any[],
+  product_categories: [] as string[],
   accounting_movements: [] as any[],
   expense_categories: [] as string[],
   rates_config: {

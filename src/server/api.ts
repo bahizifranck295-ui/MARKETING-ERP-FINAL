@@ -19,6 +19,7 @@ import {
   PERMISSION_CATALOG,
   ALL_PERMISSION_CODES,
 } from "./db";
+import { mountStockStructureRoutes } from "./stockStructure";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "erp_secret_jwt_key_2026";
 
@@ -275,6 +276,9 @@ apiRouter.delete("/users/:id", authenticate, (req, res) => {
   res.json({ ok: true });
 });
 
+// STOCK : sites, dépôts, quantités par dépôt, transferts, catégories
+mountStockStructureRoutes(apiRouter, authenticate);
+
 // WAREHOUSES
 apiRouter.get("/warehouses", authenticate, (req, res) => {
   res.json(db.warehouses);
@@ -307,6 +311,7 @@ apiRouter.post("/products", authenticate, (req, res) => {
     code: p.code || `PRD-${Date.now().toString().slice(-4)}`,
     name: p.name,
     category: p.category,
+    size: p.size ? String(p.size).trim() : undefined,
     unit: p.unit || "unité",
     cost_price: Number(p.cost_price) || 0,
     sell_price: sellPrice,
