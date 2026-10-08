@@ -1,17 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, CheckCircle2, History, Loader2, PackageCheck, RotateCcw, ShoppingBag, Sliders, Truck, User, Warehouse } from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, History, Loader2, PackageCheck, RotateCcw, ShoppingBag, Sliders, Truck, User, Warehouse } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
-import { fmtMoney, fmtNum } from "@/components/erp-ui";
+import { StatusBadge, fmtMoney, fmtNum } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GlassCard, ProductPhoto, fmtDateTime } from "@/components/stock/ui";
 import { RingGauge, SectionTitle, TruckIllustration, TypePill, MOVE_TYPES, selectCls } from "@/components/delivery/deliveryUi";
 
-type Props = { canManage: boolean; onChanged: () => void; formAnchor?: React.RefObject<HTMLDivElement | null> };
+type Props = {
+  canManage: boolean;
+  onChanged: () => void;
+  formAnchor?: React.RefObject<HTMLDivElement | null>;
+  onInvoice?: (order: any) => void;
+};
 
-export default function EmbarkedSection({ canManage, onChanged, formAnchor }: Props) {
+export default function EmbarkedSection({ canManage, onChanged, formAnchor, onInvoice }: Props) {
   const [depots, setDepots] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [levels, setLevels] = useState<any[]>([]);
@@ -86,7 +91,7 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor }: Pr
   };
 
   const stock = stocks.find((s) => s.id === selected);
-  const sales = moves.filter((m) => m.type === "sale" && m.embarked_id === selected).slice(0, 8);
+  const sales = moves.filter((m) => m.type === "sale" && m.embarked_id === selected).slice(0, 30);
   const filteredMoves = moves.filter(
     (m) =>
       (filters.marketer === "all" || m.marketer_id === filters.marketer) &&
@@ -269,17 +274,33 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor }: Pr
 
         {/* Historique des ventes */}
         <GlassCard title={`Historique des ventes${stock ? ` (${stock.marketer_name})` : ""}`} icon={ShoppingBag}>
-          <ul className="divide-y divide-slate-100 text-xs">
+          <ul className="max-h-[420px] divide-y divide-slate-100 overflow-y-auto pr-1 text-xs">
             {sales.map((m) => (
-              <li key={m.id} className="py-2">
+              <li key={m.id} className="space-y-1 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-semibold text-slate-800">{m.product_name}</span>
-                  <span className="shrink-0 font-black tabular-nums text-slate-900">{fmtNum(-m.quantity)}</span>
+                  <span className="shrink-0 font-black tabular-nums text-slate-900">{fmtNum(-m.quantity)} u.</span>
                 </div>
-                <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-slate-500">
+                  <span className="font-mono font-bold text-[#0F3D68]">{m.order_code || "—"}</span>
+                  <span className="font-bold tabular-nums text-slate-800">{m.amount != null ? fmtMoney(m.amount) : "—"}</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-slate-500">
                   <span className="truncate">{m.client_name} · {fmtDateTime(m.at)}</span>
-                  <span className="shrink-0">reste {fmtNum(m.balance_after)}</span>
+                  {m.order_status ? <StatusBadge status={m.order_status} /> : <span>reste {fmtNum(m.balance_after)}</span>}
                 </div>
+                {m.order_id && onInvoice && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onInvoice({ id: m.order_id, code: m.order_code, client_name: m.client_name, created_at: m.at, total: m.amount || 0, items: [] })
+                    }
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#0F3D68]/20 bg-[#0F3D68]/5 px-2 py-1 text-[10px] font-bold text-[#0F3D68] hover:bg-[#0F3D68]/10"
+                    title="Ouvrir la facture dans le visualiseur du navigateur (nouvel onglet)"
+                  >
+                    <Eye className="h-3 w-3" /> Visualiser la facture
+                  </button>
+                )}
               </li>
             ))}
             {!sales.length && <li className="py-8 text-center text-slate-500">Aucune vente depuis ce stock embarqué.</li>}

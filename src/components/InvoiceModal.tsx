@@ -1,23 +1,18 @@
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
-  Printer,
-  Download,
-  X,
   CheckCircle2,
   Clock,
   FileText,
   Loader2,
   AlertTriangle,
-  Maximize2,
-  Minimize2,
 } from "lucide-react";
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { fmtMoney, fmtDate } from "@/components/erp-ui";
 import { api } from "@/lib/api";
+import { openDocumentInNativeViewer } from "@/lib/documentViewer";
 import PremidisLogo from "./PremidisLogo";
 
 export interface InvoiceItem {
@@ -75,10 +70,12 @@ interface InvoiceModalProps {
 export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: InvoiceModalProps) {
   const [fetchedDetails, setFetchedDetails] = useState<Partial<InvoiceData> | null>(null);
   const [loading, setLoading] = useState(false);
-  const [exportingPdf, setExportingPdf] = useState(false);
-  const [printing, setPrinting] = useState(false);
-  const [forceCompact, setForceCompact] = useState<boolean | null>(null);
+  const [detailsReady, setDetailsReady] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
+  // Onglet ouvert immédiatement au clic (évite le blocage des pop-ups),
+  // puis dirigé vers le PDF une fois généré : visualiseur natif de Chrome.
+  const pendingTab = useRef<Window | null>(null);
+  const generatedFor = useRef<string | null>(null);
 
   // Dérivation directe de la commande active
   const order =
@@ -87,13 +84,25 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
       : initialOrder;
 
   useEffect(() => {
-    setForceCompact(null);
-    if (!isOpen || !initialOrder?.id) {
+    generatedFor.current = null;
+    if (!isOpen || !initialOrder) {
       setFetchedDetails(null);
+      setDetailsReady(false);
       return;
     }
+    try {
+      pendingTab.current = window.open("", "_blank");
+      if (pendingTab.current) {
+        pendingTab.current.document.title = `Facture ${initialOrder.code || ""}`;
+        pendingTab.current.document.body.innerHTML =
+          '<p style="font-family:sans-serif;color:#211A5C;padding:24px">Génération de la facture en cours…</p>';
+      }
+    } catch {
+      pendingTab.current = null;
+    }
     // Charger les détails de commande si items manquants
-    if (!initialOrder.items || initialOrder.items.length === 0) {
+    if (initialOrder.id && (!initialOrder.items || initialOrder.items.length === 0)) {
+      setDetailsReady(false);
       setLoading(true);
       api
         .get(`/orders/${initialOrder.id}`)
@@ -105,9 +114,71 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
         .catch(() => {
           // Conserver l'état initial
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          setLoading(false);
+          setDetailsReady(true);
+        });
+    } else {
+      setDetailsReady(true);
     }
   }, [isOpen, initialOrder?.id]);
+
+  // Génère le PDF de la facture puis l'ouvre dans le visualiseur natif (nouvel onglet)
+  const latestOrder = useRef(order);
+  latestOrder.current = order;
+  useEffect(() => {
+    const order = latestOrder.current;
+    if (!isOpen || !order || loading || !detailsReady) return;
+    const key = order.id || order.code;
+    if (generatedFor.current === key) return;
+    generatedFor.current = key;
+    const timer = setTimeout(async () => {
+      const fileName = `Facture_${order.code || "PREMIDIS"}.pdf`;
+      try {
+        if (!invoiceRef.current) throw new Error("document absent");
+        const canvas = await html2canvas(invoiceRef.current, {
+          scale: 2.5,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+        });
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+        const margin = 10;
+        const contentWidth = 210 - margin * 2;
+        const contentHeight = (canvas.height * contentWidth) / canvas.width;
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, margin, contentWidth, Math.min(contentHeight, 297 - margin * 2), undefined, "FAST");
+        pdf.setProperties({ title: fileName });
+        const blobUrl = URL.createObjectURL(pdf.output("blob"));
+        const tab = pendingTab.current;
+        pendingTab.current = null;
+        if (tab && !tab.closed) {
+          tab.location.href = blobUrl;
+          toast.success(`Facture ${order.code} ouverte dans un nouvel onglet`);
+        } else {
+          // Pop-up bloquée : nouvelle tentative + action manuelle
+          await openDocumentInNativeViewer(blobUrl, fileName);
+          toast(`Facture ${order.code} prête`, {
+            action: { label: "Ouvrir la facture", onClick: () => openDocumentInNativeViewer(blobUrl, fileName) },
+            duration: 15000,
+          });
+        }
+      } catch (err) {
+        console.error("Erreur génération facture:", err);
+        try {
+          pendingTab.current?.close();
+        } catch {}
+        pendingTab.current = null;
+        toast.error("Impossible de générer la facture. Veuillez réessayer.");
+      } finally {
+        onClose();
+      }
+    }, 80);
+    return () => {
+      clearTimeout(timer);
+      generatedFor.current = null;
+    };
+  }, [isOpen, order?.id, order?.code, loading, detailsReady]);
 
   if (!isOpen || !order) return null;
 
@@ -131,247 +202,23 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
 
   const isPaid = order.payment_status === "paid" || order.status === "delivered";
 
-  // EXPORTATION PDF CONFORME À 100% SANS MODIFICATION
-  const handleExportPdf = async () => {
-    if (!invoiceRef.current) {
-      toast.error("Document non disponible pour l'export.");
-      return;
-    }
-    setExportingPdf(true);
-    try {
-      const element = invoiceRef.current;
-      
-      // Capture haute résolution
-      const canvas = await html2canvas(element, {
-        scale: 2.5,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-        compress: true,
-      });
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const margin = 10;
-      const contentWidth = pageWidth - margin * 2;
-      const contentHeight = (canvas.height * contentWidth) / canvas.width;
-      const yPos = contentHeight < (pageHeight - margin * 2) ? margin : margin;
-
-      pdf.addImage(imgData, "PNG", margin, yPos, contentWidth, Math.min(contentHeight, pageHeight - margin * 2), undefined, "FAST");
-      
-      const fileName = `Facture_${order.code || "PREMIDIS"}.pdf`;
-      pdf.save(fileName);
-      toast.success(`Facture exportée avec succès : ${fileName}`);
-    } catch (err) {
-      console.error("Erreur génération PDF:", err);
-      toast.error("Impossible de générer le PDF. Veuillez réessayer.");
-    } finally {
-      setExportingPdf(false);
-    }
-  };
-
-  // IMPRESSION HAUTE DÉFINITION CONFORME SANS BLOCAGE IFRAME
-  const handlePrint = async () => {
-    if (!invoiceRef.current) {
-      window.print();
-      return;
-    }
-    setPrinting(true);
-    try {
-      const element = invoiceRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2.5,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
-      const imgData = canvas.toDataURL("image/png");
-
-      const printWin = window.open("", "_blank", "width=900,height=1000");
-      if (printWin) {
-        printWin.document.open();
-        printWin.document.write(`
-          <!DOCTYPE html>
-          <html lang="fr">
-            <head>
-              <meta charset="utf-8">
-              <title>Facture_${order.code || "PREMIDIS"}</title>
-              <style>
-                @page {
-                  size: A4 portrait;
-                  margin: 6mm;
-                }
-                body {
-                  margin: 0;
-                  padding: 0;
-                  display: flex;
-                  justify-content: center;
-                  background-color: #ffffff;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                }
-                img {
-                  width: 100%;
-                  max-width: 198mm;
-                  height: auto;
-                  display: block;
-                }
-              </style>
-            </head>
-            <body>
-              <img src="${imgData}" onload="setTimeout(() => { window.focus(); window.print(); window.close(); }, 300);" />
-            </body>
-          </html>
-        `);
-        printWin.document.close();
-      } else {
-        const iframe = document.createElement("iframe");
-        iframe.style.position = "fixed";
-        iframe.style.right = "0";
-        iframe.style.bottom = "0";
-        iframe.style.width = "0";
-        iframe.style.height = "0";
-        iframe.style.border = "0";
-        document.body.appendChild(iframe);
-
-        const frameDoc = iframe.contentWindow?.document;
-        if (frameDoc) {
-          frameDoc.open();
-          frameDoc.write(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>Facture_${order.code}</title>
-                <style>
-                  @page { size: A4 portrait; margin: 8mm; }
-                  body { margin: 0; padding: 0; }
-                  img { width: 100%; max-width: 195mm; height: auto; }
-                </style>
-              </head>
-              <body>
-                <img src="${imgData}" onload="setTimeout(() => { window.focus(); window.print(); }, 250);" />
-              </body>
-            </html>
-          `);
-          frameDoc.close();
-          setTimeout(() => {
-            try {
-              iframe.contentWindow?.focus();
-              iframe.contentWindow?.print();
-            } catch (e) {
-              window.print();
-            } finally {
-              setTimeout(() => {
-                if (document.body.contains(iframe)) document.body.removeChild(iframe);
-              }, 6000);
-            }
-          }, 350);
-        } else {
-          window.print();
-        }
-      }
-    } catch (err) {
-      console.warn("Fallback impression directe:", err);
-      window.print();
-    } finally {
-      setPrinting(false);
-    }
-  };
 
   const isCreditAlert = Boolean(
     order?.has_credit_alert ||
     (order?.credit_check?.is_exceeded && order?.payment_method === "credit")
   );
 
-  const isCompact = forceCompact !== null ? forceCompact : isCreditAlert;
+  const isCompact = isCreditAlert;
 
+  // Document rendu hors écran : il sert uniquement à produire le PDF
+  // affiché ensuite par le visualiseur natif du navigateur.
   return createPortal(
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200">
-      {/* Conteneur global de la facture : 100% visible sans barre de défilement */}
+    <div aria-hidden className="pointer-events-none fixed top-0 left-[-10000px] z-[-1]">
       <div
-        className={`relative w-full flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-300 overflow-hidden text-slate-900 transition-all duration-300 ${
-          isCompact ? "max-w-2xl max-h-[96vh]" : "max-w-4xl max-h-[96vh]"
+        className={`relative flex flex-col bg-white text-slate-900 ${
+          isCompact ? "w-[672px]" : "w-[896px]"
         }`}
       >
-        {/* BARRE D'ACTIONS SUPÉRIEURE (Masquée à l'impression) */}
-        <div className="print:hidden bg-[#1B1446] text-white px-3 sm:px-4 py-2 flex items-center justify-between border-b border-indigo-950 shrink-0 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span className="font-bold text-xs uppercase tracking-wider text-slate-200 truncate">
-              PREMIDIS • Facture N° {order.code}
-            </span>
-            {isCreditAlert && (
-              <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/30 text-red-200 border border-red-400/40 shrink-0">
-                <AlertTriangle className="h-2.5 w-2.5 text-red-300" />
-                Dépassement Crédit (Mode Compact)
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* BOUTON BASCULE VUE COMPACTE VERTICALE */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setForceCompact(!isCompact)}
-              className="h-8 rounded-xl border-indigo-700 bg-indigo-900/60 text-white hover:bg-indigo-800 font-semibold text-xs px-2.5 gap-1.5 cursor-pointer"
-              title={isCompact ? "Passer en vue normale" : "Optimiser en vue compacte verticale (sans scroll)"}
-            >
-              {isCompact ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{isCompact ? "Vue Normale" : "Vue Compacte"}</span>
-            </Button>
-
-            {/* BOUTON 1 : IMPRIMER */}
-            <Button
-              size="sm"
-              onClick={handlePrint}
-              disabled={printing || exportingPdf}
-              className="h-8 rounded-xl bg-white text-[#211A5C] hover:bg-slate-100 font-bold text-xs px-2.5 sm:px-3 shadow-xs gap-1.5 cursor-pointer disabled:opacity-50"
-              title="Lancer l'impression conforme"
-            >
-              {printing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#211A5C]" />
-              ) : (
-                <Printer className="h-3.5 w-3.5 text-[#211A5C]" />
-              )}
-              <span className="hidden sm:inline">{printing ? "Impression..." : "Imprimer"}</span>
-            </Button>
-
-            {/* BOUTON 2 : EXPORTER PDF */}
-            <Button
-              size="sm"
-              onClick={handleExportPdf}
-              disabled={exportingPdf || printing}
-              variant="outline"
-              className="h-8 rounded-xl border-indigo-700 bg-indigo-900/60 text-white hover:bg-indigo-800 font-bold text-xs px-2.5 sm:px-3 gap-1.5 cursor-pointer disabled:opacity-50"
-              title="Télécharger une copie PDF conforme de la facture"
-            >
-              {exportingPdf ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
-              ) : (
-                <Download className="h-3.5 w-3.5 text-white" />
-              )}
-              <span className="hidden sm:inline">{exportingPdf ? "PDF..." : "PDF"}</span>
-            </Button>
-
-            {/* BOUTON 3 : FERMER */}
-            <button
-              onClick={onClose}
-              className="h-8 w-8 rounded-xl bg-indigo-950 hover:bg-indigo-900 text-slate-300 hover:text-white flex items-center justify-center transition-colors ml-1 cursor-pointer"
-              title="Fermer la facture"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
         {/* DOCUMENT DE FACTURE PROPREMENT DIT (Format vertical condensé zéro scrollbar) */}
         <div
           ref={invoiceRef}

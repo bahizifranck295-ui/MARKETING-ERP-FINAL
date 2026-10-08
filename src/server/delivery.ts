@@ -85,6 +85,8 @@ function recordEmbarked(m: {
   user_name: string;
   client_name?: string;
   order_code?: string;
+  order_id?: string;
+  amount?: number;
   warehouse_label?: string;
   reference?: string;
 }) {
@@ -107,6 +109,8 @@ function recordEmbarked(m: {
     reason: m.reason,
     client_name: m.client_name,
     order_code: m.order_code,
+    order_id: m.order_id,
+    amount: m.amount,
     warehouse_label: m.warehouse_label,
     reference: m.reference,
     user_name: m.user_name,
@@ -165,18 +169,49 @@ export function applyOrderStockOut(order: Order, user: User): string | null {
       l.quantity -= it.quantity;
       l.updated_at = nowIso();
       setGlobalStock(p);
-      recordEmbarked({ es, product: p, type: "sale", quantity: -it.quantity, reason: `Vente ${order.code}`, user_name: user.full_name, client_name: order.client_name, order_code: order.code });
+      recordEmbarked({
+        es,
+        product: p,
+        type: "sale",
+        quantity: -it.quantity,
+        reason: `Vente ${order.code}`,
+        user_name: user.full_name,
+        client_name: order.client_name,
+        order_code: order.code,
+        order_id: order.id,
+        amount: Number((it as any).line_total) || it.quantity * (Number(it.unit_price) || 0),
+      });
     }
     (order as any).embarked_id = es.id;
   }
-  // Produits « Sur commande » : sortie d'origine sur le stock du produit
+  // Produits « Sur commande » : sortie du stock normal du dépôt concerné
+  // (dépôt du marketeur, sinon dépôt principal du produit, puis les autres si besoin)
+  const sources: Array<{ product_name: string; warehouse_label: string; quantity: number }> = [];
+  const marketer = db.users.find((x) => x.id === order.marketer_id);
   for (const it of otherItems) {
     const prod = db.products.find((p) => p.id === it.product_id);
-    if (prod) {
-      prod.stock = Math.max(0, prod.stock - it.quantity);
-      prod.current_stock = prod.stock;
+    if (!prod) continue;
+    const preferred = [marketer?.warehouse_id, prod.warehouse_id].filter((id): id is string => !!id && db.warehouses.some((w) => w.id === id));
+    const lvls = (db.stock_levels as any[])
+      .filter((l) => l.product_id === prod.id && l.quantity > 0)
+      .sort((a, b) => {
+        const ia = preferred.indexOf(a.warehouse_id), ib = preferred.indexOf(b.warehouse_id);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || b.quantity - a.quantity;
+      });
+    let left = it.quantity;
+    for (const l of lvls) {
+      if (left <= 0) break;
+      const take = Math.min(l.quantity, left);
+      l.quantity -= take;
+      l.updated_at = nowIso();
+      left -= take;
+      const w = db.warehouses.find((x) => x.id === l.warehouse_id);
+      recordMovement({ product: prod, warehouse: w, quantity: -take, reason: `Vente ${order.code} (sur commande) · ${order.client_name}`, reference: order.code, user_name: user.full_name });
+      sources.push({ product_name: prod.name, warehouse_label: warehouseLabel(w), quantity: take });
     }
+    setGlobalStock(prod);
   }
+  if (sources.length) (order as any).stock_sources = sources;
   (order as any).delivery_mode = !otherItems.length ? "embarked" : embarkedItems.length ? "mixed" : "on_order";
   return null;
 }
@@ -261,7 +296,13 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
 
   router.get("/delivery/embarked/movements", authenticate, (req: any, res: any) => {
     const u = me(req);
-    res.json(embarkedMoves().filter((m) => canSeeAll(u) || m.marketer_id === u.id).slice(0, 1000));
+    const statusOf = (id?: string) => db.orders.find((o) => o.id === id)?.status;
+    res.json(
+      embarkedMoves()
+        .filter((m) => canSeeAll(u) || m.marketer_id === u.id)
+        .slice(0, 1000)
+        .map((m) => (m.type === "sale" ? { ...m, order_status: statusOf(m.order_id) } : m))
+    );
   });
 
   // Déstockage : Dépôt → stock embarqué du marketeur (camion + chauffeur)

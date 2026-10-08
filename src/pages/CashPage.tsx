@@ -605,14 +605,11 @@ export default function CashPage() {
       const result = await generateCashReceiptPdf(receiptData);
       toast.dismiss("cash-slip");
 
-      const win = window.open(result.dataUrl, "_blank");
-      if (!win) {
-        const a = document.createElement("a");
-        a.href = result.dataUrl;
-        a.download = result.fileName;
-        a.click();
-      }
-      toast.success("Bordereau officiel généré avec succès !");
+      // Visualiseur natif du navigateur (nouvel onglet), comme tous les documents de l'application
+      await openDocumentInNativeViewer(result.dataUrl, result.fileName);
+      toast("Bordereau officiel généré avec succès !", {
+        action: { label: "Ouvrir le bordereau", onClick: () => openDocumentInNativeViewer(result.dataUrl, result.fileName) },
+      });
     } catch (err) {
       toast.dismiss("cash-slip");
       toast.error(extractErrorMessage(err, "Erreur génération reçu"));
@@ -1766,7 +1763,7 @@ export default function CashPage() {
 
             <div className="flex flex-col gap-2 pt-2">
               <Button
-                onClick={() => window.open(slipModalData.url, "_blank")}
+                onClick={() => openDocumentInNativeViewer(slipModalData.url, slipModalData.title)}
                 className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-bold text-xs gap-1.5"
               >
                 <Eye className="w-4 h-4" />

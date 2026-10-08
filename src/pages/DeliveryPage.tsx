@@ -152,7 +152,7 @@ export default function DeliveryPage() {
 
       {overview &&
         (section === "embarked" ? (
-          <EmbarkedSection canManage={!!overview.can_see_all} onChanged={changed} formAnchor={formAnchor} />
+          <EmbarkedSection canManage={!!overview.can_see_all} onChanged={changed} formAnchor={formAnchor} onInvoice={openInvoice} />
         ) : section === "orders" ? (
           <OrdersSection onChanged={changed} onInvoice={openInvoice} onShowHistory={() => setSection("history")} />
         ) : section === "history" ? (
