@@ -31,7 +31,7 @@ import {
   CashClosingReceiptData,
   CashReceiptData,
 } from "@/lib/generateCashReceiptPdf";
-import { openDocumentUrl, openDocumentInNativeViewer, saveFile, openPendingTab, closeTab } from "@/lib/documentViewer";
+import { openDocumentUrl, openDocumentInNativeViewer, saveFile, openPendingTab, closeTab, presentDocument } from "@/lib/documentViewer";
 import { exportReceivablesPdf } from "@/lib/exportReceivablesPdf";
 import { useAuth } from "@/contexts/AuthContext";
 import StockReportDashboard from "@/components/reports/StockReportDashboard";
@@ -213,6 +213,58 @@ export default function ReportsPage() {
       toast.error(extractErrorMessage(err, "Export PDF impossible"));
     } finally {
       setExportingReceivables(false);
+    }
+  };
+
+  // Document de billetage (bordereau officiel de clôture) ouvert dans le visualiseur
+  const openClosingDocument = async (sess: any) => {
+    const tab = openPendingTab("Billetage de clôture");
+    try {
+      if (sess.closing_document_url) {
+        closeTab(tab);
+        await openDocumentInNativeViewer(sess.closing_document_url, sess.closing_document_name || "Billetage_Cloture.pdf");
+        return;
+      }
+      const ops = cashOps.filter((o) => o.session_id === sess.id);
+      const sum = (type: string, cur: "usd" | "cdf") =>
+        ops
+          .filter((o) => o.type === type)
+          .reduce((s, o) => s + (cur === "usd" ? o.amount_usd ?? (o.currency === "USD" ? o.amount : o.amount / (o.exchange_rate || 2500)) : o.amount_cdf ?? (o.currency === "CDF" ? o.amount : 0)), 0);
+      const rate = Number(sess.exchange_rate) || 2500;
+      const initUsd = sess.initial_balance_usd ?? sess.initial_balance ?? 0;
+      const initCdf = sess.initial_balance_cdf || 0;
+      const inUsd = sum("in", "usd"), outUsd = sum("out", "usd"), inCdf = sum("in", "cdf"), outCdf = sum("out", "cdf");
+      const theoUsd = sess.theoretical_balance_usd || initUsd + inUsd - outUsd;
+      const theoCdf = sess.theoretical_balance_cdf || initCdf + inCdf - outCdf;
+      const actUsd = Number(sess.actual_balance_usd) || 0;
+      const actCdf = Number(sess.actual_balance_cdf) || 0;
+      const { doc, fileName } = await generateCashClosingReceiptPdf({
+        sessionReference: `CLOT-${String(sess.id).slice(0, 6).toUpperCase()}`,
+        sessionId: sess.id,
+        openedAt: sess.opened_at,
+        closedAt: sess.closed_at || new Date(),
+        agentName: sess.closed_by || sess.opened_by_name || "Caissier",
+        department: sess.department || "Caisse Centrale Goma",
+        exchangeRate: rate,
+        initialBalanceUSD: initUsd,
+        initialBalanceCDF: initCdf,
+        totalInUSD: inUsd,
+        totalInCDF: inCdf,
+        totalOutUSD: outUsd,
+        totalOutCDF: outCdf,
+        theoreticalBalanceUSD: theoUsd,
+        theoreticalBalanceCDF: theoCdf,
+        actualBalanceUSD: actUsd,
+        actualBalanceCDF: actCdf,
+        differenceUSD: sess.difference_usd ?? actUsd - theoUsd,
+        differenceCDF: sess.difference_cdf ?? actCdf - theoCdf,
+        discrepancyReason: sess.discrepancy_reason || undefined,
+        billetage: sess.closing_billetage || { usd: {}, cdf: {}, total_usd: actUsd, total_cdf: actCdf, exchange_rate: rate },
+      });
+      if (!(await presentDocument(doc.output("blob"), fileName, tab))) closeTab(tab);
+    } catch (err) {
+      closeTab(tab);
+      toast.error(extractErrorMessage(err, "Impossible d'ouvrir le document de billetage"));
     }
   };
 
@@ -771,7 +823,7 @@ export default function ReportsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setViewingBilletageSession(sess)}
+                            onClick={() => openClosingDocument(sess)}
                             className="h-7 px-2 text-[10px]"
                           >
                             <Eye className="h-3 w-3 mr-1 text-blue-600" /> Billetage

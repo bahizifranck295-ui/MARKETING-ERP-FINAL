@@ -1186,24 +1186,47 @@ apiRouter.post("/cash/sessions/:id/close", authenticate, (req, res) => {
   if (!active) return res.status(400).json({ detail: "Aucune session ouverte à clôturer" });
 
   const {
-    actual_usd,
-    actual_cdf,
-    theoretical_usd,
-    theoretical_cdf,
+    actual_usd: actualUsdIn,
+    actual_cdf: actualCdfIn,
+    theoretical_usd: theoreticalUsdIn,
+    theoretical_cdf: theoreticalCdfIn,
     difference_usd,
     difference_cdf,
-    discrepancy_reason,
-    closing_billetage,
+    discrepancy_reason: discrepancyReasonIn,
+    closing_billetage: closingBilletageIn,
     department,
     closing_document_url,
     closing_document_name,
     notes,
   } = req.body;
 
+  // L'écran Caisse envoie actual_balance_usd / actual_balance_cdf / billetage : les deux noms sont acceptés
+  const actual_usd = actualUsdIn ?? req.body.actual_balance_usd;
+  const actual_cdf = actualCdfIn ?? req.body.actual_balance_cdf;
+  const closing_billetage = closingBilletageIn ?? req.body.billetage;
+  // Solde théorique calculé par le serveur s'il n'est pas fourni : fonds initial + entrées − sorties de la session
+  // (même calcul que la caisse active : /cash/active-session)
+  const sessionOps = db.cash_operations.filter((o: any) => o.session_id === active.id);
+  const sumOps = (type: string, cur: "usd" | "cdf") =>
+    sessionOps
+      .filter((o: any) => o.type === type)
+      .reduce(
+        (sum: number, o: any) =>
+          sum +
+          (cur === "usd"
+            ? o.amount_usd || (o.currency === "USD" ? o.amount : o.amount / (o.exchange_rate || 2500))
+            : o.amount_cdf || (o.currency === "CDF" ? o.amount : o.amount * (o.exchange_rate || 2500))),
+        0
+      );
+  const initUsd = active.initial_balance_usd !== undefined ? active.initial_balance_usd : active.initial_balance || 0;
+  const theoretical_usd = theoreticalUsdIn ?? Math.round((initUsd + sumOps("in", "usd") - sumOps("out", "usd")) * 100) / 100;
+  const theoretical_cdf = theoreticalCdfIn ?? Math.round((active.initial_balance_cdf || 0) + sumOps("in", "cdf") - sumOps("out", "cdf"));
+  const discrepancy_reason = discrepancyReasonIn ?? req.body.notes;
   const diffUSD = difference_usd !== undefined ? Number(difference_usd) : (Number(actual_usd) || 0) - (Number(theoretical_usd) || 0);
   const diffCDF = difference_cdf !== undefined ? Number(difference_cdf) : (Number(actual_cdf) || 0) - (Number(theoretical_cdf) || 0);
 
-  const hasDiscrepancy = Math.abs(diffUSD) > 0.01 || Math.abs(diffCDF) > 50;
+  // Motif obligatoire uniquement quand l'écran fournit lui-même le solde théorique (comportement inchangé)
+  const hasDiscrepancy = theoreticalUsdIn !== undefined && (Math.abs(diffUSD) > 0.01 || Math.abs(diffCDF) > 50);
   if (hasDiscrepancy && !discrepancy_reason?.trim()) {
     return res.status(400).json({
       detail: "Un motif d'écart obligatoire doit être fourni lorsqu'un écart est constaté",
