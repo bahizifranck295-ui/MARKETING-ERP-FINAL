@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from "@/lib/api";
 import { fmtMoney } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { closeTab, openPendingTab, presentDocument } from "@/lib/documentViewer";
+import { useAuth } from "@/contexts/AuthContext";
 
 /*
  * Rapport des ventes : fiches de commande (de livraison) par catégorie de produits,
@@ -127,6 +128,9 @@ export default function SalesSheets({ search = "", period: reportPeriod }: { sea
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  // « Prepared by » : l'utilisateur qui établit / exporte la fiche
+  const preparedBy = user?.full_name || "Utilisateur";
   // Fiches = catégories créées dans Stock › Catégories
   const [categories, setCategories] = useState<string[]>([]);
   const [cat, setCat] = useState("");
@@ -169,7 +173,8 @@ export default function SalesSheets({ search = "", period: reportPeriod }: { sea
 
   // Modèle de fiche d'après le nom de la catégorie (eau, whisky, whisky India, maïs, vin), sinon format commun
   const template = SHEETS.find((s) => s.key === sheetOfCategory(cat));
-  const sheet: SheetDef = template ? { ...template, label: cat } : genericSheet(cat);
+  // Pas de colonne Total ni Bonus par ligne : les totaux sont calculés en bas de la fiche
+  const sheet: SheetDef = { ...(template ? { ...template, label: cat } : genericSheet(cat)), total: false, bonus: undefined };
   const sheetKey = cat;
   const productSheet = useMemo(() => new Map(products.map((p) => [p.id, p.category ? categories.find((n) => strip(n) === strip(p.category)) || null : null])), [products, categories]);
 
@@ -314,7 +319,7 @@ export default function SalesSheets({ search = "", period: reportPeriod }: { sea
       doc.text(`Montant total des commandes : ${fmtMoney(grandAmount).replace(/[  ]/g, " ")}`, M, y + 6);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text("PREPARED BY", M, H - 10);
+      doc.text(`PREPARED BY : ${preparedBy}`, M, H - 10);
       doc.text("MARKETING OFFICER", W / 2, H - 10, { align: "center" });
       doc.text(sheet.depot, W - M, H - 10, { align: "right" });
       const name = `Fiche_${sheet.label.replace(/\s+/g, "_")}_${period === "day" ? day : month}.pdf`;
@@ -445,7 +450,9 @@ export default function SalesSheets({ search = "", period: reportPeriod }: { sea
           </table>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-300 px-4 py-2.5 text-[11px] font-bold uppercase text-slate-600">
-          <span>Prepared by</span>
+          <span>
+            Prepared by : <span className="normal-case text-slate-900">{preparedBy}</span>
+          </span>
           <span>Marketing officer</span>
           <span>{sheet.depot}</span>
         </div>
