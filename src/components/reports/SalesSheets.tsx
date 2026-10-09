@@ -14,7 +14,7 @@ import { closeTab, openPendingTab, presentDocument } from "@/lib/documentViewer"
  * Journalier : fiche du jour choisi. Mensuel : fiche récapitulative du mois. Pas d'annuel.
  */
 
-type SheetKey = "eau" | "whisky_local" | "whisky_india" | "mais" | "vin";
+type SheetKey = "eau" | "whisky_local" | "whisky_india" | "mais" | "vin" | "generic";
 
 type SheetDef = {
   key: SheetKey;
@@ -85,6 +85,18 @@ const SHEETS: SheetDef[] = [
   },
 ];
 
+// Catégorie sans modèle papier : fiche au format commun
+const genericSheet = (category: string): SheetDef => ({
+  key: "generic",
+  label: category,
+  title: () => `FICHE DE LIVRAISON / VENTE ${category.toUpperCase()}`,
+  clientLabel: "Nom du client",
+  marketer: true,
+  total: true,
+  footer: ["TOTAL"],
+  depot: "DEPOT CHANCE",
+});
+
 const strip = (s: string) =>
   String(s || "")
     .normalize("NFD")
@@ -115,7 +127,9 @@ export default function SalesSheets({ search = "", period: reportPeriod }: { sea
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sheetKey, setSheetKey] = useState<SheetKey>("eau");
+  // Fiches = catégories créées dans Stock › Catégories
+  const [categories, setCategories] = useState<string[]>([]);
+  const [cat, setCat] = useState("");
   const [period, setPeriod] = useState<"day" | "month">("day");
   const [day, setDay] = useState(todayKey());
   const [month, setMonth] = useState(todayKey().slice(0, 7));
@@ -134,9 +148,12 @@ export default function SalesSheets({ search = "", period: reportPeriod }: { sea
 
   const load = async (silent = false) => {
     try {
-      const [o, p] = await Promise.all([api.get("/orders"), api.get("/products")]);
+      const [o, p, c] = await Promise.all([api.get("/orders"), api.get("/products"), api.get("/stock/categories")]);
       setOrders(Array.isArray(o.data) ? o.data : []);
       setProducts(Array.isArray(p.data) ? p.data : []);
+      const names = (Array.isArray(c.data) ? c.data : []).map((x: any) => String(x.name || x)).filter(Boolean);
+      setCategories(names);
+      setCat((cur) => (cur && names.some((n: string) => strip(n) === strip(cur)) ? cur : names[0] || ""));
     } catch (err) {
       if (!silent) toast.error(extractErrorMessage(err, "Erreur de chargement des fiches"));
     } finally {
@@ -150,8 +167,11 @@ export default function SalesSheets({ search = "", period: reportPeriod }: { sea
     return () => window.clearInterval(t);
   }, []);
 
-  const sheet = SHEETS.find((s) => s.key === sheetKey)!;
-  const productSheet = useMemo(() => new Map(products.map((p) => [p.id, sheetOfCategory(p.category)])), [products]);
+  // Modèle de fiche d'après le nom de la catégorie (eau, whisky, whisky India, maïs, vin), sinon format commun
+  const template = SHEETS.find((s) => s.key === sheetOfCategory(cat));
+  const sheet: SheetDef = template ? { ...template, label: cat } : genericSheet(cat);
+  const sheetKey = cat;
+  const productSheet = useMemo(() => new Map(products.map((p) => [p.id, p.category ? categories.find((n) => strip(n) === strip(p.category)) || null : null])), [products, categories]);
 
   // Colonnes : chaque produit de la catégorie (actif ou présent dans une commande de la période)
   const inPeriod = (o: any) => {
@@ -318,20 +338,21 @@ export default function SalesSheets({ search = "", period: reportPeriod }: { sea
     <div className="space-y-3">
       {/* Fiches par catégorie */}
       <div role="tablist" aria-label="Fiches par catégorie" className="flex flex-wrap gap-1.5">
-        {SHEETS.map((s) => (
+        {categories.map((name) => (
           <button
-            key={s.key}
+            key={name}
             type="button"
             role="tab"
-            aria-selected={s.key === sheetKey}
-            onClick={() => setSheetKey(s.key)}
+            aria-selected={name === cat}
+            onClick={() => setCat(name)}
             className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors ${
-              s.key === sheetKey ? "bg-[#0F3D68] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              name === cat ? "bg-[#0F3D68] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
-            {s.label}
+            {name}
           </button>
         ))}
+        {!categories.length && <span className="text-xs text-slate-500">Aucune catégorie : créez-en dans Stock › Catégories.</span>}
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
