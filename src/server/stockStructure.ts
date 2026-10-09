@@ -43,6 +43,12 @@ export interface StockTransfer {
   to_warehouse_id: string;
   to_label: string;
   note?: string;
+  // Déstockage vers un stock embarqué : marketeur, camion et chauffeur concernés
+  kind?: "embarked_load";
+  marketer_id?: string;
+  marketer_name?: string;
+  vehicle_plate?: string;
+  driver_name?: string;
   status: "completed";
   user_name: string;
   created_at: string;
@@ -111,8 +117,10 @@ export function recordMovement(m: {
   reason: string;
   reference?: string;
   user_name?: string;
+  extra?: Record<string, any>;
 }) {
   db.stock_movements.unshift({
+    ...(m.extra || {}),
     id: uuidv4(),
     product_id: m.product.id,
     product_name: m.product.name,

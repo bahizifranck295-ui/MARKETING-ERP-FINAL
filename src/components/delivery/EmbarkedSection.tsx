@@ -83,7 +83,9 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
     try {
       const { data } = await api.post("/delivery/embarked/load", { warehouse_id: depotId, product_id: productId, quantity: amount, marketer_id: marketerId, vehicle_id: vehicleId });
       setLastLoad({ code: data.code, qty: amount, product: product?.name, depot: depot?.label, marketer: data.embarked.marketer_name, plate: data.embarked.vehicle?.plate });
-      toast.success(`Déstockage ${data.code} validé`);
+      toast.success(`Déstockage ${data.code} validé`, {
+        description: `${depot?.label || "Dépôt"} −${amount} · camion de ${data.embarked.marketer_name} +${amount} · reste au dépôt : ${data.depot_remaining}`,
+      });
       setQty("");
       setSelected(data.embarked.id);
       await load();

@@ -27,6 +27,7 @@ import {
   Shapes,
   TrendingUp,
   Warehouse as WarehouseIcon,
+  Truck,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,6 +108,8 @@ export default function StockPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
   const [levels, setLevels] = useState<any[]>([]);
+  // Marchandise transférée dans les camions des marketeurs (module Livraison)
+  const [embarkedSummary, setEmbarkedSummary] = useState<any>(null);
   const [category, setCategory] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
@@ -131,6 +134,10 @@ export default function StockPage() {
       setWarehouses(Array.isArray(d.data) ? d.data : []);
       setLevels(Array.isArray(l.data) ? l.data : []);
       setLastSync(new Date());
+      api
+        .get("/stock/embarked-summary")
+        .then(({ data }) => setEmbarkedSummary(data))
+        .catch(() => setEmbarkedSummary(null));
     } catch {
       // le reste de la page reste utilisable
     }
@@ -758,6 +765,54 @@ export default function StockPage() {
                 {!sites.length && <p className="text-xs text-slate-500">Aucun site. Créez-en un dans « Sites & Dépôts ».</p>}
               </div>
             </GlassCard>
+
+            {/* Stock embarqué : marchandise sortie des dépôts vers les camions des marketeurs */}
+            {embarkedSummary && (
+              <GlassCard title="Stock embarqué des marketeurs" icon={Truck}>
+                <div
+                  className={`mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border px-3 py-2 text-xs ${
+                    embarkedSummary.totals.balanced ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"
+                  }`}
+                >
+                  <span>
+                    Dépôts <strong className="tabular-nums">{fmtNum(embarkedSummary.totals.depots)}</strong>
+                  </span>
+                  <span>
+                    + Camions <strong className="tabular-nums">{fmtNum(embarkedSummary.totals.embarked)}</strong>
+                  </span>
+                  <span>
+                    = Stock total <strong className="tabular-nums">{fmtNum(embarkedSummary.totals.total)}</strong> unités
+                  </span>
+                  <span className="font-semibold">{embarkedSummary.totals.balanced ? "✓ Stocks synchronisés" : "⚠ Écart détecté"}</span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {embarkedSummary.stocks.map((e: any) => (
+                    <div key={e.id} className="rounded-2xl border border-slate-200 bg-white p-3">
+                      <div className="flex items-center gap-2">
+                        <Truck className="h-4 w-4 shrink-0 text-[#0F3D68]" />
+                        <span className="truncate font-bold text-slate-900">{e.marketer_name}</span>
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-slate-500">
+                        {e.vehicle_plate || "Sans camion"}
+                        {e.driver_name ? ` · ${e.driver_name}` : ""}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-700">
+                        <strong className="tabular-nums">{fmtNum(e.units)}</strong> unités · {fmtMoney(e.value)}
+                      </div>
+                      <ul className="mt-1.5 space-y-0.5 text-[11px] text-slate-600">
+                        {e.items.slice(0, 4).map((i: any) => (
+                          <li key={i.product_id} className="flex justify-between gap-2">
+                            <span className="truncate">{i.name}</span>
+                            <span className="tabular-nums font-semibold">{fmtNum(i.quantity)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  {!embarkedSummary.stocks.length && <p className="text-xs text-slate-500">Aucune marchandise dans les camions.</p>}
+                </div>
+              </GlassCard>
+            )}
           </>
         )
       ) : tab === "products" ? (

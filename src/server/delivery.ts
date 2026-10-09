@@ -146,6 +146,11 @@ function depotQuantity(productId: string) {
   return (db.stock_levels as any[]).filter((l) => l.product_id === productId).reduce((s, l) => s + (Number(l.quantity) || 0), 0);
 }
 
+/** Quantité d'un produit dans l'ensemble des camions (stock embarqué). */
+function embarkedQtyOf(productId: string) {
+  return embarkedLevels().filter((l) => l.product_id === productId).reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+}
+
 /** Quantités demandées par produit (une commande peut contenir deux lignes du même produit). */
 function qtyByProduct(items: Array<{ product_id: string; quantity: number }>) {
   const m = new Map<string, number>();
@@ -428,6 +433,32 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     );
   });
 
+  /* ---------- Vue Stock : marchandise dans les camions + rapprochement ---------- */
+  router.get("/stock/embarked-summary", authenticate, (_req: any, res: any) => {
+    ensureStockStructure();
+    const stocks = embarkedStocks()
+      .map((es) => {
+        const v = embarkedView(es);
+        return {
+          id: es.id,
+          marketer_id: es.marketer_id,
+          marketer_name: es.marketer_name,
+          vehicle_plate: v.vehicle?.plate || null,
+          driver_name: v.vehicle?.driver_name || null,
+          units: v.total_quantity,
+          value: v.total_value,
+          items: v.items.map((i: any) => ({ product_id: i.product_id, name: i.name, quantity: i.quantity })),
+        };
+      })
+      .filter((s) => s.units > 0)
+      .sort((a, b) => b.units - a.units);
+    const active = db.products.filter((p) => p.is_active !== false);
+    const depots = active.reduce((s, p) => s + depotQuantity(p.id), 0);
+    const embarked = active.reduce((s, p) => s + embarkedQtyOf(p.id), 0);
+    const total = active.reduce((s, p) => s + (Number(p.stock) || 0), 0);
+    res.json({ stocks, totals: { depots, embarked, total, balanced: depots + embarked === total } });
+  });
+
   /* ---------- Stock embarqué ---------- */
   router.get("/delivery/embarked", authenticate, (req: any, res: any) => {
     ensureStockStructure();
@@ -485,9 +516,11 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     const marketer = db.users.find((x) => x.id === b.marketer_id && MARKETER_ROLES.includes(x.role_code));
     const v = vehicles().find((x) => x.id === b.vehicle_id);
     const qty = Number(b.quantity);
+    // Même règle que l'écran : seul un responsable déstocke vers un camion
+    if (!canSeeAll(u)) return res.status(403).json({ detail: "Seul un responsable peut déstocker vers un stock embarqué" });
     if (!w) return res.status(400).json({ detail: "Choisissez le dépôt source" });
     if (!p) return res.status(400).json({ detail: "Choisissez un produit" });
-    if (!Number.isFinite(qty) || qty <= 0) return res.status(400).json({ detail: "La quantité doit être supérieure à 0" });
+    if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ detail: "La quantité doit être un nombre entier supérieur à 0" });
     if (!marketer) return res.status(400).json({ detail: "Choisissez un marketeur" });
     if (!v) return res.status(400).json({ detail: "Choisissez le chauffeur / camion" });
     const other = embarkedStocks().find((e) => e.vehicle_id === v.id && e.marketer_id !== marketer.id && embarkedTotal(e.id) > 0);
@@ -501,6 +534,8 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     if (v.capacity && embarkedTotal(es.id) + qty > v.capacity)
       return res.status(400).json({ detail: `Capacité du camion ${v.plate} dépassée : ${Math.max(0, v.capacity - embarkedTotal(es.id))} unité(s) de place libre` });
 
+    // Transaction unique : tous les contrôles sont faits, les deux stocks bougent ensemble
+    const totalBefore = p.stock;
     es.vehicle_id = v.id;
     es.updated_at = nowIso();
     src!.quantity -= qty;
@@ -523,13 +558,25 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
       to_warehouse_id: `embarked:${es.id}`,
       to_label: toLabel,
       note: `Chauffeur : ${v.driver_name}`,
+      kind: "embarked_load",
+      marketer_id: marketer.id,
+      marketer_name: marketer.full_name,
+      vehicle_plate: v.plate,
+      driver_name: v.driver_name,
       status: "completed",
       user_name: u.full_name,
       created_at: nowIso(),
     });
-    recordMovement({ product: p, warehouse: w, quantity: -qty, reason: `Déstockage ${code} → ${toLabel}`, reference: code, user_name: u.full_name });
-    recordEmbarked({ es, product: p, type: "load", quantity: qty, reason: `Déstockage ${code}`, user_name: u.full_name, warehouse_label: warehouseLabel(w), reference: code });
-    res.status(201).json({ code, depot_remaining: src!.quantity, embarked: embarkedView(es) });
+    const trace = { kind: "embarked_load", transfer_code: code, embarked_id: es.id, marketer_id: marketer.id, marketer_name: marketer.full_name, vehicle_plate: v.plate, driver_name: v.driver_name };
+    recordMovement({ product: p, warehouse: w, quantity: -qty, reason: `Déstockage ${code} → ${toLabel} · chauffeur ${v.driver_name}`, reference: code, user_name: u.full_name, extra: trace });
+    recordEmbarked({ es, product: p, type: "load", quantity: qty, reason: `Déstockage ${code} depuis ${warehouseLabel(w)}`, user_name: u.full_name, warehouse_label: warehouseLabel(w), reference: code });
+    res.status(201).json({
+      code,
+      depot_remaining: src!.quantity,
+      embarked: embarkedView(es),
+      // Contrôle : le total du produit ne change pas (la marchandise change seulement de place)
+      product_totals: { depots: depotQuantity(p.id), embarked: embarkedQtyOf(p.id), total: p.stock, unchanged: p.stock === totalBefore },
+    });
   });
 
   // Retour au dépôt : stock embarqué → dépôt
@@ -543,7 +590,7 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     if (!es) return res.status(404).json({ detail: "Stock embarqué introuvable" });
     if (!canSeeAll(u) && es.marketer_id !== u.id) return res.status(403).json({ detail: "Accès refusé" });
     if (!w || !p) return res.status(400).json({ detail: "Choisissez le produit et le dépôt de retour" });
-    if (!Number.isFinite(qty) || qty <= 0) return res.status(400).json({ detail: "La quantité doit être supérieure à 0" });
+    if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ detail: "La quantité doit être un nombre entier supérieur à 0" });
     const l = embarkedLevel(es.id, p.id, false);
     if ((l?.quantity || 0) < qty) return res.status(400).json({ detail: `Quantité insuffisante : ${l?.quantity || 0} dans le camion` });
     l!.quantity -= qty;
@@ -557,7 +604,8 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
       from_warehouse_id: `embarked:${es.id}`, from_label: embarkedLabel(es), to_warehouse_id: w.id, to_label: warehouseLabel(w),
       note: "Retour de stock embarqué", status: "completed", user_name: u.full_name, created_at: nowIso(),
     });
-    recordMovement({ product: p, warehouse: w, quantity: qty, reason: `Retour ${code} ← ${embarkedLabel(es)}`, reference: code, user_name: u.full_name });
+    const rv = vehicleOf(es);
+    recordMovement({ product: p, warehouse: w, quantity: qty, reason: `Retour ${code} ← ${embarkedLabel(es)}${rv ? ` · chauffeur ${rv.driver_name}` : ""}`, reference: code, user_name: u.full_name, extra: { kind: "embarked_return", transfer_code: code, embarked_id: es.id, marketer_id: es.marketer_id, marketer_name: es.marketer_name, vehicle_plate: rv?.plate, driver_name: rv?.driver_name } });
     recordEmbarked({ es, product: p, type: "return", quantity: -qty, reason: `Retour au dépôt ${code}`, user_name: u.full_name, warehouse_label: warehouseLabel(w), reference: code });
     res.json(embarkedView(es));
   });
