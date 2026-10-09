@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   BarChart3,
@@ -168,7 +169,7 @@ export default function Layout() {
             </div>
             {!sidebarCollapsed && (
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-xs font-semibold text-white truncate">
+                <span className="text-xs font-semibold text-white truncate" data-no-translate={user?.full_name ? "" : undefined}>
                   {user?.full_name || "Utilisateur"}
                 </span>
                 <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
@@ -201,6 +202,7 @@ export default function Layout() {
           <BrandLogo size={36} />
           <div className="flex items-center gap-2">
             <OnlineBadge online={online} />
+            {location.pathname !== "/dashboard" && <LanguageSwitcher />}
             <button
               onClick={() => navigate("/notifications")}
               className="relative h-9 w-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700"
@@ -221,7 +223,7 @@ export default function Layout() {
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-slate-900">
+                    <span className="text-sm font-semibold text-slate-900" data-no-translate>
                       {user?.full_name}
                     </span>
                     <span className="text-xs text-slate-500">{user?.email}</span>

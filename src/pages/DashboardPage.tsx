@@ -19,6 +19,8 @@ import {
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney } from "@/components/erp-ui";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Bell } from "lucide-react";
 
 function Tile({
   icon: Icon,
@@ -152,8 +154,25 @@ export default function DashboardPage() {
     <div className="space-y-5">
       {/* Hero */}
       <div className="rounded-2xl bg-gradient-to-br from-[#0F3D68] to-[#0B2F52] text-white p-5 shadow-sm">
-        <div className="text-white/80 text-sm">Bienvenue,</div>
-        <div className="text-2xl font-bold tracking-tight mt-0.5">{user?.full_name}</div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="text-white/80 text-sm">Bienvenue,</div>
+          <div className="flex items-center gap-2 shrink-0">
+            <LanguageSwitcher variant="dark" />
+            <Link
+              to="/notifications"
+              title="Notifications"
+              className="relative h-9 w-9 rounded-full bg-white/15 hover:bg-white/25 ring-1 ring-white/25 flex items-center justify-center text-white"
+            >
+              <Bell className="h-4 w-4" />
+              {unread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
+            </Link>
+          </div>
+        </div>
+        <div className="text-2xl font-bold tracking-tight mt-0.5" data-no-translate>{user?.full_name}</div>
         <div className="text-white/70 text-xs mt-1 capitalize">{today}</div>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-white/15 text-white text-[11px] font-medium px-2.5 py-1">

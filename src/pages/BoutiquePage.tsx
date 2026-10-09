@@ -319,7 +319,7 @@ export default function BoutiquePage() {
                           : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                       }`}
                     >
-                      {cat === "all" ? "Toutes catégories" : cat}
+                      {cat === "all" ? "Toutes catégories" : <span data-no-translate>{cat}</span>}
                     </button>
                   ))}
                 </div>
@@ -397,7 +397,7 @@ export default function BoutiquePage() {
                         <div className="p-3.5 flex-1 flex flex-col justify-between">
                           <div>
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
-                              {product.category || "Boisson & Alimentaire"}
+                              {product.category ? <span data-no-translate>{product.category}</span> : "Boisson & Alimentaire"}
                             </div>
                             <h3 className="font-bold text-slate-900 text-sm mt-0.5 leading-snug line-clamp-2">
                               {product.name}
