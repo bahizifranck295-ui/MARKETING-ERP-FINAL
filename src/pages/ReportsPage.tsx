@@ -877,7 +877,7 @@ export default function ReportsPage() {
       ) : activeTab === "stock" ? (
         <StockReportDashboard products={products} orders={orders} search={search} />
       ) : activeTab === "sales" ? (
-        <SalesSheets search={search} period={period} includeOrder={(o: any) => inSite("orders", o.id)} siteKey={selectedSite} />
+        <SalesSheets search={search} period={period} includeOrder={(o: any) => inSite("orders", o.id)} siteKey={selectedSite} siteLabel={siteName} />
       ) : activeTab === "credits" ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">

@@ -117,6 +117,25 @@ export function sheetOfCategory(category?: string): SheetKey | null {
   return null;
 }
 
+// Logo PREMIDIS converti en image pour le PDF (même logo que les factures)
+async function loadLogo(): Promise<string | null> {
+  try {
+    const img = new Image();
+    img.src = "/assets/premidis-logo.svg";
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = rej;
+    });
+    const c = document.createElement("canvas");
+    c.width = 400;
+    c.height = 320;
+    c.getContext("2d")!.drawImage(img, 0, 0, 400, 320);
+    return c.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
 const APPROVED = ["validated", "prepared", "shipped", "delivered"];
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const todayKey = () => dayKey(new Date());
@@ -129,11 +148,13 @@ export default function SalesSheets({
   period: reportPeriod,
   includeOrder,
   siteKey,
+  siteLabel,
 }: {
   search?: string;
   period?: string;
   includeOrder?: (o: any) => boolean; // filtre par site du module Rapports
   siteKey?: string;
+  siteLabel?: string;
 }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -274,33 +295,85 @@ export default function SalesSheets({
       const W = doc.internal.pageSize.getWidth();
       const H = doc.internal.pageSize.getHeight();
       const M = 10;
-      const INK: [number, number, number] = [15, 61, 104];
+      // En-tête officiel, identique à celui des factures PREMIDIS
+      const INK: [number, number, number] = [33, 26, 92];
+      const SLATE: [number, number, number] = [100, 116, 139];
+      const logo = await loadLogo();
+      const now = new Date();
+      const number = `FCH-${(period === "day" ? day : month).replace(/-/g, "")}-${strip(sheet.label).replace(/[^a-z0-9]/g, "").slice(0, 6).toUpperCase()}`;
+      const TOP = 53;
       const draw = (first: boolean) => {
+        if (logo) doc.addImage(logo, "PNG", M, 8, 17, 13.6);
+        const x0 = logo ? M + 20 : M;
         doc.setTextColor(...INK);
-        if (sheet.subtitle) {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(9);
-          doc.text(sheet.subtitle, M, 10);
-        }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(14);
-        doc.text(sheet.title(columns), W / 2, 16, { align: "center" });
+        doc.text("PREMIDIS SARL", x0, 13);
+        doc.setFontSize(6.5);
+        doc.setTextColor(...SLATE);
+        doc.text("PRODUCTION & DISTRIBUTION AGROALIMENTAIRE & INDUSTRIELLE", x0, 17);
+        doc.setFont("helvetica", "normal");
+        doc.text("Siège Social : Route Aéroport, Bujovu, Goma, Nord-Kivu, RDC", x0, 20.5);
+        doc.text("Tél : +243 971 002 001 • Email : contact@premidis.cd", x0, 23.5);
+        doc.text("RCCM : CD/GOM/RCCM/21-B-0042 • ID. NAT : 01-83-N48201W", x0, 26.5);
+        // Titre de la fiche (bandeau, comme « FACTURE DE VENTE »)
+        const title = sheet.title(columns);
+        doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
-        doc.text(`${period === "day" ? "JOUR / DATE" : "MOIS"} : ${periodLabel}${period === "month" ? " (fiche récapitulative)" : ""}`, W - M, 16, { align: "right" });
-        if (!first) doc.text("(suite)", M, 16);
+        const tw = Math.min(150, doc.getTextWidth(title) + 10);
+        doc.setFillColor(...INK);
+        doc.roundedRect(W - M - tw, 8, tw, 7, 1.5, 1.5, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.text(title, W - M - tw / 2, 12.8, { align: "center" });
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(10);
+        doc.text(`N° ${number}`, W - M, 20.5, { align: "right" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text(`Date d'édition : ${now.toLocaleString("fr-FR").replace(/[\u202f\u00a0]/g, " ")}`, W - M, 25, { align: "right" });
+        doc.setDrawColor(...INK);
+        doc.setLineWidth(0.6);
+        doc.line(M, 30, W - M, 30);
+        // Bloc d'informations (comme « Facturé à » / « Modalités »)
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(M, 33, W - 2 * M, 15, 1.5, 1.5, "FD");
+        const info: Array<[string, string]> = [
+          ["Catégorie", sheet.label],
+          [period === "day" ? "Jour / Date" : "Mois (récapitulatif)", periodLabel],
+          ["Site", siteLabel || "Tous les sites"],
+          ["Préparée par", preparedBy],
+        ];
+        const cw4 = (W - 2 * M) / info.length;
+        info.forEach(([k, v], i) => {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7);
+          doc.setTextColor(...SLATE);
+          doc.text(k.toUpperCase(), M + 4 + i * cw4, 39);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(15, 23, 42);
+          doc.text(String(v), M + 4 + i * cw4, 44.5);
+        });
+        if (!first) {
+          doc.setFontSize(7);
+          doc.setTextColor(...SLATE);
+          doc.text("(suite)", M, 51);
+        }
       };
       draw(true);
       const widths: number[] = headers.map((h, i) => (i === 0 ? 10 : i === 1 ? 46 : h === "Marketeur" ? 36 : h === "Units" ? 14 : 0));
       const free = W - 2 * M - widths.reduce((s, w) => s + w, 0);
       const flexible = widths.filter((w) => !w).length || 1;
       const cw = widths.map((w) => w || free / flexible);
-      let y = 22;
+      let y = TOP;
       const line = (cells: string[], bold = false, fill?: [number, number, number]) => {
         const h = 7;
-        if (y + h > H - 22) {
+        if (y + h > H - 24) {
           doc.addPage();
           draw(false);
-          y = 22;
+          y = TOP;
         }
         if (fill) {
           doc.setFillColor(...fill);
@@ -323,15 +396,29 @@ export default function SalesSheets({
       line(headers.map((h) => h.toUpperCase()), true, [219, 234, 254]);
       rows.forEach((r, i) => line(cellsOf(r, i)));
       for (let i = rows.length; i < minRows; i++) line([String(i + 1), ...Array(headers.length - 1).fill("")]);
-      sheet.footer.forEach((f) => line(totalCells(f).slice(0, headers.length).concat(Array(Math.max(0, headers.length - totalCells(f).length)).fill("")), true, [241, 245, 249]));
+      sheet.footer.forEach((f) => {
+        const cells = totalCells(f).slice(0, headers.length).concat(Array(Math.max(0, headers.length - totalCells(f).length)).fill(""));
+        // Libellé du total dans la colonne client (la colonne N° est trop étroite)
+        line(["", cells[0], ...cells.slice(2)], true, [241, 245, 249]);
+      });
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.text(`Montant total des commandes : ${fmtMoney(grandAmount).replace(/[  ]/g, " ")}`, M, y + 6);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text(`PREPARED BY : ${preparedBy}`, M, H - 10);
-      doc.text("MARKETING OFFICER", W / 2, H - 10, { align: "center" });
-      doc.text(sheet.depot, W - M, H - 10, { align: "right" });
+      doc.setTextColor(15, 23, 42);
+      doc.text(`PREPARED BY : ${preparedBy}`, M, H - 12);
+      doc.text("MARKETING OFFICER", W / 2, H - 12, { align: "center" });
+      doc.text(sheet.depot, W - M, H - 12, { align: "right" });
+      const pages = doc.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.text("Document certifié ERP Cloud • Plateforme de Gestion Commerciale PREMIDIS SARL • RDC", W / 2, H - 4, { align: "center" });
+        doc.text(`Page ${i} / ${pages}`, W - M, H - 4, { align: "right" });
+      }
       const name = `Fiche_${sheet.label.replace(/\s+/g, "_")}_${period === "day" ? day : month}.pdf`;
       if (!(await presentDocument(doc.output("blob"), name, tab))) closeTab(tab);
     } catch (err) {
