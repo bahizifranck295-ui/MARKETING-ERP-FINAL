@@ -765,6 +765,16 @@ apiRouter.post("/clients/:id/payments", authenticate, (req, res) => {
   const user = (req as any).user as User;
 
   const amount = Number(req.body.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ detail: "Le montant doit être supérieur à 0" });
+  // Encaissement d'une créance précise (module Crédits)
+  const targetCredit: any = req.body.credit_id ? db.credits.find((c: any) => c.id === req.body.credit_id) : null;
+  if (req.body.credit_id && !targetCredit) return res.status(404).json({ detail: "Créance introuvable" });
+  if (targetCredit) {
+    const due = targetCredit.remaining ?? targetCredit.balance ?? 0;
+    const inUsd = req.body.currency === "CDF" ? amount / (Number(req.body.exchange_rate) || 2500) : amount;
+    if (due <= 0) return res.status(400).json({ detail: "Cette créance est déjà soldée" });
+    if (inUsd > due + 0.005) return res.status(400).json({ detail: `Le montant dépasse le reste dû (${due.toFixed(2)} $)` });
+  }
   const payment_method = req.body.payment_method || "cash";
   const notes = req.body.notes || `Règlement direct client ${client.name}`;
   const reference = req.body.reference || `ENC-${Date.now().toString().slice(-6)}`;
@@ -803,11 +813,14 @@ apiRouter.post("/clients/:id/payments", authenticate, (req, res) => {
   const clientCredits = db.credits.filter(
     (c) => (c.client_id === client.id || c.client_name === client.name) && (c.remaining || c.balance || 0) > 0
   );
+  // La créance choisie est réglée en premier
+  if (targetCredit) clientCredits.sort((a: any, b: any) => (a.id === targetCredit.id ? -1 : b.id === targetCredit.id ? 1 : 0));
   for (const cr of clientCredits) {
     if (remToDeduct <= 0) break;
     const currentRem = cr.remaining !== undefined ? cr.remaining : (cr.balance || 0);
     const deduction = Math.min(currentRem, remToDeduct);
     cr.paid = Math.round(((cr.paid || 0) + deduction) * 100) / 100;
+    (cr.payments ||= []).push({ id: uuidv4(), amount: Math.round(deduction * 100) / 100, currency: "USD", method: payment_method, date: new Date().toISOString(), cashier_name: user.full_name, billetage, notes: reference });
     cr.remaining = Math.round((currentRem - deduction) * 100) / 100;
     cr.balance = cr.remaining;
     if (cr.remaining <= 0) {
@@ -835,6 +848,7 @@ apiRouter.post("/clients/:id/transactions/:txId/reverse", authenticate, (req, re
   if (order) {
     if (order.status !== "cancelled") restoreOrderStock(order, (req as any).user as User, "Annulation");
     order.status = "cancelled";
+    cancelCreditForOrder(order);
     return res.json(getClientAccountData(client.id));
   }
 
@@ -966,8 +980,46 @@ apiRouter.post("/orders", authenticate, (req, res) => {
   const sourceError = tagOrderStockSource(newOrder, { strict: true });
   if (sourceError) return res.status(400).json({ detail: sourceError });
   db.orders.unshift(newOrder);
+  ensureCreditForOrder(newOrder);
   res.status(201).json(newOrder);
 });
+
+/* ---------- Ventes à crédit → créances (module Crédits) ---------- */
+// Une vente à crédit validée crée une créance unique, à encaisser plus tard en caisse
+function ensureCreditForOrder(order: Order) {
+  if (order.payment_method !== "credit" || ["pending_approval", "cancelled", "rejected"].includes(order.status)) return;
+  if (db.credits.some((c: any) => c.order_id === order.id)) return;
+  const client = db.clients.find((c) => c.id === order.client_id);
+  db.credits.unshift({
+    id: uuidv4(),
+    order_id: order.id,
+    order_code: order.code,
+    client_id: order.client_id,
+    client_name: order.client_name,
+    client_code: client?.code,
+    client_phone: order.client_phone || client?.phone,
+    marketer_id: order.marketer_id,
+    marketer_name: order.marketer_name,
+    initial_amount: Number(order.total) || 0,
+    paid: 0,
+    remaining: Number(order.total) || 0,
+    balance: Number(order.total) || 0,
+    currency: "USD",
+    status: "pending",
+    due_date: new Date(Date.now() + 86400000 * 30).toISOString(),
+    created_at: new Date().toISOString(),
+    payments: [],
+  } as any);
+}
+
+// Vente annulée : sa créance non encore payée est annulée
+function cancelCreditForOrder(order: Order) {
+  const cr: any = db.credits.find((c: any) => c.order_id === order.id);
+  if (!cr || (cr.paid || 0) > 0) return;
+  cr.status = "cancelled";
+  cr.remaining = 0;
+  cr.balance = 0;
+}
 
 // Même règle que l'écran Commandes : seuls les profils autorisés approuvent ou rejettent
 function canApproveOrders(user: User) {
@@ -990,6 +1042,7 @@ apiRouter.post("/orders/:id/approve", authenticate, (req, res) => {
   if (stockError) return res.status(400).json({ detail: stockError });
 
   order.status = "validated";
+  ensureCreditForOrder(order);
   order.approved_by = user.full_name;
   order.approved_at = new Date().toISOString();
   order.updated_at = new Date().toISOString();
@@ -1005,6 +1058,7 @@ apiRouter.post("/orders/:id/reject", authenticate, (req, res) => {
   // Commande déjà déstockée : les quantités retournent dans le stock d'origine
   restoreOrderStock(order, (req as any).user as User, "Rejet");
   order.status = "cancelled";
+  cancelCreditForOrder(order);
   order.rejection_reason = req.body.reason || "Rejeté par le responsable";
   order.updated_at = new Date().toISOString();
   res.json(order);
@@ -1579,12 +1633,21 @@ apiRouter.get("/credits", authenticate, (req, res) => {
 });
 
 apiRouter.get("/credits/debts", authenticate, (req, res) => {
-  res.json(db.credits);
+  // Ventes à crédit validées qui n'auraient pas encore leur créance
+  db.orders.forEach(ensureCreditForOrder);
+  res.json(
+    db.credits.map((c: any) => {
+      const remaining = c.remaining !== undefined ? c.remaining : c.balance ?? c.initial_amount ?? c.amount ?? 0;
+      return { ...c, remaining, balance: remaining };
+    })
+  );
 });
 
 apiRouter.get("/credits/marketers", authenticate, (req, res) => {
+  db.orders.forEach(ensureCreditForOrder);
   const marketerMap: Record<string, any> = {};
   db.credits.forEach((c) => {
+    if (((c as any).remaining ?? (c as any).balance ?? 0) <= 0) return;
     const marketerName = c.marketer_name || "Non assigné";
     if (!marketerMap[marketerName]) {
       marketerMap[marketerName] = {

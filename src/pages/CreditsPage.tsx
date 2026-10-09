@@ -35,6 +35,8 @@ export default function CreditsPage() {
   const [selectedDebt, setSelectedDebt] = useState<any>(null);
   const [viewingClientId, setViewingClientId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // En cours (reste à payer) / soldées / toutes
+  const [statusView, setStatusView] = useState<"open" | "paid" | "all">("open");
 
   // Billetage state for collection modal
   const [billetUSD, setBilletUSD] = useState<Record<string, number>>({
@@ -54,8 +56,8 @@ export default function CreditsPage() {
   });
   const [exchangeRate, setExchangeRate] = useState<number>(2500);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [debtsRes, markRes] = await Promise.all([
         api.get("/credits/debts"),
@@ -64,18 +66,25 @@ export default function CreditsPage() {
       setDebts(Array.isArray(debtsRes.data) ? debtsRes.data : []);
       setMarketers(Array.isArray(markRes.data) ? markRes.data : []);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Erreur chargement créances"));
+      if (!silent) toast.error(extractErrorMessage(err, "Erreur chargement créances"));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
+    // Temps réel : nouvelles ventes à crédit et encaissements visibles sans recharger la page
+    const t = window.setInterval(() => {
+      if (document.visibilityState !== "hidden") loadData(true);
+    }, 15000);
+    return () => window.clearInterval(t);
   }, []);
 
+  const remainingOf = (d: any) => Number(d.remaining ?? d.balance ?? 0) || 0;
+
   const totalDebt = useMemo(() => {
-    return debts.reduce((sum, d) => sum + (d.balance || 0), 0);
+    return debts.reduce((sum, d) => sum + remainingOf(d), 0);
   }, [debts]);
 
   const totalMarketersDebt = useMemo(() => {
@@ -95,9 +104,11 @@ export default function CreditsPage() {
         selectedMarketer === "all" ||
         d.marketer_name === selectedMarketer ||
         d.marketer_id === selectedMarketer;
-      return matchQ && matchM;
+      const open = remainingOf(d) > 0;
+      const matchS = statusView === "all" || (statusView === "open" ? open : !open && d.status !== "cancelled");
+      return matchQ && matchM && matchS;
     });
-  }, [debts, search, selectedMarketer]);
+  }, [debts, search, selectedMarketer, statusView]);
 
   const totalBilletUSD = useMemo(() => {
     return Object.entries(billetUSD).reduce((acc, [denom, qty]) => {
@@ -139,10 +150,19 @@ export default function CreditsPage() {
       setSaving(false);
       return;
     }
+    const due = remainingOf(selectedDebt);
+    if (finalAmount > due + 0.005) {
+      toast.error(`Le montant dépasse le reste dû (${fmtMoney(due)})`);
+      setSaving(false);
+      return;
+    }
 
     try {
       await api.post(`/clients/${selectedDebt.client_id}/payments`, {
         amount: finalAmount,
+        credit_id: selectedDebt.id,
+        reference: `ENC-${(selectedDebt.order_code || "CRD").replace(/[^A-Z0-9-]/gi, "")}-${Date.now().toString().slice(-4)}`,
+        billetage: grandTotalUSD > 0 ? { usd: billetUSD, cdf: billetCDF, total_usd: totalBilletUSD, total_cdf: totalBilletCDF, exchange_rate: exchangeRate } : undefined,
         payment_method: method,
         notes: `Règlement créance client (${selectedDebt.client_name}) - Marketeur: ${
           selectedDebt.marketer_name || "N/A"
@@ -216,7 +236,7 @@ export default function CreditsPage() {
         />
         <StatCard
           label="Clients Débiteurs"
-          value={String(debts.length)}
+          value={String(new Set(debts.filter((d) => remainingOf(d) > 0).map((d) => d.client_id)).size)}
           sub="Comptes avec solde débiteur"
           tone="blue"
         />
@@ -244,6 +264,18 @@ export default function CreditsPage() {
             </option>
           ))}
         </select>
+        {activeTab === "clients" && (
+          <select
+            value={statusView}
+            onChange={(e) => setStatusView(e.target.value as any)}
+            aria-label="Statut des créances"
+            className="h-10 px-3 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700"
+          >
+            <option value="open">Créances en cours</option>
+            <option value="paid">Créances soldées</option>
+            <option value="all">Toutes</option>
+          </select>
+        )}
       </div>
 
       {loading ? (
@@ -294,19 +326,24 @@ export default function CreditsPage() {
                       </td>
                       <td className="p-3.5 text-right">
                         <div className="font-black text-sm text-blue-700">
-                          {fmtMoney(d.balance)}
+                          {fmtMoney(remainingOf(d))}
                         </div>
-                        <span className="text-[10px] uppercase font-bold text-blue-500">À Payer</span>
+                        <span className={`text-[10px] uppercase font-bold ${remainingOf(d) > 0 ? "text-blue-500" : "text-emerald-600"}`}>
+                          {d.status === "cancelled" ? "Annulée" : remainingOf(d) > 0 ? (d.paid > 0 ? `Payé ${fmtMoney(d.paid)} · reste` : "À payer") : "Soldée"}
+                        </span>
+                        {d.initial_amount ? <div className="text-[10px] text-slate-400">sur {fmtMoney(d.initial_amount)}</div> : null}
                       </td>
                       <td className="p-3.5 text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          <Button
-                            size="sm"
-                            onClick={() => openPaymentModal(d)}
-                            className="h-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 font-semibold shadow-xs"
-                          >
-                            <DollarSign className="h-3.5 w-3.5 mr-1" /> Encaisser
-                          </Button>
+                          {remainingOf(d) > 0 && (
+                            <Button
+                              size="sm"
+                              onClick={() => openPaymentModal(d)}
+                              className="h-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 font-semibold shadow-xs"
+                            >
+                              <DollarSign className="h-3.5 w-3.5 mr-1" /> Encaisser
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -447,7 +484,7 @@ export default function CreditsPage() {
                 <div>
                   <span className="text-slate-500 block text-[11px]">Dette Totale à régler :</span>
                   <span className="text-lg font-black text-blue-700">
-                    {fmtMoney(selectedDebt.balance || selectedDebt.remaining)}
+                    {fmtMoney(remainingOf(selectedDebt))}
                   </span>
                 </div>
                 <div className="text-right">
