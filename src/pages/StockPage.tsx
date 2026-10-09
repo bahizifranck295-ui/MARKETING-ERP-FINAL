@@ -232,18 +232,19 @@ export default function StockPage() {
   /* ----- Stock par dépôt (tableau de bord) ----- */
   const dashInScope = useMemo(() => {
     const ids = new Set(scopeDepots.map((w) => w.id));
-    const agg = new Map<string, { qty: number; depotIds: string[]; embarked: number }>();
+    const agg = new Map<string, { qty: number; depotQty: number; depotIds: string[]; embarked: number }>();
     levels.forEach((l) => {
       if (!ids.has(l.warehouse_id)) return;
-      const e = agg.get(l.product_id) || { qty: 0, depotIds: [], embarked: 0 };
+      const e = agg.get(l.product_id) || { qty: 0, depotQty: 0, depotIds: [], embarked: 0 };
       e.qty += Number(l.quantity) || 0;
+      e.depotQty += Number(l.quantity) || 0;
       e.depotIds.push(l.warehouse_id);
       agg.set(l.product_id, e);
     });
     // Vue globale : tous les produits, avec la marchandise encore dans les camions
     if (isGlobalScope)
       products.forEach((p) => {
-        const e = agg.get(p.id) || { qty: 0, depotIds: [], embarked: 0 };
+        const e = agg.get(p.id) || { qty: 0, depotQty: 0, depotIds: [], embarked: 0 };
         e.embarked = embarkedByProduct.get(p.id) || 0;
         e.qty += e.embarked;
         agg.set(p.id, e);
@@ -725,7 +726,7 @@ export default function StockPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {dashVisible.map(({ p, qty, depotIds, embarked }) => {
+                      {dashVisible.map(({ p, depotQty: qty, depotIds }) => {
                         const single = depotIds.length === 1 ? warehouses.find((w) => w.id === depotIds[0]) : null;
                         return (
                           <tr key={p.id} className="hover:bg-cyan-50/40">
@@ -749,7 +750,6 @@ export default function StockPage() {
                             </td>
                             <td className="px-2.5 py-3 text-right font-bold tabular-nums text-slate-900">
                               {fmtNum(qty)} <span className="text-[10px] font-normal text-slate-400">{p.unit}</span>
-                              {embarked > 0 && <div className="text-[10px] font-normal text-slate-500">dont {fmtNum(embarked)} en camion</div>}
                             </td>
                             <td className="px-2.5 py-3 text-right tabular-nums text-slate-600">{fmtNum(thresholdOf(p))}</td>
                             <td className="px-2.5 py-3 text-right font-semibold tabular-nums">{fmtMoney(qty * costOf(p))}</td>
@@ -767,10 +767,7 @@ export default function StockPage() {
                                   {single.name}
                                 </button>
                               ) : (
-                                <span className="text-[11px] text-slate-500">
-                                  {depotIds.length ? `${depotIds.length} dépôts` : embarked > 0 ? "Camions" : "—"}
-                                  {depotIds.length > 0 && embarked > 0 ? " + camions" : ""}
-                                </span>
+                                <span className="text-[11px] text-slate-500">{depotIds.length ? `${depotIds.length} dépôts` : "—"}</span>
                               )}
                             </td>
                           </tr>
