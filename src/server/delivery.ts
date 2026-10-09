@@ -607,7 +607,8 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     const rv = vehicleOf(es);
     recordMovement({ product: p, warehouse: w, quantity: qty, reason: `Retour ${code} ← ${embarkedLabel(es)}${rv ? ` · chauffeur ${rv.driver_name}` : ""}`, reference: code, user_name: u.full_name, extra: { kind: "embarked_return", transfer_code: code, embarked_id: es.id, marketer_id: es.marketer_id, marketer_name: es.marketer_name, vehicle_plate: rv?.plate, driver_name: rv?.driver_name } });
     recordEmbarked({ es, product: p, type: "return", quantity: -qty, reason: `Retour au dépôt ${code}`, user_name: u.full_name, warehouse_label: warehouseLabel(w), reference: code });
-    res.json(embarkedView(es));
+    // Le dépôt choisi est crédité immédiatement : quantité renvoyée pour confirmation
+    res.json({ ...embarkedView(es), return: { code, depot_label: warehouseLabel(w), depot_quantity: dst.quantity, quantity: qty, product_name: p.name } });
   });
 
   // Ajustement du stock embarqué (perte, casse, correction…)

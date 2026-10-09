@@ -429,15 +429,48 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
   useEffect(() => {
     if (kind === "adjust") api.get("/products").then(({ data }) => setProducts(data || [])).catch(() => {});
   }, [kind]);
+  // Retour : liste des dépôts (aussi pour un marketeur), quantités actuelles et dépôt d'origine du produit
+  const [depotList, setDepotList] = useState<any[]>(depots);
+  const [depotLevels, setDepotLevels] = useState<any[]>([]);
+  const [loadsFrom, setLoadsFrom] = useState<Record<string, string>>({});
+  const [depotTouched, setDepotTouched] = useState(false);
+  useEffect(() => {
+    if (kind !== "return") return;
+    if (!depots.length)
+      api.get("/stock/depots").then(({ data }) => setDepotList((data || []).filter((d: any) => d.is_active !== false))).catch(() => {});
+    api.get("/stock/levels").then(({ data }) => setDepotLevels(Array.isArray(data) ? data : [])).catch(() => {});
+    api
+      .get("/delivery/embarked/movements")
+      .then(({ data }) => {
+        const m: Record<string, string> = {};
+        for (const mv of data || []) if (mv.embarked_id === stock.id && mv.type === "load" && !m[mv.product_id]) m[mv.product_id] = mv.warehouse_label;
+        setLoadsFrom(m);
+      })
+      .catch(() => {});
+  }, [kind]);
+  useEffect(() => {
+    if (kind !== "return" || depotTouched) return;
+    const origin = depotList.find((d) => d.label === loadsFrom[productId]);
+    setDepotId(origin?.id || depotList[0]?.id || "");
+  }, [kind, productId, loadsFrom, depotList, depotTouched]);
+  const depotNow = depotLevels.find((l) => l.product_id === productId && l.warehouse_id === depotId)?.quantity || 0;
+  const depotLabel = depotList.find((d) => d.id === depotId)?.label || "";
   const options = kind === "adjust" && mode === "in" ? products.map((p) => ({ product_id: p.id, name: p.name, quantity: inTruckOf(stock, p.id) })) : stock.items;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      if (kind === "return") await api.post(`/delivery/embarked/${stock.id}/return`, { product_id: productId, quantity: amount, warehouse_id: depotId });
-      else await api.post(`/delivery/embarked/${stock.id}/adjust`, { product_id: productId, quantity: mode === "in" ? amount : -amount, reason });
-      toast.success(kind === "return" ? "Retour au dépôt enregistré" : "Ajustement enregistré");
+      if (kind === "return") {
+        const { data } = await api.post(`/delivery/embarked/${stock.id}/return`, { product_id: productId, quantity: amount, warehouse_id: depotId });
+        const r = data?.return;
+        toast.success(`Retour ${r?.code || ""} enregistré`, {
+          description: r ? `Camion de ${stock.marketer_name} −${r.quantity} · ${r.depot_label} +${r.quantity} (stock au dépôt : ${r.depot_quantity})` : undefined,
+        });
+      } else {
+        await api.post(`/delivery/embarked/${stock.id}/adjust`, { product_id: productId, quantity: mode === "in" ? amount : -amount, reason });
+        toast.success("Ajustement enregistré");
+      }
       onDone();
     } catch (err) {
       toast.error(extractErrorMessage(err, "Opération impossible"));
@@ -474,8 +507,13 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
           {kind === "return" && (
             <div>
               <Label htmlFor="ea_depot" className="text-xs font-semibold">Dépôt de retour</Label>
-              <select id="ea_depot" required value={depotId} onChange={(e) => setDepotId(e.target.value)} className={selectCls}>
-                {depots.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+              <select id="ea_depot" required value={depotId} onChange={(e) => { setDepotId(e.target.value); setDepotTouched(true); }} className={selectCls}>
+                {depotList.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.label}
+                    {d.label === loadsFrom[productId] ? " (dépôt d'origine)" : ""}
+                  </option>
+                ))}
               </select>
             </div>
           )}
@@ -483,6 +521,11 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
             <Label htmlFor="ea_qty" className="text-xs font-semibold">Quantité</Label>
             <input id="ea_qty" type="number" min={1} step="1" required value={qty} onChange={(e) => setQty(e.target.value)} className={`${selectCls} font-bold ${tooMuch ? "border-red-300 ring-2 ring-red-200" : ""}`} />
             {tooMuch && <p className="mt-1 text-[11px] font-semibold text-red-600">Quantité insuffisante : {inTruck} dans le camion</p>}
+            {kind === "return" && amount > 0 && !tooMuch && depotId && (
+              <p className="mt-1.5 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] text-emerald-900">
+                Camion : {fmtNum(inTruck)} → <strong>{fmtNum(inTruck - amount)}</strong> · {depotLabel} : {fmtNum(depotNow)} → <strong>{fmtNum(depotNow + amount)}</strong>
+              </p>
+            )}
           </div>
           {kind === "adjust" && (
             <div>
