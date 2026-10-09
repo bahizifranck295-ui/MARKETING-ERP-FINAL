@@ -10,7 +10,8 @@ import { SectionTitle, selectCls } from "@/components/delivery/deliveryUi";
 
 // Parcours simplifié : Commande → En préparation → En livraison → Livrée
 export const STAGES = [
-  { key: "order", label: "Commande client", statuses: ["pending_approval", "validated"], icon: ClipboardList, tone: "blue", hint: "Le client a passé commande" },
+  // Seules les commandes déjà approuvées dans le module Commandes arrivent ici
+  { key: "order", label: "À préparer", statuses: ["validated"], icon: ClipboardList, tone: "blue", hint: "Commande approuvée, à préparer au dépôt" },
   { key: "prep", label: "En préparation", statuses: ["prepared"], icon: PackageOpen, tone: "orange", hint: "Préparation au dépôt" },
   { key: "ship", label: "En livraison", statuses: ["shipped"], icon: Truck, tone: "violet", hint: "En route vers le client" },
   { key: "done", label: "Livrée / Confirmée", statuses: ["delivered"], icon: CheckCircle2, tone: "emerald", hint: "Réception confirmée" },
@@ -64,7 +65,6 @@ export default function OrdersSection({ onChanged, onInvoice, onShowHistory }: P
     }
   };
 
-  const approve = (o: any) => run(o.id, () => api.post(`/orders/${o.id}/approve`), `Commande ${o.code} approuvée`);
   const advance = (o: any, label: string) =>
     run(o.id, () => api.post(`/delivery/orders/${o.id}/advance`, { vehicle_id: vehicleFor[o.id] }), `${o.code} : ${label}`);
 
@@ -84,7 +84,7 @@ export default function OrdersSection({ onChanged, onInvoice, onShowHistory }: P
 
   return (
     <section className="space-y-4">
-      <SectionTitle n={2} tone="bg-blue-600" title="Livraison sur commande" subtitle="Le client commande, nous préparons, livrons et confirmons. Une commande livrée passe dans l'historique." />
+      <SectionTitle n={2} tone="bg-blue-600" title="Livraison sur commande" subtitle="Les commandes approuvées dans le module Commandes arrivent ici à préparer, puis sont livrées et confirmées. Une commande livrée passe dans l'historique." />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-4">
         {STAGES.map((stage) => {
           const t = TONES[stage.tone];
@@ -137,14 +137,6 @@ export default function OrdersSection({ onChanged, onInvoice, onShowHistory }: P
                       <span className="text-[10px] text-slate-400">{fmtDateTime(o.delivered_at || o.updated_at || o.created_at)}</span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {o.status === "pending_approval" &&
-                        (has("orders.approve") ? (
-                          <Button size="sm" disabled={busy === o.id} onClick={() => approve(o)} className={`h-7 flex-1 rounded-lg text-[11px] text-white ${TONES.blue.btn}`}>
-                            Approuver
-                          </Button>
-                        ) : (
-                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">En attente d'approbation</span>
-                        ))}
                       {o.status === "validated" && has("delivery.create") && (
                         <Button size="sm" disabled={busy === o.id} onClick={() => advance(o, "en préparation")} className={`h-7 flex-1 rounded-lg text-[11px] text-white ${TONES.orange.btn}`}>
                           Préparer

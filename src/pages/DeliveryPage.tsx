@@ -109,7 +109,7 @@ export default function DeliveryPage() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard icon={Truck} tone="bg-emerald-600" title="Stock embarqué" subtitle="Dans les camions des marketeurs" value={fmtNum(overview.embarked_units || 0)} unit="unités" onClick={() => setSection("embarked")} />
-          <StatCard icon={ClipboardList} tone="bg-blue-600" title="Commandes en cours" subtitle="À approuver, préparer ou livrer" value={fmtNum(overview.orders_in_progress || 0)} unit="commandes" onClick={() => setSection("orders")} />
+          <StatCard icon={ClipboardList} tone="bg-blue-600" title="Commandes en cours" subtitle="Approuvées, à préparer ou à livrer" value={fmtNum(overview.orders_in_progress || 0)} unit="commandes" onClick={() => setSection("orders")} />
           <StatCard icon={CheckCircle2} tone="bg-emerald-500" title="Livraisons du jour" subtitle={`Terminées · ${fmtNum(overview.shipping_now || 0)} en cours`} value={fmtNum(overview.delivered_today || 0)} unit="livrées" onClick={() => setSection("history")} />
           <StatCard icon={Warehouse} tone="bg-violet-600" title="Stock dépôt (global)" subtitle="Unités disponibles dans les dépôts" value={fmtNum(overview.depot_units || 0)} unit="unités" onClick={() => navigate("/stock")} />
           <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_-18px_rgba(15,61,104,0.35)] sm:col-span-2 xl:col-span-1">

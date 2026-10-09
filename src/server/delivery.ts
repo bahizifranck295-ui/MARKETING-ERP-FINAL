@@ -382,7 +382,7 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     res.json({
       can_see_all: all,
       embarked_units: stocks.reduce((s, e) => s + embarkedTotal(e.id), 0),
-      orders_in_progress: orders.filter((o) => ["pending_approval", "validated", "prepared", "shipped"].includes(o.status)).length,
+      orders_in_progress: orders.filter((o) => ["validated", "prepared", "shipped"].includes(o.status)).length,
       delivered_today: orders.filter((o) => o.status === "delivered" && new Date((o as any).delivered_at || o.updated_at).toDateString() === today).length,
       shipping_now: orders.filter((o) => o.status === "shipped").length,
       depot_units: (db.stock_levels as any[]).reduce((s, l) => s + (Number(l.quantity) || 0), 0),
@@ -639,7 +639,7 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     tagLegacyPendingOrders();
     res.json(
       db.orders
-        .filter((o) => (canSeeAll(u) || o.marketer_id === u.id) && o.status !== "cancelled" && o.status !== "rejected" && (o as any).delivery_mode !== "embarked")
+        .filter((o) => (canSeeAll(u) || o.marketer_id === u.id) && o.status !== "cancelled" && o.status !== "rejected" && o.status !== "pending_approval" && (o as any).delivery_mode !== "embarked")
         .map((o) => {
           const del = (db.deliveries as any[]).find((d) => d.order_id === o.id);
           // Les lignes vendues depuis un stock embarqué ne sont jamais « à livrer »
