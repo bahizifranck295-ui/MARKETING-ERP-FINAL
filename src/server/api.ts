@@ -20,7 +20,7 @@ import {
   ALL_PERMISSION_CODES,
 } from "./db";
 import { mountStockStructureRoutes } from "./stockStructure";
-import { applyOrderStockOut, embarkedAvailability, mountDeliveryRoutes, tagOrderStockSource } from "./delivery";
+import { applyOrderStockOut, embarkedAvailability, mountDeliveryRoutes, productStockMode, restoreOrderStock, tagOrderStockSource } from "./delivery";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "erp_secret_jwt_key_2026";
 
@@ -833,6 +833,7 @@ apiRouter.post("/clients/:id/transactions/:txId/reverse", authenticate, (req, re
 
   const order = db.orders.find((o) => o.id === req.params.txId && o.client_id === client.id);
   if (order) {
+    if (order.status !== "cancelled") restoreOrderStock(order, (req as any).user as User, "Annulation");
     order.status = "cancelled";
     return res.json(getClientAccountData(client.id));
   }
@@ -961,8 +962,8 @@ apiRouter.post("/orders", authenticate, (req, res) => {
     updated_at: new Date().toISOString(),
   };
 
-  // Origine exacte du stock de chaque ligne : stock embarqué du marketeur vendeur ou dépôt
-  const sourceError = tagOrderStockSource(newOrder, { strict: true, requested: req.body.stock_source });
+  // Source du stock de chaque ligne selon le classement du produit dans le module Livraison
+  const sourceError = tagOrderStockSource(newOrder, { strict: true });
   if (sourceError) return res.status(400).json({ detail: sourceError });
   db.orders.unshift(newOrder);
   res.status(201).json(newOrder);
@@ -980,8 +981,11 @@ apiRouter.post("/orders/:id/approve", authenticate, (req, res) => {
   if (!canApproveOrders(user)) return res.status(403).json({ detail: "Vous n'avez pas la permission d'approuver les commandes" });
   const order = db.orders.find((o) => o.id === req.params.id);
   if (!order) return res.status(404).json({ detail: "Commande introuvable" });
+  // Une commande n'est approuvée (et déstockée) qu'une seule fois
+  if (order.status !== "pending_approval")
+    return res.status(409).json({ detail: `La commande ${order.code} a déjà été traitée (statut : ${order.status}) : aucun nouveau retrait de stock` });
 
-  // Sortie de stock : stock embarqué du marketeur ou stock du produit selon le département
+  // Sortie de stock selon le classement Livraison : stock embarqué du marketeur ou dépôt
   const stockError = applyOrderStockOut(order, user);
   if (stockError) return res.status(400).json({ detail: stockError });
 
@@ -997,6 +1001,9 @@ apiRouter.post("/orders/:id/reject", authenticate, (req, res) => {
   if (!canApproveOrders((req as any).user as User)) return res.status(403).json({ detail: "Vous n'avez pas la permission de rejeter les commandes" });
   const order = db.orders.find((o) => o.id === req.params.id);
   if (!order) return res.status(404).json({ detail: "Commande introuvable" });
+  if (order.status === "cancelled") return res.json(order);
+  // Commande déjà déstockée : les quantités retournent dans le stock d'origine
+  restoreOrderStock(order, (req as any).user as User, "Rejet");
   order.status = "cancelled";
   order.rejection_reason = req.body.reason || "Rejeté par le responsable";
   order.updated_at = new Date().toISOString();
@@ -1011,8 +1018,10 @@ apiRouter.get("/boutique/products", authenticate, (req, res) => {
     db.products
       .filter((p) => p.is_active)
       .map((p) => {
+        // Produit classé « Stock embarqué » : vendu uniquement depuis le camion du vendeur
+        if (productStockMode(p.id) !== "embarked") return { ...p, stock_mode: "on_order" };
         const row = byProduct.get(p.id);
-        return row ? { ...p, embarked_id: es.id, embarked_label: es.marketer_name, embarked_qty: row.quantity, embarked_available: row.available } : p;
+        return { ...p, stock_mode: "embarked", embarked_id: es?.id || null, embarked_label: es?.marketer_name || null, embarked_qty: row?.quantity || 0, embarked_available: row?.available || 0 };
       })
   );
 });

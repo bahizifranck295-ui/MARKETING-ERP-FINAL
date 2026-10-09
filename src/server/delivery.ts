@@ -141,10 +141,21 @@ function embarkedView(es: any) {
   };
 }
 
+/** Quantité d'un produit dans les dépôts (stock normal, hors camions). */
+function depotQuantity(productId: string) {
+  return (db.stock_levels as any[]).filter((l) => l.product_id === productId).reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+}
+
+/** Quantités demandées par produit (une commande peut contenir deux lignes du même produit). */
+function qtyByProduct(items: Array<{ product_id: string; quantity: number }>) {
+  const m = new Map<string, number>();
+  for (const it of items) m.set(it.product_id, (m.get(it.product_id) || 0) + (Number(it.quantity) || 0));
+  return m;
+}
+
 /**
- * Stock embarqué d'un marketeur, vu comme un vrai stock :
- * quantité réelle dans le camion, quantité réservée par ses ventes en attente
- * d'approbation, et quantité encore disponible à la vente.
+ * Stock embarqué d'un marketeur : quantité réelle dans son camion, quantité
+ * réservée par ses ventes en attente d'approbation, quantité disponible.
  */
 export function embarkedAvailability(marketerId: string, exceptOrderId?: string) {
   ensureStockStructure();
@@ -166,69 +177,94 @@ export function embarkedAvailability(marketerId: string, exceptOrderId?: string)
   return { es, byProduct };
 }
 
+/** Classement du produit dans le module Livraison (Configuration des départements). */
+export function productStockMode(productId: string): Mode {
+  return modeOf(categoryOfProduct(productId));
+}
+
 /**
- * À la création de la vente : enregistre la source exacte du stock de chaque ligne.
- * - « embarked » : le produit est dans le camion du marketeur qui vend → la ligne
- *   référence SON stock embarqué (identifiant + propriétaire).
- * - « on_order » : sinon, ou si la vente est explicitement faite depuis le dépôt.
- * En mode strict (création), refuse une quantité supérieure au stock embarqué disponible.
+ * Source du stock de chaque ligne, déterminée par le CLASSEMENT du produit
+ * dans le module Livraison (catégorie en « Stock embarqué » ou « Sur commande ») :
+ * - « Stock embarqué » : marchandise déjà transférée du dépôt vers le camion du
+ *   marketeur qui vend → débit de SON stock embarqué uniquement.
+ * - « Sur commande » : débit du stock normal du dépôt.
+ * En mode strict, refuse si le marketeur n'a pas de stock embarqué ou s'il est
+ * insuffisant (quantités déjà réservées par ses ventes en attente comprises).
  */
-export function tagOrderStockSource(order: Order, opts: { strict?: boolean; requested?: string } = {}): string | null {
+export function tagOrderStockSource(order: Order, opts: { strict?: boolean } = {}): string | null {
   const { es, byProduct } = embarkedAvailability(order.marketer_id || "", order.id);
-  const fromDepot = opts.requested === "depot" || opts.requested === "on_order";
+  const seller = es?.marketer_name || order.marketer_name || "le vendeur";
+  const wanted = qtyByProduct(order.items.filter((it) => productStockMode(it.product_id) === "embarked"));
   for (const it of order.items) {
-    if (it.stock_source) continue;
-    const row = byProduct.get(it.product_id);
-    if (es && row && !fromDepot) {
-      if (opts.strict && it.quantity > row.available)
-        return `Stock embarqué insuffisant pour ${it.product_name} : ${row.available} disponible(s) dans le camion de ${es.marketer_name}${row.reserved ? ` (${row.reserved} déjà réservé(s) par des ventes en attente)` : ""}`;
+    if (productStockMode(it.product_id) === "embarked") {
+      if (opts.strict) {
+        if (!es) return `${it.product_name} est classé « Stock embarqué » (module Livraison) : ${seller} n'a pas de stock embarqué pour le vendre`;
+        const available = byProduct.get(it.product_id)?.available || 0;
+        const reserved = byProduct.get(it.product_id)?.reserved || 0;
+        if ((wanted.get(it.product_id) || 0) > available)
+          return `Stock embarqué insuffisant pour ${it.product_name} : ${available} disponible(s) dans le camion de ${seller}${reserved ? ` (${reserved} réservé(s) par des ventes en attente)` : ""}`;
+      }
       it.stock_source = "embarked";
-      it.embarked_id = es.id;
-      it.embarked_owner_id = es.marketer_id;
-      it.embarked_owner_name = es.marketer_name;
-    } else it.stock_source = "on_order";
+      it.embarked_id = es?.id;
+      it.embarked_owner_id = es?.marketer_id || order.marketer_id;
+      it.embarked_owner_name = es?.marketer_name || order.marketer_name;
+    } else {
+      it.stock_source = "on_order";
+      delete it.embarked_id;
+      delete it.embarked_owner_id;
+      delete it.embarked_owner_name;
+    }
   }
   const emb = order.items.filter((it) => it.stock_source === "embarked");
   const origin = !emb.length ? "on_order" : emb.length === order.items.length ? "embarked" : "mixed";
   (order as any).stock_origin = origin;
   (order as any).delivery_mode = origin;
-  if (emb.length && es) {
-    (order as any).embarked_id = es.id;
-    (order as any).embarked_owner_id = es.marketer_id;
-    (order as any).embarked_label = embarkedLabel(es);
-  }
+  (order as any).embarked_id = emb.length && es ? es.id : undefined;
+  (order as any).embarked_owner_id = emb.length && es ? es.marketer_id : undefined;
+  (order as any).embarked_label = emb.length && es ? embarkedLabel(es) : undefined;
   return null;
 }
 
+type LedgerEntry = { kind: "embarked" | "depot"; product_id: string; quantity: number; embarked_id?: string; warehouse_id?: string };
+
 /**
- * Sortie de stock à l'approbation d'une commande (quel que soit l'approbateur).
- * - Lignes « embarked » : retirées UNIQUEMENT du stock embarqué enregistré sur
- *   la vente (celui du marketeur vendeur), jamais du dépôt.
- * - Lignes « on_order » : retirées du stock du dépôt concerné.
- * Renvoie un message d'erreur, ou null si la sortie est faite.
+ * Sortie de stock à l'approbation d'une commande — exécutée UNE seule fois.
+ * Tout est vérifié avant le moindre retrait (pas de quantité négative, pas de
+ * retrait partiel), puis chaque retrait est inscrit dans le journal de la
+ * commande (stock_ledger) pour pouvoir être restitué en cas d'annulation.
  */
 export function applyOrderStockOut(order: Order, user: User): string | null {
   ensureStockStructure();
-  // Commandes créées avant l'enregistrement de la source : on la détermine
-  // à partir du marketeur de la vente (jamais de l'approbateur)
-  if (order.items.some((it) => !it.stock_source)) tagOrderStockSource(order);
+  // Déjà déstockée (nouvelle tentative, rechargement…) : aucun second retrait
+  if ((order as any).stock_applied) return null;
+  const tagError = tagOrderStockSource(order, { strict: true });
+  if (tagError) return tagError;
   const embarkedItems = order.items.filter((it) => it.stock_source === "embarked");
-  const otherItems = order.items.filter((it) => it.stock_source !== "embarked");
-  // Contrôles avant toute sortie
-  for (const it of embarkedItems) {
-    const es = embarkedStocks().find((e) => e.id === it.embarked_id);
-    if (!es) return `Le stock embarqué de ${it.embarked_owner_name || order.marketer_name} lié à cette vente est introuvable`;
-    const have = embarkedLevel(es.id, it.product_id, false)?.quantity || 0;
-    if (have < it.quantity) return `Stock embarqué insuffisant pour ${it.product_name} : ${have} dans le camion de ${es.marketer_name}, ${it.quantity} vendu(s)`;
+  const depotItems = order.items.filter((it) => it.stock_source !== "embarked");
+
+  // 1. Contrôles (aucun retrait si un seul stock est insuffisant)
+  for (const [pid, qty] of qtyByProduct(depotItems)) {
+    const have = depotQuantity(pid);
+    const name = db.products.find((p) => p.id === pid)?.name || "produit";
+    if (have < qty) return `Stock du dépôt insuffisant pour ${name} : ${have} disponible(s), ${qty} commandé(s)`;
   }
+  const es = embarkedItems.length ? embarkedStocks().find((e) => e.id === embarkedItems[0].embarked_id) : null;
+  for (const [pid, qty] of qtyByProduct(embarkedItems)) {
+    const have = (es && embarkedLevel(es.id, pid, false)?.quantity) || 0;
+    const name = db.products.find((p) => p.id === pid)?.name || "produit";
+    if (have < qty) return `Stock embarqué insuffisant pour ${name} : ${have} dans le camion de ${es?.marketer_name || order.marketer_name}, ${qty} vendu(s)`;
+  }
+
+  // 2. Retraits
+  const ledger: LedgerEntry[] = [];
   for (const it of embarkedItems) {
-    const es = embarkedStocks().find((e) => e.id === it.embarked_id)!;
     const p = db.products.find((x) => x.id === it.product_id);
-    if (!p) continue;
+    if (!p || !es) continue;
     const l = embarkedLevel(es.id, p.id, false)!;
     l.quantity -= it.quantity;
     l.updated_at = nowIso();
     setGlobalStock(p);
+    ledger.push({ kind: "embarked", product_id: p.id, quantity: it.quantity, embarked_id: es.id });
     recordEmbarked({
       es,
       product: p,
@@ -242,11 +278,10 @@ export function applyOrderStockOut(order: Order, user: User): string | null {
       amount: Number(it.line_total) || it.quantity * (Number(it.unit_price) || 0),
     });
   }
-  // Produits « Sur commande » : sortie du stock normal du dépôt concerné
-  // (dépôt du marketeur, sinon dépôt principal du produit, puis les autres si besoin)
+  // Sur commande : dépôt du marketeur, puis dépôt principal du produit, puis les autres
   const sources: Array<{ product_name: string; warehouse_label: string; quantity: number }> = [];
   const marketer = db.users.find((x) => x.id === order.marketer_id);
-  for (const it of otherItems) {
+  for (const it of depotItems) {
     const prod = db.products.find((p) => p.id === it.product_id);
     if (!prod) continue;
     const preferred = [marketer?.warehouse_id, prod.warehouse_id].filter((id): id is string => !!id && db.warehouses.some((w) => w.id === id));
@@ -266,11 +301,53 @@ export function applyOrderStockOut(order: Order, user: User): string | null {
       const w = db.warehouses.find((x) => x.id === l.warehouse_id);
       recordMovement({ product: prod, warehouse: w, quantity: -take, reason: `Vente ${order.code} (sur commande) · ${order.client_name}`, reference: order.code, user_name: user.full_name });
       sources.push({ product_name: prod.name, warehouse_label: warehouseLabel(w), quantity: take });
+      ledger.push({ kind: "depot", product_id: prod.id, quantity: take, warehouse_id: l.warehouse_id });
     }
     setGlobalStock(prod);
   }
   if (sources.length) (order as any).stock_sources = sources;
+  (order as any).stock_ledger = ledger;
+  (order as any).stock_applied = true;
+  (order as any).stock_applied_at = nowIso();
   return null;
+}
+
+/**
+ * Annulation d'une commande déjà déstockée : remet chaque quantité dans le stock
+ * exact d'où elle est sortie (camion du marketeur ou dépôt), une seule fois.
+ * Les lignes « dépôt » d'une commande déjà expédiée ou livrée ne sont pas remises :
+ * la marchandise a physiquement quitté le dépôt.
+ */
+export function restoreOrderStock(order: Order, user: User, reason: string) {
+  const o = order as any;
+  if (!o.stock_applied || o.stock_restored || !Array.isArray(o.stock_ledger)) return;
+  const left = ["shipped", "delivered"].includes(order.status);
+  const touched = new Set<string>();
+  for (const e of o.stock_ledger as LedgerEntry[]) {
+    const p = db.products.find((x) => x.id === e.product_id);
+    if (!p) continue;
+    if (e.kind === "embarked") {
+      const es = embarkedStocks().find((x) => x.id === e.embarked_id);
+      if (!es) continue;
+      const l = embarkedLevel(es.id, p.id, true)!;
+      l.quantity += e.quantity;
+      l.updated_at = nowIso();
+      recordEmbarked({ es, product: p, type: "adjust", quantity: e.quantity, reason: `${reason} ${order.code} : remise dans le camion`, user_name: user.full_name, client_name: order.client_name, order_code: order.code, order_id: order.id });
+    } else if (!left) {
+      const w = db.warehouses.find((x) => x.id === e.warehouse_id);
+      const l = getLevel(p.id, e.warehouse_id!, true)!;
+      l.quantity += e.quantity;
+      l.updated_at = nowIso();
+      recordMovement({ product: p, warehouse: w, quantity: e.quantity, reason: `${reason} ${order.code} : retour au dépôt`, reference: order.code, user_name: user.full_name });
+    }
+    touched.add(p.id);
+  }
+  for (const id of touched) {
+    const p = db.products.find((x) => x.id === id);
+    if (p) setGlobalStock(p);
+  }
+  o.stock_restored = true;
+  o.stock_restored_at = nowIso();
 }
 
 const STAGE_FLOW: Record<string, { next: Order["status"]; label: string }> = {
@@ -281,7 +358,8 @@ const STAGE_FLOW: Record<string, { next: Order["status"]; label: string }> = {
 
 // Commandes en attente créées avant l'enregistrement de la source du stock
 function tagLegacyPendingOrders() {
-  for (const o of db.orders) if (o.status === "pending_approval" && (o.items || []).some((it) => !it.stock_source)) tagOrderStockSource(o);
+  // Le classement Livraison peut changer : les commandes en attente suivent le classement actuel
+  for (const o of db.orders) if (o.status === "pending_approval") tagOrderStockSource(o);
 }
 
 export function mountDeliveryRoutes(router: any, authenticate: any) {

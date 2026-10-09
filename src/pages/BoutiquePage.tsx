@@ -46,8 +46,6 @@ export default function BoutiquePage() {
   const [walkPhone, setWalkPhone] = useState("");
   const [currency, setCurrency] = useState("CDF");
   const [paymentMethod, setPaymentMethod] = useState("cash");
-  // Source du stock de la vente : stock embarqué du vendeur (camion) ou dépôt
-  const [stockSource, setStockSource] = useState<"embarked" | "depot">("embarked");
   const [orderNotes, setOrderNotes] = useState("");
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
@@ -107,7 +105,8 @@ export default function BoutiquePage() {
       const current = prev[productId] || 0;
       const next = current + delta;
       const product = products.find((p) => p.id === productId);
-      const fromTruck = stockSource === "embarked" && product?.embarked_qty != null;
+      // Produit classé « Stock embarqué » (module Livraison) : limité au camion du vendeur
+      const fromTruck = product?.stock_mode === "embarked";
       const stock = product ? (fromTruck ? product.embarked_available : product.current_stock ?? product.stock ?? 999) : 999;
       if (next <= 0) {
         const copy = { ...prev };
@@ -127,7 +126,7 @@ export default function BoutiquePage() {
   };
 
   const clearCart = () => setCart({});
-  const hasTruck = products.some((p) => p.embarked_qty != null);
+  const hasTruck = products.some((p) => p.stock_mode === "embarked");
 
   const cartSummary = useMemo(() => {
     let totalUSD = 0;
@@ -182,7 +181,6 @@ export default function BoutiquePage() {
         source: "boutique",
         currency: currency === "CDF" ? "CDF" : "USD",
         payment_method: paymentMethod,
-        stock_source: hasTruck ? stockSource : undefined,
         notes: orderNotes.trim() || "Commande passée via le module Boutique Revendeur",
         items: cartSummary.lines.map((l) => ({
           product_id: l.product.id,
@@ -386,7 +384,7 @@ export default function BoutiquePage() {
                           >
                             {!inStock ? "Rupture" : `${product.stock ?? product.current_stock} en stock`}
                           </span>
-                          {product.embarked_qty != null && (
+                          {product.stock_mode === "embarked" && (
                             <span
                               className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#0F3D68] text-white shadow-xs"
                               title={`Stock embarqué réel : ${product.embarked_qty} · disponible à la vente : ${product.embarked_available}`}
@@ -616,8 +614,8 @@ export default function BoutiquePage() {
                           {product.name}
                         </div>
                         {hasTruck && (
-                          <div className={`text-[10px] font-bold ${stockSource === "embarked" && product.embarked_qty != null ? "text-[#0F3D68]" : "text-slate-500"}`}>
-                            {stockSource === "embarked" && product.embarked_qty != null ? "Stock embarqué (mon camion)" : "Dépôt (sur commande)"}
+                          <div className={`text-[10px] font-bold ${product.stock_mode === "embarked" ? "text-[#0F3D68]" : "text-slate-500"}`}>
+                            {product.stock_mode === "embarked" ? "Stock embarqué (mon camion)" : "Dépôt (sur commande)"}
                           </div>
                         )}
                         <div className="font-bold text-xs text-purple-900 mt-0.5">
@@ -693,46 +691,6 @@ export default function BoutiquePage() {
                   />
                 )}
               </div>
-
-              {hasTruck && (
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                    <span>Source du stock *</span>
-                    <span className="text-[10px] text-slate-400 font-normal">Stock déduit après approbation</span>
-                  </Label>
-                  <div className="grid grid-cols-2 gap-2" role="group" aria-label="Source du stock">
-                    {([
-                      ["embarked", "Mon stock embarqué", "Déduit de mon camion"],
-                      ["depot", "Dépôt (sur commande)", "Livraison depuis le dépôt"],
-                    ] as const).map(([val, title, sub]) => (
-                      <button
-                        key={val}
-                        type="button"
-                        aria-pressed={stockSource === val}
-                        onClick={() => {
-                          setStockSource(val);
-                          if (val === "embarked")
-                            setCart((prev) => {
-                              const next = { ...prev };
-                              for (const [id, q] of Object.entries(prev)) {
-                                const pr = products.find((x) => x.id === id);
-                                if (pr?.embarked_qty != null && q > pr.embarked_available) next[id] = pr.embarked_available;
-                                if (next[id] <= 0) delete next[id];
-                              }
-                              return next;
-                            });
-                        }}
-                        className={`p-2.5 rounded-xl border text-left transition-all ${
-                          stockSource === val ? "border-[#0F3D68] bg-[#0F3D68]/5 ring-2 ring-[#0F3D68]/20" : "border-slate-200 bg-white hover:bg-slate-50"
-                        }`}
-                      >
-                        <div className="text-xs font-bold text-slate-900">{title}</div>
-                        <div className="text-[10px] text-slate-500">{sub}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-slate-800 flex items-center justify-between">
