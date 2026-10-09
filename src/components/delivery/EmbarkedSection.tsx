@@ -424,7 +424,7 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
   const [saving, setSaving] = useState(false);
   const inTruck = stock.items.find((i: any) => i.product_id === productId)?.quantity || 0;
   const amount = Math.abs(Number(qty) || 0);
-  const tooMuch = (kind === "return" || mode === "out") && amount > inTruck;
+  const fromDepotIn = kind === "adjust" && mode === "in";
   const [products, setProducts] = useState<any[]>([]);
   useEffect(() => {
     if (kind === "adjust") api.get("/products").then(({ data }) => setProducts(data || [])).catch(() => {});
@@ -435,10 +435,10 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
   const [loadsFrom, setLoadsFrom] = useState<Record<string, string>>({});
   const [depotTouched, setDepotTouched] = useState(false);
   useEffect(() => {
-    if (kind !== "return") return;
     if (!depots.length)
       api.get("/stock/depots").then(({ data }) => setDepotList((data || []).filter((d: any) => d.is_active !== false))).catch(() => {});
     api.get("/stock/levels").then(({ data }) => setDepotLevels(Array.isArray(data) ? data : [])).catch(() => {});
+    if (kind !== "return") return;
     api
       .get("/delivery/embarked/movements")
       .then(({ data }) => {
@@ -455,7 +455,18 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
   }, [kind, productId, loadsFrom, depotList, depotTouched]);
   const depotNow = depotLevels.find((l) => l.product_id === productId && l.warehouse_id === depotId)?.quantity || 0;
   const depotLabel = depotList.find((d) => d.id === depotId)?.label || "";
-  const options = kind === "adjust" && mode === "in" ? products.map((p) => ({ product_id: p.id, name: p.name, quantity: inTruckOf(stock, p.id) })) : stock.items;
+  // Ajout (+) : réapprovisionnement du camion depuis un dépôt physique (transfert dépôt → camion)
+  const options = fromDepotIn
+    ? depotLevels
+        .filter((l) => l.warehouse_id === depotId && l.quantity > 0)
+        .map((l) => ({ product_id: l.product_id, name: products.find((p) => p.id === l.product_id)?.name || "Produit", quantity: l.quantity }))
+    : stock.items;
+  const tooMuch = fromDepotIn ? amount > depotNow : (kind === "return" || mode === "out") && amount > inTruck;
+  const vehicleId = stock.vehicle_id || stock.vehicle?.id || "";
+  useEffect(() => {
+    if (fromDepotIn && !depotList.some((d) => d.id === depotId)) setDepotId(depotList[0]?.id || "");
+  }, [fromDepotIn, depotList]);
+
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -467,8 +478,13 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
         toast.success(`Retour ${r?.code || ""} enregistré`, {
           description: r ? `Camion de ${stock.marketer_name} −${r.quantity} · ${r.depot_label} +${r.quantity} (stock au dépôt : ${r.depot_quantity})` : undefined,
         });
+      } else if (fromDepotIn) {
+        const { data } = await api.post("/delivery/embarked/load", { warehouse_id: depotId, product_id: productId, quantity: amount, marketer_id: stock.marketer_id, vehicle_id: vehicleId });
+        toast.success(`Réajustement ${data.code} enregistré`, {
+          description: `${depotLabel} −${amount} · camion de ${stock.marketer_name} +${amount} · reste au dépôt : ${data.depot_remaining}`,
+        });
       } else {
-        await api.post(`/delivery/embarked/${stock.id}/adjust`, { product_id: productId, quantity: mode === "in" ? amount : -amount, reason });
+        await api.post(`/delivery/embarked/${stock.id}/adjust`, { product_id: productId, quantity: -amount, reason });
         toast.success("Ajustement enregistré");
       }
       onDone();
@@ -488,8 +504,8 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
         <form onSubmit={submit} className="space-y-3 pt-1 text-xs">
           {kind === "adjust" && (
             <div className="flex gap-2">
-              {[{ v: "out" as const, l: "Retirer (−)" }, { v: "in" as const, l: "Ajouter (+)" }].map((o) => (
-                <button key={o.v} type="button" aria-pressed={mode === o.v} onClick={() => setMode(o.v)} className={`h-9 flex-1 rounded-lg border text-xs font-semibold ${mode === o.v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600"}`}>
+              {[{ v: "out" as const, l: "Retirer (−)" }, { v: "in" as const, l: "Ajouter depuis un dépôt (+)" }].map((o) => (
+                <button key={o.v} type="button" aria-pressed={mode === o.v} onClick={() => { setMode(o.v); setProductId(""); setQty(""); }} className={`h-9 flex-1 rounded-lg border text-xs font-semibold ${mode === o.v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600"}`}>
                   {o.l}
                 </button>
               ))}
@@ -500,10 +516,19 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
             <select id="ea_product" required value={productId} onChange={(e) => setProductId(e.target.value)} className={selectCls}>
               <option value="" disabled>Choisir…</option>
               {options.map((i: any) => (
-                <option key={i.product_id} value={i.product_id}>{i.name} ({fmtNum(i.quantity)} dans le camion)</option>
+                <option key={i.product_id} value={i.product_id}>{i.name} ({fmtNum(i.quantity)} {fromDepotIn ? "au dépôt" : "dans le camion"})</option>
               ))}
             </select>
           </div>
+          {fromDepotIn && (
+            <div>
+              <Label htmlFor="ea_src" className="text-xs font-semibold">Dépôt source (stock physique)</Label>
+              <select id="ea_src" required value={depotId} onChange={(e) => { setDepotId(e.target.value); setProductId(""); }} className={selectCls}>
+                {depotList.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+              </select>
+              {!vehicleId && <p className="mt-1 text-[11px] font-semibold text-red-600">Ce stock embarqué n'a pas de camion : utilisez le formulaire de déstockage.</p>}
+            </div>
+          )}
           {kind === "return" && (
             <div>
               <Label htmlFor="ea_depot" className="text-xs font-semibold">Dépôt de retour</Label>
@@ -520,14 +545,19 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
           <div>
             <Label htmlFor="ea_qty" className="text-xs font-semibold">Quantité</Label>
             <input id="ea_qty" type="number" min={1} step="1" required value={qty} onChange={(e) => setQty(e.target.value)} className={`${selectCls} font-bold ${tooMuch ? "border-red-300 ring-2 ring-red-200" : ""}`} />
-            {tooMuch && <p className="mt-1 text-[11px] font-semibold text-red-600">Quantité insuffisante : {inTruck} dans le camion</p>}
+            {tooMuch && <p className="mt-1 text-[11px] font-semibold text-red-600">Quantité insuffisante : {fromDepotIn ? `${depotNow} au dépôt` : `${inTruck} dans le camion`}</p>}
+            {fromDepotIn && amount > 0 && !tooMuch && productId && (
+              <p className="mt-1.5 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] text-emerald-900">
+                {depotLabel} : {fmtNum(depotNow)} → <strong>{fmtNum(depotNow - amount)}</strong> · Camion : {fmtNum(inTruck)} → <strong>{fmtNum(inTruck + amount)}</strong>
+              </p>
+            )}
             {kind === "return" && amount > 0 && !tooMuch && depotId && (
               <p className="mt-1.5 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] text-emerald-900">
                 Camion : {fmtNum(inTruck)} → <strong>{fmtNum(inTruck - amount)}</strong> · {depotLabel} : {fmtNum(depotNow)} → <strong>{fmtNum(depotNow + amount)}</strong>
               </p>
             )}
           </div>
-          {kind === "adjust" && (
+          {kind === "adjust" && mode === "out" && (
             <div>
               <Label htmlFor="ea_reason" className="text-xs font-semibold">Motif</Label>
               <select id="ea_reason" value={reason} onChange={(e) => setReason(e.target.value)} className={selectCls}>
@@ -537,7 +567,7 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
           )}
           <DialogFooter className="gap-2 border-t border-slate-100 pt-3">
             <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={saving || tooMuch || !amount || !productId} className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+            <Button type="submit" disabled={saving || tooMuch || !amount || !productId || (fromDepotIn && !vehicleId)} className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
               {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Valider
             </Button>
           </DialogFooter>
