@@ -35,6 +35,7 @@ import { openDocumentUrl, openDocumentInNativeViewer, saveFile, openPendingTab, 
 import { exportReceivablesPdf } from "@/lib/exportReceivablesPdf";
 import { useAuth } from "@/contexts/AuthContext";
 import StockReportDashboard from "@/components/reports/StockReportDashboard";
+import SalesSheets from "@/components/reports/SalesSheets";
 import {
   Dialog,
   DialogContent,
@@ -102,8 +103,25 @@ export default function ReportsPage() {
     loadAllReports();
   }, [period]);
 
+  // Période choisie en haut de page (Aujourd'hui / Semaine / Mois / Année) : appliquée à tous les chiffres
+  const inPeriod = (dateStr?: string) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    if (period === "day") return d.toDateString() === now.toDateString();
+    if (period === "week") {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // lundi
+      return d >= start && d <= now;
+    }
+    if (period === "month") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    return d.getFullYear() === now.getFullYear();
+  };
+  const periodLabel = ({ day: "Aujourd'hui", week: "Cette semaine", month: "Ce mois", year: "Cette année" } as Record<string, string>)[period] || period;
+
   const filteredOrders = useMemo(() => {
-    let list = orders.filter((o) => o.status !== "cancelled");
+    let list = orders.filter((o) => o.status !== "cancelled" && inPeriod(o.approved_at || o.created_at));
     if (selectedBU !== "all") {
       list = list.filter(
         (o) =>
@@ -121,10 +139,10 @@ export default function ReportsPage() {
       );
     }
     return list;
-  }, [orders, selectedBU, search]);
+  }, [orders, selectedBU, search, period]);
 
   const filteredCashOps = useMemo(() => {
-    let list = [...cashOps];
+    let list = cashOps.filter((op) => inPeriod(op.created_at));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
@@ -136,7 +154,10 @@ export default function ReportsPage() {
       );
     }
     return list;
-  }, [cashOps, search]);
+  }, [cashOps, search, period]);
+  const periodSessions = useMemo(() => cashSessions.filter((s) => inPeriod(s.closed_at || s.opened_at)), [cashSessions, period]);
+  const periodCashInUSD = filteredCashOps.filter((c) => c.type === "in").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
+  const periodCashOutUSD = filteredCashOps.filter((c) => c.type === "out").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
 
   const filteredCredits = useMemo(() => {
     let list = [...credits];
@@ -154,9 +175,10 @@ export default function ReportsPage() {
 
   const filteredReceivables = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return receivables;
-    return receivables.filter((r) => [r.client_name, r.marketer_name, r.client_phone].some((x) => x && String(x).toLowerCase().includes(q)));
-  }, [receivables, search]);
+    return receivables
+      .filter((r) => inPeriod(r.debt_date))
+      .filter((r) => !q || [r.client_name, r.marketer_name, r.client_phone].some((x) => x && String(x).toLowerCase().includes(q)));
+  }, [receivables, search, period]);
   const receivablesTotal = filteredReceivables.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   const handleExportReceivables = async () => {
@@ -167,7 +189,7 @@ export default function ReportsPage() {
       const ok = await exportReceivablesPdf({
         rows: filteredReceivables,
         editedBy: user?.full_name || "Utilisateur",
-        filtersLabel: search.trim() ? `Recherche « ${search.trim()} »` : "Tous les clients débiteurs",
+        filtersLabel: `Dettes : ${periodLabel}${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`,
         tab,
       });
       if (!ok) closeTab(tab);
@@ -525,21 +547,6 @@ export default function ReportsPage() {
             <option value="month">Ce Mois</option>
             <option value="year">Cette Année</option>
           </select>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={exportCSV}
-            className="rounded-xl border-slate-200 text-xs text-slate-700 hover:bg-slate-50"
-          >
-            <FileSpreadsheet className="h-4 w-4 mr-1 text-emerald-600" /> Export CSV
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => handlePrintReport("Livre des Ventes Journalier")}
-            className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs"
-          >
-            <Printer className="h-4 w-4 mr-1.5" /> Imprimer Fiche
-          </Button>
         </div>
       </div>
 
@@ -578,6 +585,10 @@ export default function ReportsPage() {
             <div className="text-sm font-bold text-slate-800 mt-0.5">
               {fmtMoney(currentCashCDF, "CDF")}
             </div>
+            <div className="text-[11px] text-slate-500 font-medium">
+              {periodLabel} : <span className="text-emerald-700 font-semibold">+{fmtMoney(periodCashInUSD)}</span> ·{" "}
+              <span className="text-red-600 font-semibold">−{fmtMoney(periodCashOutUSD)}</span>
+            </div>
           </div>
         </div>
 
@@ -589,9 +600,9 @@ export default function ReportsPage() {
           </div>
           <div>
             <div className="text-2xl font-black text-amber-700 tracking-tight">
-              {fmtMoney(totalDebts)}
+              {fmtMoney(receivablesTotal)}
             </div>
-            <div className="text-[11px] text-slate-500 font-medium">Total créances clients dues</div>
+            <div className="text-[11px] text-slate-500 font-medium">Créances clients dues · dettes {periodLabel.toLowerCase()}</div>
           </div>
         </div>
 
@@ -668,7 +679,7 @@ export default function ReportsPage() {
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
-                <Lock className="h-3.5 w-3.5" /> Clôtures & Billetages ({cashSessions.length})
+                <Lock className="h-3.5 w-3.5" /> Clôtures & Billetages ({periodSessions.length})
               </button>
               <button
                 onClick={() => setCashSubTab("operations")}
@@ -702,7 +713,7 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {cashSessions.map((sess) => (
+                    {periodSessions.map((sess) => (
                       <tr key={sess.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-3.5">
                           <span className="font-mono font-bold text-slate-900 block">
@@ -838,56 +849,7 @@ export default function ReportsPage() {
       ) : activeTab === "stock" ? (
         <StockReportDashboard products={products} orders={orders} search={search} />
       ) : activeTab === "sales" ? (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="p-3.5">Réf Commande</th>
-                  <th className="p-3.5">Client</th>
-                  <th className="p-3.5">Marketeur</th>
-                  <th className="p-3.5">Mode</th>
-                  <th className="p-3.5 text-right">Montant Total</th>
-                  <th className="p-3.5 text-right">Payé</th>
-                  <th className="p-3.5 text-right">Reste</th>
-                  <th className="p-3.5 text-center">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredOrders.map((o) => (
-                  <tr key={o.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5 font-mono font-bold text-slate-900">{o.code}</td>
-                    <td className="p-3.5 font-bold text-slate-800">{o.client_name}</td>
-                    <td className="p-3.5 text-purple-700 font-medium">{o.marketer_name || "N/A"}</td>
-                    <td className="p-3.5">
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          o.payment_method === "cash"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-blue-100 text-blue-800"
-                        }`}
-                      >
-                        {o.payment_method === "cash" ? "Comptant" : "Crédit"}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-right font-black">{fmtMoney(o.total)}</td>
-                    <td className="p-3.5 text-right font-bold text-emerald-600">
-                      {fmtMoney(o.amount_paid)}
-                    </td>
-                    <td className="p-3.5 text-right font-bold text-blue-700">
-                      {fmtMoney(o.outstanding)}
-                    </td>
-                    <td className="p-3.5 text-center">
-                      <span className="capitalize px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold">
-                        {o.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <SalesSheets search={search} period={period} />
       ) : activeTab === "credits" ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
