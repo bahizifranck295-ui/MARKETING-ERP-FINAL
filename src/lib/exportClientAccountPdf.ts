@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";
-import { saveFile } from "@/lib/documentViewer";
+import { presentDocument } from "@/lib/documentViewer";
 
 export interface AccountTransactionItem {
   id: string;
@@ -17,6 +17,8 @@ export interface AccountTransactionItem {
 }
 
 export interface ClientAccountExportOptions {
+  /** Onglet ouvert au moment du clic, qui recevra le PDF */
+  tab?: Window | null;
   client: {
     id: string;
     code: string;
@@ -512,6 +514,6 @@ export async function generateClientAccountPdf(
 
   // Save the generated PDF
   const filename = `PREMIDIS_Releve_Compte_${client.code || "CLIENT"}_${new Date().toISOString().slice(0, 10)}.pdf`;
-  // Téléchargement réel ; la notification vient de saveFile, après réussite
-  return saveFile(doc.output("blob"), filename);
+  // Ouverture dans le visualiseur PDF de Chrome (télécharger / imprimer depuis le visualiseur)
+  return presentDocument(doc.output("blob"), filename, options.tab ?? null);
 }

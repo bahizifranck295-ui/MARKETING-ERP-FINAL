@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";
-import { saveFile } from "@/lib/documentViewer";
+import { presentDocument } from "@/lib/documentViewer";
 
 export interface ClientPdfItem {
   id?: string;
@@ -109,6 +109,8 @@ async function getLogoPngDataUrl(): Promise<string | null> {
 
 export interface ExportPdfOptions {
   department?: string | "all";
+  /** Onglet ouvert au moment du clic, qui recevra le PDF */
+  tab?: Window | null;
 }
 
 export async function generateClientsSummaryPdf(
@@ -554,6 +556,6 @@ export async function generateClientsSummaryPdf(
     ? "par_departement"
     : `departement_${selectedDepartment.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
   const filename = `PREMIDIS_Liste_clients_${deptSuffix}_${new Date().toISOString().slice(0, 10)}.pdf`;
-  // Téléchargement réel ; la notification vient de saveFile, après réussite
-  return saveFile(doc.output("blob"), filename);
+  // Ouverture dans le visualiseur PDF de Chrome (télécharger / imprimer depuis le visualiseur)
+  return presentDocument(doc.output("blob"), filename, options?.tab ?? null);
 }

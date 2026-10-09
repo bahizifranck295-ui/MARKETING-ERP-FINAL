@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/dialog";
 import { fmtMoney, fmtNum } from "@/components/erp-ui";
 import InvoiceModal from "@/components/InvoiceModal";
-import { openDocumentInNativeViewer } from "@/lib/documentViewer";
+import { openDocumentInNativeViewer, closeTab, openPendingTab } from "@/lib/documentViewer";
 import { getProductColor } from "@/lib/productColors";
 import { generateClientAccountPdf } from "@/lib/exportClientAccountPdf";
 import {
@@ -266,9 +266,11 @@ export default function CompteClientView({
       toast.error("Aucune transaction à exporter avec les filtres sélectionnés");
       return;
     }
+    const tab = openPendingTab(`Relevé ${client.name || ""}`);
     setExportingPdf(true);
     try {
-      await generateClientAccountPdf({
+      const ok = await generateClientAccountPdf({
+        tab,
         client,
         transactions: filteredTransactions,
         soldeActuel,
@@ -278,7 +280,9 @@ export default function CompteClientView({
         dateEnd,
         txTypeFilter,
       });
+      if (!ok) closeTab(tab);
     } catch (err) {
+      closeTab(tab);
       toast.error(extractErrorMessage(err, "Erreur lors de la génération du PDF"));
     } finally {
       setExportingPdf(false);

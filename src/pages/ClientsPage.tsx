@@ -40,7 +40,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import CompteClientView from "@/components/CompteClientView";
-import { openDocumentInNativeViewer } from "@/lib/documentViewer";
+import { openDocumentInNativeViewer, closeTab, openPendingTab } from "@/lib/documentViewer";
 import { getProductColor } from "@/lib/productColors";
 import {
   generateClientsSummaryPdf,
@@ -132,13 +132,16 @@ export default function ClientsPage() {
   };
 
   const handleExecuteExport = async (department: string | "all") => {
+    // L'onglet du visualiseur PDF est ouvert pendant le clic (sinon Chrome le bloque)
+    const tab = openPendingTab("Liste des clients");
     setExportingPdf(true);
     setExportTarget(department);
     try {
       const enrichedClients = await fetchEnrichedClientsForExport();
-      await generateClientsSummaryPdf(enrichedClients, { department });
+      if (!(await generateClientsSummaryPdf(enrichedClients, { department, tab }))) closeTab(tab);
       setIsExportModalOpen(false);
     } catch (err) {
+      closeTab(tab);
       toast.error(extractErrorMessage(err, "Erreur lors de la génération du PDF"));
     } finally {
       setExportingPdf(false);
@@ -147,6 +150,10 @@ export default function ClientsPage() {
   };
 
   const handleExportAllDepartmentsSeparately = async () => {
+    // Un onglet du visualiseur par département, ouverts pendant le clic
+    const tabs = new Map<string, Window | null>();
+    for (const dept of OFFICIAL_DEPARTMENTS)
+      if (clients.some((c) => normalizeDepartment(c.department || c.business_unit) === dept)) tabs.set(dept, openPendingTab(`Clients · ${dept}`));
     setExportingPdf(true);
     setExportTarget("all_separately");
     try {
@@ -159,14 +166,18 @@ export default function ClientsPage() {
         ).length;
         if (count > 0) {
           generated++;
-          if (await generateClientsSummaryPdf(enrichedClients, { department: dept })) exportedCount++;
-          await new Promise((r) => setTimeout(r, 600));
+          const tab = tabs.get(dept) ?? null;
+          tabs.delete(dept);
+          if (await generateClientsSummaryPdf(enrichedClients, { department: dept, tab })) exportedCount++;
+          else closeTab(tab);
         }
       }
-      if (exportedCount) toast.success(`${exportedCount} / ${generated} documents départements téléchargés`);
-      else toast.error("Aucun document n'a été téléchargé");
+      tabs.forEach((t) => closeTab(t));
+      if (exportedCount) toast.success(`${exportedCount} / ${generated} documents départements ouverts dans le visualiseur`);
+      else toast.error("Aucun document n'a pu être ouvert");
       setIsExportModalOpen(false);
     } catch (err) {
+      tabs.forEach((t) => closeTab(t));
       toast.error(extractErrorMessage(err, "Erreur lors de l'exportation séparée"));
     } finally {
       setExportingPdf(false);

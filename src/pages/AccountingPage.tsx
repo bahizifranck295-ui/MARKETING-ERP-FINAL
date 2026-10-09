@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import MovementDetailPanel from "@/components/accounting/MovementDetailPanel";
 import { exportJournalPdf } from "@/lib/exportJournalPdf";
-import { openDocumentInNativeViewer } from "@/lib/documentViewer";
+import { openDocumentInNativeViewer, closeTab, openPendingTab } from "@/lib/documentViewer";
 import {
   generateCashReceiptPdf,
   CashReceiptData,
@@ -126,6 +126,8 @@ export default function AccountingPage() {
 
   // Export PDF du tableau des écritures (format des factures, avec l'utilisateur de chaque opération)
   const handleExportPdf = async () => {
+    // L'onglet du visualiseur PDF est ouvert pendant le clic (sinon Chrome le bloque)
+    const tab = openPendingTab("Journal comptable");
     setExporting(true);
     try {
       const modLabel: Record<string, string> = { all: "Tous les modules", cash: "Caisse", orders: "Ventes / Commandes", stock: "Stock" };
@@ -134,9 +136,11 @@ export default function AccountingPage() {
         movements: filteredMovements,
         editedBy: user?.full_name || "Utilisateur",
         filtersLabel: `${modLabel[moduleFilter] || moduleFilter} · ${stLabel[statusFilter] || statusFilter}${search.trim() ? ` · « ${search.trim()} »` : ""}`,
+        tab,
       });
-      void fileName; // notification affichée par saveFile après le téléchargement réel
+      if (!fileName) closeTab(tab); // notification affichée par le visualiseur après ouverture réelle
     } catch (err) {
+      closeTab(tab);
       toast.error(extractErrorMessage(err, "Export PDF impossible"));
     } finally {
       setExporting(false);

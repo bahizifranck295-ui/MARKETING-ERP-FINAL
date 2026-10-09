@@ -28,7 +28,6 @@ import {
   ChevronRight,
   TrendingUp,
   Receipt,
-  Download,
   X,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
@@ -46,7 +45,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { openDocumentInNativeViewer, saveFile } from "@/lib/documentViewer";
+import { openDocumentInNativeViewer } from "@/lib/documentViewer";
 import {
   generateCashReceiptPdf,
   generateCashClosingReceiptPdf,
@@ -1766,14 +1765,7 @@ export default function CashPage() {
                 <Eye className="w-4 h-4" />
                 Ouvrir le Bordereau dans Google Chrome
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => saveFile(slipModalData.url, `Bordereau_${Date.now()}.pdf`)}
-                className="text-xs gap-1.5"
-              >
-                <Download className="w-4 h-4" />
-                Télécharger le Document PDF
-              </Button>
+              <p className="text-[11px] text-slate-500">Téléchargement et impression depuis le visualiseur PDF de Chrome.</p>
             </div>
 
             <DialogFooter>

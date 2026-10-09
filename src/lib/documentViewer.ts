@@ -181,6 +181,13 @@ export function openPendingTab(title = "Document"): Window | null {
   }
 }
 
+/** Referme un onglet préparé qui n'a finalement rien reçu. */
+export function closeTab(tab: Window | null | undefined) {
+  try {
+    if (tab && !tab.closed && tab.location.href === "about:blank") tab.close();
+  } catch {}
+}
+
 /**
  * Affiche un document déjà chargé : nouvel onglet avec le visualiseur natif de
  * Chrome si le format s'y prête, sinon téléchargement réel.

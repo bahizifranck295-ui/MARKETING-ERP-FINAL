@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { saveFile } from "@/lib/documentViewer";
+import { presentDocument } from "@/lib/documentViewer";
 
 /*
  * Export PDF du journal comptable, au format des factures PREMIDIS :
@@ -41,9 +41,11 @@ export type JournalPdfOptions = {
   movements: any[];
   editedBy: string;
   filtersLabel: string;
+  /** Onglet ouvert au moment du clic, qui recevra le PDF */
+  tab?: Window | null;
 };
 
-export async function exportJournalPdf({ movements, editedBy, filtersLabel }: JournalPdfOptions) {
+export async function exportJournalPdf({ movements, editedBy, filtersLabel, tab = null }: JournalPdfOptions) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
@@ -228,6 +230,6 @@ export async function exportJournalPdf({ movements, editedBy, filtersLabel }: Jo
   }
 
   const fileName = `Journal_Comptable_PREMIDIS_${now.toISOString().slice(0, 10)}.pdf`;
-  // Téléchargement réel : renvoie le nom du fichier seulement s'il a été enregistré
-  return (await saveFile(doc.output("blob"), fileName)) ? fileName : null;
+  // Ouverture dans le visualiseur PDF de Chrome (télécharger / imprimer depuis le visualiseur)
+  return (await presentDocument(doc.output("blob"), fileName, tab)) ? fileName : null;
 }
