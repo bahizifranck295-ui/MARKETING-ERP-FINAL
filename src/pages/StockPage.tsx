@@ -214,59 +214,130 @@ export default function StockPage() {
     return m;
   }, [levels]);
 
-  /* ----- Tableau de bord (synthèse globale) ----- */
-  const totalValue = products.reduce((s, p) => s + stockOf(p) * costOf(p), 0);
-  const totalUnits = products.reduce((s, p) => s + stockOf(p), 0);
-  const lowCount = products.filter((p) => statusKey(p) === "low").length;
-
-  const bySite = useMemo(() => {
+  /* ----- Périmètre du tableau de bord = filtres de « Stock par dépôt » -----
+   * Tous les sites + tous les dépôts : toute l'entreprise (dépôts + camions).
+   * Site ou dépôt choisi : uniquement les dépôts concernés (les camions n'en font pas partie).
+   * Chaque quantité est comptée une seule fois (stock d'un dépôt OU d'un camion). */
+  const isGlobalScope = dashSite === ALL && dashDepot === ALL;
+  const embarkedByProduct = useMemo(() => {
     const m = new Map<string, number>();
-    warehouses.forEach((w) => m.set(w.site_name || "Sans site", (m.get(w.site_name || "Sans site") || 0) + (Number(w.value) || 0)));
-    return Array.from(m.entries())
-      .map(([site, value]) => ({ site, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [warehouses]);
-
-  const byCategory = useMemo(() => {
-    const m = new Map<string, number>();
-    products.forEach((p) => m.set(categoryOf(p), (m.get(categoryOf(p)) || 0) + stockOf(p) * costOf(p)));
-    return Array.from(m.entries())
-      .map(([label, value]) => ({ label, value, color: colorByCategory.get(label) || OTHER_COLOR }))
-      .sort((a, b) => b.value - a.value);
-  }, [products, colorByCategory]);
-
-  const evolution = useMemo(() => computeEvolution(products, orders, totalValue), [products, orders, totalValue]);
+    (embarkedSummary?.stocks || []).forEach((e: any) => e.items.forEach((i: any) => m.set(i.product_id, (m.get(i.product_id) || 0) + (Number(i.quantity) || 0))));
+    return m;
+  }, [embarkedSummary]);
+  const scopeDepots = useMemo(
+    () => warehouses.filter((w) => (dashSite === ALL || w.site_id === dashSite) && (dashDepot === ALL || w.id === dashDepot)),
+    [warehouses, dashSite, dashDepot]
+  );
 
   /* ----- Stock par dépôt (tableau de bord) ----- */
   const dashInScope = useMemo(() => {
-    const ids = new Set(
-      warehouses.filter((w) => (dashSite === ALL || w.site_id === dashSite) && (dashDepot === ALL || w.id === dashDepot)).map((w) => w.id)
-    );
-    const agg = new Map<string, { qty: number; depotIds: string[] }>();
+    const ids = new Set(scopeDepots.map((w) => w.id));
+    const agg = new Map<string, { qty: number; depotIds: string[]; embarked: number }>();
     levels.forEach((l) => {
       if (!ids.has(l.warehouse_id)) return;
-      const e = agg.get(l.product_id) || { qty: 0, depotIds: [] };
+      const e = agg.get(l.product_id) || { qty: 0, depotIds: [], embarked: 0 };
       e.qty += Number(l.quantity) || 0;
       e.depotIds.push(l.warehouse_id);
       agg.set(l.product_id, e);
     });
+    // Vue globale : tous les produits, avec la marchandise encore dans les camions
+    if (isGlobalScope)
+      products.forEach((p) => {
+        const e = agg.get(p.id) || { qty: 0, depotIds: [], embarked: 0 };
+        e.embarked = embarkedByProduct.get(p.id) || 0;
+        e.qty += e.embarked;
+        agg.set(p.id, e);
+      });
     const q = dashSearch.trim().toLowerCase();
     return products
       .filter((p) => agg.has(p.id))
       .filter((p) => !q || [p.name, p.code, p.size, p.category].some((x) => x && String(x).toLowerCase().includes(q)))
       .map((p) => ({ p, ...agg.get(p.id)! }))
       .sort((a, b) => a.p.name.localeCompare(b.p.name, "fr"));
-  }, [products, warehouses, levels, dashSite, dashDepot, dashSearch]);
+  }, [products, scopeDepots, levels, isGlobalScope, embarkedByProduct, dashSearch]);
   const dashCategoryTree = useMemo(() => {
     const m = new Map<string, any[]>();
     dashInScope.forEach((r) => m.set(categoryOf(r.p), [...(m.get(categoryOf(r.p)) || []), r]));
     return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0], "fr"));
   }, [dashInScope]);
-  const dashRows = dashInScope.filter((r) => dashCat === ALL || categoryOf(r.p) === dashCat);
+  const dashRows = useMemo(() => dashInScope.filter((r) => dashCat === ALL || categoryOf(r.p) === dashCat), [dashInScope, dashCat]);
   const dashPages = Math.max(1, Math.ceil(dashRows.length / PAGE_SIZE));
   const dashCurPage = Math.min(dashPage, dashPages);
   const dashVisible = dashRows.slice((dashCurPage - 1) * PAGE_SIZE, dashCurPage * PAGE_SIZE);
-  const sitesTotal = sites.reduce((s, x) => s + (Number(x.value) || 0), 0);
+
+  /* ----- Indicateurs et graphiques, recalculés sur le périmètre filtré ----- */
+  const scopeProductIds = useMemo(() => new Set(dashRows.map((r) => r.p.id)), [dashRows]);
+  const totalValue = dashRows.reduce((s, r) => s + r.qty * costOf(r.p), 0);
+  const totalUnits = dashRows.reduce((s, r) => s + r.qty, 0);
+  const lowCount = dashRows.filter((r) => stockStatus(r.qty, thresholdOf(r.p)).key === "low").length;
+  const scopeCategoryCount = new Set(dashRows.map((r) => categoryOf(r.p))).size;
+  const scopeSiteCount = isGlobalScope ? sites.length : new Set(scopeDepots.map((w) => w.site_id)).size;
+  const scopeDepotCount = scopeDepots.length;
+  const scopeLabel = dashDepot !== ALL
+    ? `Dépôt ${scopeDepots[0]?.label || scopeDepots[0]?.name || ""}`
+    : dashSite !== ALL
+    ? `Site ${sites.find((x) => x.id === dashSite)?.name || ""}`
+    : "Toute l'entreprise · dépôts + camions";
+  const filterLabel = [dashCat !== ALL ? `catégorie ${dashCat}` : "", dashSearch.trim() ? `« ${dashSearch.trim()} »` : ""].filter(Boolean).join(" · ");
+
+  // Valeur par site : quantités des dépôts du périmètre (+ camions en vue globale)
+  const depotValue = useMemo(() => {
+    const m = new Map<string, number>();
+    const ids = new Set(scopeDepots.map((w) => w.id));
+    const cost = new Map(products.map((p) => [p.id, costOf(p)]));
+    levels.forEach((l) => {
+      if (!ids.has(l.warehouse_id) || !scopeProductIds.has(l.product_id)) return;
+      m.set(l.warehouse_id, (m.get(l.warehouse_id) || 0) + (Number(l.quantity) || 0) * (cost.get(l.product_id) || 0));
+    });
+    return m;
+  }, [scopeDepots, levels, products, scopeProductIds]);
+  const embarkedValue = isGlobalScope ? dashRows.reduce((s, r) => s + r.embarked * costOf(r.p), 0) : 0;
+  const bySite = useMemo(() => {
+    const m = new Map<string, number>();
+    scopeDepots.forEach((w) => m.set(w.site_name || "Sans site", (m.get(w.site_name || "Sans site") || 0) + (depotValue.get(w.id) || 0)));
+    const rows = Array.from(m.entries()).map(([site, value]) => ({ site, value }));
+    if (embarkedValue > 0) rows.push({ site: "Camions (embarqué)", value: embarkedValue });
+    return rows.sort((a, b) => b.value - a.value);
+  }, [scopeDepots, depotValue, embarkedValue]);
+
+  const byCategory = useMemo(() => {
+    const m = new Map<string, number>();
+    dashRows.forEach((r) => m.set(categoryOf(r.p), (m.get(categoryOf(r.p)) || 0) + r.qty * costOf(r.p)));
+    return Array.from(m.entries())
+      .map(([label, value]) => ({ label, value, color: colorByCategory.get(label) || OTHER_COLOR }))
+      .sort((a, b) => b.value - a.value);
+  }, [dashRows, colorByCategory]);
+
+  const evolution = useMemo(() => computeEvolution(dashRows.map((r) => r.p), orders, totalValue), [dashRows, orders, totalValue]);
+
+  // Cartes « Stock par site » et « Stock embarqué » : même périmètre
+  const scopeSites = useMemo(
+    () =>
+      sites
+        .filter((x) => scopeDepots.some((w) => w.site_id === x.id))
+        .map((x) => ({
+          ...x,
+          value: scopeDepots.filter((w) => w.site_id === x.id).reduce((sum, w) => sum + (depotValue.get(w.id) || 0), 0),
+          depot_count: scopeDepots.filter((w) => w.site_id === x.id).length,
+        })),
+    [sites, scopeDepots, depotValue]
+  );
+  const sitesTotal = scopeSites.reduce((s, x) => s + (Number(x.value) || 0), 0);
+  const scopeEmbarked = useMemo(() => {
+    if (!embarkedSummary || !isGlobalScope) return null;
+    const stocks = embarkedSummary.stocks
+      .map((e: any) => {
+        const items = e.items.filter((i: any) => scopeProductIds.has(i.product_id));
+        const units = items.reduce((s: number, i: any) => s + i.quantity, 0);
+        const value = items.reduce((s: number, i: any) => s + i.quantity * costOf(products.find((p) => p.id === i.product_id) || {}), 0);
+        return { ...e, items, units, value };
+      })
+      .filter((e: any) => e.units > 0);
+    const embarked = dashRows.reduce((s, r) => s + r.embarked, 0);
+    const depots = dashRows.reduce((s, r) => s + r.qty - r.embarked, 0);
+    const total = dashRows.reduce((s, r) => s + stockOf(r.p), 0);
+    return { stocks, totals: { depots, embarked, total, balanced: depots + embarked === total } };
+  }, [embarkedSummary, isGlobalScope, scopeProductIds, dashRows, products]);
 
   /* ----- Produits ----- */
   const scoped = useMemo(() => filteredProducts.filter((p) => category === ALL || categoryOf(p) === category), [filteredProducts, category]);
@@ -501,22 +572,38 @@ export default function StockPage() {
           <>
             {/* Indicateurs globaux (la rupture est comptée dans « Stock faible ») */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
-              <KpiTile icon={Boxes} glow="from-blue-500 to-indigo-600" label="Total produits" value={fmtNum(products.length)} hint={`${fmtNum(totalUnits)} unités`} />
-              <KpiTile icon={Shapes} glow="from-violet-500 to-fuchsia-600" label="Catégories" value={fmtNum(allCategories.length)} hint="Voir les catégories" onClick={() => setTab("categories")} />
-              <KpiTile icon={MapPin} glow="from-emerald-500 to-teal-600" label="Sites" value={fmtNum(sites.length)} hint="Voir les sites" onClick={() => openSites()} />
-              <KpiTile icon={WarehouseIcon} glow="from-cyan-500 to-sky-600" label="Dépôts" value={fmtNum(warehouses.length)} hint="Voir les dépôts" onClick={() => openSites()} />
+              <KpiTile icon={Boxes} glow="from-blue-500 to-indigo-600" label="Total produits" value={fmtNum(dashRows.length)} hint={`${fmtNum(totalUnits)} unités`} />
+              <KpiTile icon={Shapes} glow="from-violet-500 to-fuchsia-600" label="Catégories" value={fmtNum(scopeCategoryCount)} hint="Voir les catégories" onClick={() => setTab("categories")} />
+              <KpiTile icon={MapPin} glow="from-emerald-500 to-teal-600" label="Sites" value={fmtNum(scopeSiteCount)} hint="Voir les sites" onClick={() => openSites(dashSite !== ALL ? dashSite : undefined)} />
+              <KpiTile icon={WarehouseIcon} glow="from-cyan-500 to-sky-600" label="Dépôts" value={fmtNum(scopeDepotCount)} hint="Voir les dépôts" onClick={() => openSites(dashSite !== ALL ? dashSite : undefined, dashDepot !== ALL ? dashDepot : undefined)} />
               <KpiTile
                 icon={Database}
                 glow="from-[#0F3D68] to-[#1D6FB8]"
                 label="Valeur totale du stock"
                 value={fmtMoney(totalValue)}
-                hint="Au prix d'achat · tous dépôts"
+                hint={isGlobalScope ? "Au prix d'achat · dépôts + camions" : "Au prix d'achat · périmètre filtré"}
                 className="col-span-2"
                 valueClassName="whitespace-nowrap text-[clamp(1.25rem,2.2vw,1.75rem)]"
               />
               <KpiTile icon={AlertTriangle} glow="from-amber-400 to-orange-500" label="Stock faible" value={fmtNum(lowCount)} hint="Voir les produits" onClick={showLowStock} className="col-span-2 xl:col-span-1" />
             </div>
-            <p className="flex items-center gap-1.5 text-[11px] text-slate-500" aria-live="polite">
+            <div className="flex flex-wrap items-center gap-2 text-[11px]" aria-live="polite">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 font-semibold text-[#0F3D68]">
+                <MapPin className="h-3 w-3" /> Périmètre : {scopeLabel}
+                {filterLabel ? ` · ${filterLabel}` : ""}
+              </span>
+              {(!isGlobalScope || dashCat !== ALL || dashSearch.trim()) && (
+                <button
+                  type="button"
+                  onClick={() => { setDashSite(ALL); setDashDepot(ALL); setDashCat(ALL); setDashSearch(""); setDashPage(1); }}
+                  className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Vue globale
+                </button>
+              )}
+              {!isGlobalScope && <span className="text-slate-500">Hors stock embarqué (les camions ne font partie d'aucun dépôt)</span>}
+            </div>
+            <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
               Mise à jour automatique toutes les {LIVE_REFRESH_S} secondes
               {lastSync ? ` · dernière mise à jour à ${lastSync.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}
@@ -638,7 +725,7 @@ export default function StockPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {dashVisible.map(({ p, qty, depotIds }) => {
+                      {dashVisible.map(({ p, qty, depotIds, embarked }) => {
                         const single = depotIds.length === 1 ? warehouses.find((w) => w.id === depotIds[0]) : null;
                         return (
                           <tr key={p.id} className="hover:bg-cyan-50/40">
@@ -662,6 +749,7 @@ export default function StockPage() {
                             </td>
                             <td className="px-2.5 py-3 text-right font-bold tabular-nums text-slate-900">
                               {fmtNum(qty)} <span className="text-[10px] font-normal text-slate-400">{p.unit}</span>
+                              {embarked > 0 && <div className="text-[10px] font-normal text-slate-500">dont {fmtNum(embarked)} en camion</div>}
                             </td>
                             <td className="px-2.5 py-3 text-right tabular-nums text-slate-600">{fmtNum(thresholdOf(p))}</td>
                             <td className="px-2.5 py-3 text-right font-semibold tabular-nums">{fmtMoney(qty * costOf(p))}</td>
@@ -679,7 +767,10 @@ export default function StockPage() {
                                   {single.name}
                                 </button>
                               ) : (
-                                <span className="text-[11px] text-slate-500">{depotIds.length} dépôts</span>
+                                <span className="text-[11px] text-slate-500">
+                                  {depotIds.length ? `${depotIds.length} dépôts` : embarked > 0 ? "Camions" : "—"}
+                                  {depotIds.length > 0 && embarked > 0 ? " + camions" : ""}
+                                </span>
                               )}
                             </td>
                           </tr>
@@ -730,7 +821,7 @@ export default function StockPage() {
               }
             >
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {sites.map((s) => {
+                {scopeSites.map((s) => {
                   const pct = sitesTotal > 0 ? Math.round((s.value / sitesTotal) * 100) : 0;
                   return (
                     <button
@@ -762,31 +853,31 @@ export default function StockPage() {
                     </button>
                   );
                 })}
-                {!sites.length && <p className="text-xs text-slate-500">Aucun site. Créez-en un dans « Sites & Dépôts ».</p>}
+                {!scopeSites.length && <p className="text-xs text-slate-500">{sites.length ? "Aucun site dans ce périmètre." : "Aucun site. Créez-en un dans « Sites & Dépôts »."}</p>}
               </div>
             </GlassCard>
 
             {/* Stock embarqué : marchandise sortie des dépôts vers les camions des marketeurs */}
-            {embarkedSummary && (
+            {scopeEmbarked && (
               <GlassCard title="Stock embarqué des marketeurs" icon={Truck}>
                 <div
                   className={`mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border px-3 py-2 text-xs ${
-                    embarkedSummary.totals.balanced ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"
+                    scopeEmbarked.totals.balanced ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"
                   }`}
                 >
                   <span>
-                    Dépôts <strong className="tabular-nums">{fmtNum(embarkedSummary.totals.depots)}</strong>
+                    Dépôts <strong className="tabular-nums">{fmtNum(scopeEmbarked.totals.depots)}</strong>
                   </span>
                   <span>
-                    + Camions <strong className="tabular-nums">{fmtNum(embarkedSummary.totals.embarked)}</strong>
+                    + Camions <strong className="tabular-nums">{fmtNum(scopeEmbarked.totals.embarked)}</strong>
                   </span>
                   <span>
-                    = Stock total <strong className="tabular-nums">{fmtNum(embarkedSummary.totals.total)}</strong> unités
+                    = Stock total <strong className="tabular-nums">{fmtNum(scopeEmbarked.totals.total)}</strong> unités
                   </span>
-                  <span className="font-semibold">{embarkedSummary.totals.balanced ? "✓ Stocks synchronisés" : "⚠ Écart détecté"}</span>
+                  <span className="font-semibold">{scopeEmbarked.totals.balanced ? "✓ Stocks synchronisés" : "⚠ Écart détecté"}</span>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {embarkedSummary.stocks.map((e: any) => (
+                  {scopeEmbarked.stocks.map((e: any) => (
                     <div key={e.id} className="rounded-2xl border border-slate-200 bg-white p-3">
                       <div className="flex items-center gap-2">
                         <Truck className="h-4 w-4 shrink-0 text-[#0F3D68]" />
@@ -809,7 +900,7 @@ export default function StockPage() {
                       </ul>
                     </div>
                   ))}
-                  {!embarkedSummary.stocks.length && <p className="text-xs text-slate-500">Aucune marchandise dans les camions.</p>}
+                  {!scopeEmbarked.stocks.length && <p className="text-xs text-slate-500">Aucune marchandise dans les camions.</p>}
                 </div>
               </GlassCard>
             )}
