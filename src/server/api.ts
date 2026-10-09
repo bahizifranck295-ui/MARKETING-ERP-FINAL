@@ -1664,6 +1664,34 @@ apiRouter.get("/credits/marketers", authenticate, (req, res) => {
   res.json(Object.values(marketerMap).map((m: any) => ({ ...m, clients_count: m.clients.length })));
 });
 
+// Rapport des créances clients : une ligne par dette restante, enrichie depuis la fiche client
+apiRouter.get("/credits/receivables", authenticate, (_req, res) => {
+  db.orders.forEach(ensureCreditForOrder);
+  const rows = db.credits
+    .map((c: any) => {
+      const remaining = Number(c.remaining ?? c.balance ?? c.initial_amount ?? 0) || 0;
+      const client = db.clients.find((x) => x.id === c.client_id) || db.clients.find((x) => x.name === c.client_name);
+      // Commande d'origine (par identifiant uniquement : un même numéro peut exister ailleurs)
+      const order = c.order_id ? db.orders.find((o) => o.id === c.order_id) : undefined;
+      return {
+        id: c.id,
+        order_code: c.order_code || order?.code || "",
+        debt_date: order?.created_at || c.created_at,
+        client_id: client?.id || c.client_id,
+        client_name: client?.name || c.client_name,
+        // Marketeur attribué au client à sa création (fiche client), pas celui de la commande
+        marketer_name: client?.marketer_name || "Non attribué",
+        // Téléphone enregistré dans la fiche du client
+        client_phone: client?.phone || c.client_phone || "",
+        amount: Math.round(remaining * 100) / 100,
+        status: c.status,
+      };
+    })
+    .filter((r) => r.amount > 0 && r.status !== "cancelled")
+    .sort((a, b) => String(b.debt_date).localeCompare(String(a.debt_date)));
+  res.json(rows);
+});
+
 // DELIVERIES
 apiRouter.get("/delivery/tours", authenticate, (req, res) => {
   res.json(db.deliveries);

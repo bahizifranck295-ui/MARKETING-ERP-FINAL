@@ -31,7 +31,9 @@ import {
   CashClosingReceiptData,
   CashReceiptData,
 } from "@/lib/generateCashReceiptPdf";
-import { openDocumentUrl, openDocumentInNativeViewer, saveFile } from "@/lib/documentViewer";
+import { openDocumentUrl, openDocumentInNativeViewer, saveFile, openPendingTab, closeTab } from "@/lib/documentViewer";
+import { exportReceivablesPdf } from "@/lib/exportReceivablesPdf";
+import { useAuth } from "@/contexts/AuthContext";
 import StockReportDashboard from "@/components/reports/StockReportDashboard";
 import {
   Dialog,
@@ -42,7 +44,11 @@ import {
 } from "@/components/ui/dialog";
 
 export default function ReportsPage() {
+  const { user } = useAuth();
   const [data, setData] = useState<any>(null);
+  // Rapport des créances clients (une ligne par dette restante)
+  const [receivables, setReceivables] = useState<any[]>([]);
+  const [exportingReceivables, setExportingReceivables] = useState(false);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("month");
   const [activeTab, setActiveTab] = useState<
@@ -76,6 +82,10 @@ export default function ReportsPage() {
       setOrders(Array.isArray(ordRes.data) ? ordRes.data : []);
       setCashOps(Array.isArray(cashRes.data) ? cashRes.data : []);
       setCredits(Array.isArray(crdRes.data) ? crdRes.data : []);
+      api
+        .get("/credits/receivables")
+        .then(({ data }) => setReceivables(Array.isArray(data) ? data : []))
+        .catch(() => setReceivables([]));
       setProducts(Array.isArray(prdRes.data) ? prdRes.data : []);
       setCashSessions(Array.isArray(sessRes.data) ? sessRes.data : []);
       if (actSessRes.data?.session) {
@@ -141,6 +151,33 @@ export default function ReportsPage() {
     }
     return list;
   }, [credits, search]);
+
+  const filteredReceivables = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return receivables;
+    return receivables.filter((r) => [r.client_name, r.marketer_name, r.client_phone].some((x) => x && String(x).toLowerCase().includes(q)));
+  }, [receivables, search]);
+  const receivablesTotal = filteredReceivables.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+  const handleExportReceivables = async () => {
+    // L'onglet du visualiseur PDF est ouvert pendant le clic (sinon Chrome le bloque)
+    const tab = openPendingTab("Rapport des créances clients");
+    setExportingReceivables(true);
+    try {
+      const ok = await exportReceivablesPdf({
+        rows: filteredReceivables,
+        editedBy: user?.full_name || "Utilisateur",
+        filtersLabel: search.trim() ? `Recherche « ${search.trim()} »` : "Tous les clients débiteurs",
+        tab,
+      });
+      if (!ok) closeTab(tab);
+    } catch (err) {
+      closeTab(tab);
+      toast.error(extractErrorMessage(err, "Export PDF impossible"));
+    } finally {
+      setExportingReceivables(false);
+    }
+  };
 
   const filteredProducts = useMemo(() => {
     let list = [...products];
@@ -848,6 +885,64 @@ export default function ReportsPage() {
                   </tr>
                 ))}
               </tbody>
+            </table>
+          </div>
+        </div>
+      ) : activeTab === "credits" ? (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Rapport des créances clients</h3>
+              <p className="text-[11px] text-slate-500">
+                {filteredReceivables.length} client(s) débiteur(s) · total dû {fmtMoney(receivablesTotal)}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleExportReceivables}
+              disabled={exportingReceivables}
+              className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs"
+            >
+              {exportingReceivables ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+              Exporter en PDF
+            </Button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                  <th className="p-3.5">Date de la dette</th>
+                  <th className="p-3.5">Nom du client</th>
+                  <th className="p-3.5">Marketeur responsable</th>
+                  <th className="p-3.5 text-right">Montant de la dette</th>
+                  <th className="p-3.5">Téléphone du client</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredReceivables.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="p-3.5 text-slate-700">{r.debt_date ? new Date(r.debt_date).toLocaleDateString("fr-FR") : "-"}</td>
+                    <td className="p-3.5 font-bold text-slate-900">{r.client_name}</td>
+                    <td className="p-3.5 text-purple-700 font-medium">{r.marketer_name}</td>
+                    <td className="p-3.5 text-right font-bold text-red-600">{fmtMoney(r.amount)}</td>
+                    <td className="p-3.5 font-mono text-slate-700">{r.client_phone || "Non renseigné"}</td>
+                  </tr>
+                ))}
+                {!filteredReceivables.length && (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-slate-500">Aucune créance client en cours.</td>
+                  </tr>
+                )}
+              </tbody>
+              {filteredReceivables.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold">
+                    <td className="p-3.5" colSpan={3}>Total des créances</td>
+                    <td className="p-3.5 text-right text-red-700">{fmtMoney(receivablesTotal)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
