@@ -522,6 +522,48 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
   });
 
   /* ---------- Catégories ---------- */
+  /* Rapports par site : rattache chaque vente, opération de caisse et créance à un site */
+  router.get("/reports/site-map", authenticate, withStructure, (_req: any, res: any) => {
+    const siteOfWarehouse = (wid?: string) => db.warehouses.find((w) => w.id === wid)?.site_id;
+    const mainSite = sites().find((s) => s.is_active !== false)?.id || sites()[0]?.id || null;
+    const siteOfUser = (u?: { warehouse_id?: string } | null) => (u ? siteOfWarehouse(u.warehouse_id) : undefined);
+    // Vente : dépôt d'où la marchandise est sortie, sinon dépôt du marketeur, sinon dépôt du produit
+    const orders: Record<string, string | null> = {};
+    for (const o of db.orders as any[]) {
+      const ledgerDepot = (o.stock_ledger || []).find((e: any) => e.kind === "depot")?.warehouse_id;
+      const fromLedger = siteOfWarehouse(ledgerDepot);
+      const marketer = db.users.find((u) => u.id === o.marketer_id);
+      const prod = db.products.find((p) => p.id === o.items?.[0]?.product_id);
+      orders[o.id] = fromLedger || siteOfUser(marketer) || siteOfWarehouse(prod?.warehouse_id) || mainSite;
+    }
+    // Client : site de sa dernière vente, sinon site de son marketeur
+    const clientSite = (clientId?: string, clientName?: string) => {
+      const last = (db.orders as any[]).find((o) => o.client_id === clientId || (clientName && o.client_name === clientName));
+      if (last) return orders[last.id];
+      const c = db.clients.find((x) => x.id === clientId);
+      const m = c ? db.users.find((u) => u.id === (c as any).marketer_id || u.full_name === c.marketer_name) : undefined;
+      return siteOfUser(m) || null;
+    };
+    // Caisse : vente ou client concerné, sinon caissier, sinon caisse centrale (site principal)
+    const cash: Record<string, string | null> = {};
+    for (const op of db.cash_operations as any[]) {
+      const order = (db.orders as any[]).find((o) => o.id === op.order_id || (op.reference && o.code === op.reference));
+      const cashier = db.users.find((u) => u.full_name === op.created_by);
+      cash[op.id] = (order && orders[order.id]) || clientSite(op.client_id, op.client_name) || siteOfUser(cashier) || mainSite;
+    }
+    const credits: Record<string, string | null> = {};
+    for (const c of db.credits as any[]) credits[c.id] = (c.order_id && orders[c.order_id]) || clientSite(c.client_id, c.client_name) || mainSite;
+    // Valeur du stock de chaque site (dépôts du site, au prix d'achat)
+    const stock_value: Record<string, number> = {};
+    for (const l of levels()) {
+      const sid = siteOfWarehouse(l.warehouse_id);
+      const p = db.products.find((x) => x.id === l.product_id);
+      if (!sid || !p) continue;
+      stock_value[sid] = (stock_value[sid] || 0) + (Number(l.quantity) || 0) * (Number(p.cost_price) || 0);
+    }
+    res.json({ sites: sites().map((s) => ({ id: s.id, name: s.name })), main_site: mainSite, orders, cash, credits, stock_value });
+  });
+
   router.get("/stock/categories", authenticate, withStructure, (_req: any, res: any) => {
     res.json(
       db.product_categories

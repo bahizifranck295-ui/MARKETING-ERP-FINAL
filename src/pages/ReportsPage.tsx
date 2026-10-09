@@ -56,6 +56,9 @@ export default function ReportsPage() {
     "overview" | "sales" | "cash" | "credits" | "stock" | "documents"
   >("overview");
   const [selectedBU, setSelectedBU] = useState("all");
+  // Filtre par site (ou tous les sites en commun)
+  const [selectedSite, setSelectedSite] = useState("all");
+  const [siteMap, setSiteMap] = useState<any>(null);
   const [search, setSearch] = useState("");
 
   const [orders, setOrders] = useState<any[]>([]);
@@ -83,6 +86,10 @@ export default function ReportsPage() {
       setOrders(Array.isArray(ordRes.data) ? ordRes.data : []);
       setCashOps(Array.isArray(cashRes.data) ? cashRes.data : []);
       setCredits(Array.isArray(crdRes.data) ? crdRes.data : []);
+      api
+        .get("/reports/site-map")
+        .then(({ data }) => setSiteMap(data))
+        .catch(() => setSiteMap(null));
       api
         .get("/credits/receivables")
         .then(({ data }) => setReceivables(Array.isArray(data) ? data : []))
@@ -120,8 +127,12 @@ export default function ReportsPage() {
   };
   const periodLabel = ({ day: "Aujourd'hui", week: "Cette semaine", month: "Ce mois", year: "Cette année" } as Record<string, string>)[period] || period;
 
+  const inSite = (kind: "orders" | "cash" | "credits", id: string) =>
+    selectedSite === "all" || !siteMap || siteMap[kind]?.[id] === selectedSite;
+  const siteName = selectedSite === "all" ? "Tous les sites" : siteMap?.sites?.find((x: any) => x.id === selectedSite)?.name || "Site";
+
   const filteredOrders = useMemo(() => {
-    let list = orders.filter((o) => o.status !== "cancelled" && inPeriod(o.approved_at || o.created_at));
+    let list = orders.filter((o) => o.status !== "cancelled" && inPeriod(o.approved_at || o.created_at) && inSite("orders", o.id));
     if (selectedBU !== "all") {
       list = list.filter(
         (o) =>
@@ -139,10 +150,10 @@ export default function ReportsPage() {
       );
     }
     return list;
-  }, [orders, selectedBU, search, period]);
+  }, [orders, selectedBU, search, period, selectedSite, siteMap]);
 
   const filteredCashOps = useMemo(() => {
-    let list = cashOps.filter((op) => inPeriod(op.created_at));
+    let list = cashOps.filter((op) => inPeriod(op.created_at) && inSite("cash", op.id));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
@@ -154,8 +165,12 @@ export default function ReportsPage() {
       );
     }
     return list;
-  }, [cashOps, search, period]);
-  const periodSessions = useMemo(() => cashSessions.filter((s) => inPeriod(s.closed_at || s.opened_at)), [cashSessions, period]);
+  }, [cashOps, search, period, selectedSite, siteMap]);
+  // Les clôtures de caisse appartiennent à la caisse centrale (site principal)
+  const periodSessions = useMemo(
+    () => cashSessions.filter((s) => inPeriod(s.closed_at || s.opened_at) && (selectedSite === "all" || !siteMap || selectedSite === siteMap.main_site)),
+    [cashSessions, period, selectedSite, siteMap]
+  );
   const periodCashInUSD = filteredCashOps.filter((c) => c.type === "in").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
   const periodCashOutUSD = filteredCashOps.filter((c) => c.type === "out").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
 
@@ -176,9 +191,9 @@ export default function ReportsPage() {
   const filteredReceivables = useMemo(() => {
     const q = search.trim().toLowerCase();
     return receivables
-      .filter((r) => inPeriod(r.debt_date))
+      .filter((r) => inPeriod(r.debt_date) && inSite("credits", r.id))
       .filter((r) => !q || [r.client_name, r.marketer_name, r.client_phone].some((x) => x && String(x).toLowerCase().includes(q)));
-  }, [receivables, search, period]);
+  }, [receivables, search, period, selectedSite, siteMap]);
   const receivablesTotal = filteredReceivables.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   const handleExportReceivables = async () => {
@@ -189,7 +204,7 @@ export default function ReportsPage() {
       const ok = await exportReceivablesPdf({
         rows: filteredReceivables,
         editedBy: user?.full_name || "Utilisateur",
-        filtersLabel: `Dettes : ${periodLabel}${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`,
+        filtersLabel: `${siteName} · dettes : ${periodLabel}${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`,
         tab,
       });
       if (!ok) closeTab(tab);
@@ -538,6 +553,19 @@ export default function ReportsPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select
+            value={selectedSite}
+            onChange={(e) => setSelectedSite(e.target.value)}
+            aria-label="Site"
+            className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700"
+          >
+            <option value="all">Tous les sites</option>
+            {(siteMap?.sites || []).map((x: any) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </select>
+          <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
             className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700"
@@ -614,7 +642,7 @@ export default function ReportsPage() {
           </div>
           <div>
             <div className="text-2xl font-black text-purple-700 tracking-tight">
-              {fmtMoney(totalStockValue)}
+              {fmtMoney(selectedSite === "all" || !siteMap ? totalStockValue : siteMap.stock_value?.[selectedSite] || 0)}
             </div>
             <div className="text-[11px] text-slate-500 font-medium">Valeur marchande du stock</div>
           </div>
@@ -849,7 +877,7 @@ export default function ReportsPage() {
       ) : activeTab === "stock" ? (
         <StockReportDashboard products={products} orders={orders} search={search} />
       ) : activeTab === "sales" ? (
-        <SalesSheets search={search} period={period} />
+        <SalesSheets search={search} period={period} includeOrder={(o: any) => inSite("orders", o.id)} siteKey={selectedSite} />
       ) : activeTab === "credits" ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">

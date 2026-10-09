@@ -124,7 +124,17 @@ const fmtQty = (n: number) => (n ? n.toLocaleString("fr-FR") : "");
 
 type Row = { key: string; client: string; marketer: string; qty: Record<string, number>; bonus: number; amount: number; total: number };
 
-export default function SalesSheets({ search = "", period: reportPeriod }: { search?: string; period?: string }) {
+export default function SalesSheets({
+  search = "",
+  period: reportPeriod,
+  includeOrder,
+  siteKey,
+}: {
+  search?: string;
+  period?: string;
+  includeOrder?: (o: any) => boolean; // filtre par site du module Rapports
+  siteKey?: string;
+}) {
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,8 +194,8 @@ export default function SalesSheets({ search = "", period: reportPeriod }: { sea
     return period === "day" ? k === day : k.slice(0, 7) === month;
   };
   const periodOrders = useMemo(
-    () => orders.filter((o) => APPROVED.includes(o.status) && inPeriod(o)),
-    [orders, period, day, month]
+    () => orders.filter((o) => APPROVED.includes(o.status) && inPeriod(o) && (!includeOrder || includeOrder(o))),
+    [orders, period, day, month, siteKey, includeOrder]
   );
   const columns = useMemo(() => {
     const ids = new Set(products.filter((p) => p.is_active !== false && productSheet.get(p.id) === sheetKey).map((p) => p.id));
