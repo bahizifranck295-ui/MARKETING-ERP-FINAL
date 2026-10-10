@@ -275,16 +275,26 @@ export default function StockStateReport({
     setDepotId("all");
   }, [sites, siteKey]);
 
+  // Historique du plus récent (en haut) au plus ancien (en bas), 10 rapports par page
+  const HISTORY_PAGE = 10;
   const shownHistory = useMemo(() => {
     const f = historyFilter;
-    if (!f) return history;
-    return history.filter(
-      (h) =>
-        (f.site === "all" || h.site_id === f.site) &&
-        (f.depot === "all" || h.warehouse_id === f.depot) &&
-        (f.category === "all" || String(h.category).toLowerCase() === f.category.toLowerCase())
-    );
+    const list = !f
+      ? history
+      : history.filter(
+          (h) =>
+            (f.site === "all" || h.site_id === f.site) &&
+            (f.depot === "all" || h.warehouse_id === f.depot) &&
+            (f.category === "all" || String(h.category).toLowerCase() === f.category.toLowerCase())
+        );
+    return [...list].sort((a, b) => new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime());
   }, [history, historyFilter]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyPages = Math.max(1, Math.ceil(shownHistory.length / HISTORY_PAGE));
+  const curHistoryPage = Math.min(historyPage, historyPages);
+  const pageHistory = shownHistory.slice((curHistoryPage - 1) * HISTORY_PAGE, curHistoryPage * HISTORY_PAGE);
+  // Nouveau tri ou nouveau rapport : retour à la première page (rapports les plus récents)
+  useEffect(() => setHistoryPage(1), [historyFilter, history.length]);
 
   const siteDepots = useMemo(() => depots.filter((w) => w.site_id === siteId), [depots, siteId]);
   const periodLabel = mode === "day" ? dayLabel(day) : `Du ${dayLabel(fromDay)} au ${dayLabel(toDay)}`;
@@ -501,7 +511,7 @@ export default function StockStateReport({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {shownHistory.map((h) => (
+              {pageHistory.map((h) => (
                 <tr key={h.id} className={current?.id === h.id ? "bg-blue-50/60" : ""}>
                   <td className="p-2.5 font-semibold" data-no-translate>{h.site_name}</td>
                   <td className="p-2.5" data-no-translate>{h.category}</td>
@@ -528,6 +538,42 @@ export default function StockStateReport({
             </tbody>
           </table>
         </div>
+        {shownHistory.length > HISTORY_PAGE && (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+            <span>
+              Rapports {(curHistoryPage - 1) * HISTORY_PAGE + 1}–{Math.min(curHistoryPage * HISTORY_PAGE, shownHistory.length)} sur {shownHistory.length}
+            </span>
+            <div className="flex flex-wrap items-center gap-1" role="navigation" aria-label="Pages de l'historique">
+              <button
+                type="button"
+                disabled={curHistoryPage === 1}
+                onClick={() => setHistoryPage(curHistoryPage - 1)}
+                className="h-7 rounded-lg border border-slate-200 px-2 font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                ‹
+              </button>
+              {Array.from({ length: historyPages }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-current={n === curHistoryPage ? "page" : undefined}
+                  onClick={() => setHistoryPage(n)}
+                  className={`h-7 min-w-7 rounded-lg px-2 font-bold ${n === curHistoryPage ? "bg-[#0F3D68] text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                >
+                  {n}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={curHistoryPage === historyPages}
+                onClick={() => setHistoryPage(curHistoryPage + 1)}
+                className="h-7 rounded-lg border border-slate-200 px-2 font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

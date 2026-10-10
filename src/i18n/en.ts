@@ -1708,6 +1708,7 @@ export const PATTERNS: Record<string, string> = {
   "Quantité insuffisante : {0} disponible(s) dans {1} pour {2}": "Insufficient quantity: {0} available in {1} for {2}",
   "Quantité insuffisante : {0} en stock": "Insufficient quantity: {0} in stock",
   "Rapport recalculé à partir des données actuelles (version d'origine du {0})": "Report recomputed from current data (original version of {0})",
+  "Rapports {0}–{1} sur {2}": "Reports {0}–{1} of {2}",
   "Rejet pour dépassement du plafond de crédit autorisé : Solde projeté {0} > Limite {1}": "Rejected for exceeding the authorized credit limit: Projected balance {0} > Limit {1}",
   "Rejet pour dépassement du plafond de crédit client autorisé (+{0})": "Rejected for exceeding the authorized client credit limit (+{0})",
   "Rempli à {0} %": "{0}% full",
