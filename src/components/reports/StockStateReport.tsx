@@ -474,6 +474,9 @@ export default function StockStateReport({
         </div>
       )}
 
+      {/* Barre de tri Site / Dépôt / Catégorie (placée ici par l'état des stocks) : trie aussi l'historique */}
+      <div id="stock-sort-bar-slot" />
+
       {/* Historique des rapports (trié par la barre Site / Dépôt / Catégorie de l'état des stocks) */}
       <div>
         <h4 className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-900">

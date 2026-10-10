@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronDown,
   Database,
@@ -196,32 +197,41 @@ export default function StockReportDashboard({ products, orders, search, siteKey
 
   const reset = (fn: (v: string) => void) => (v: string) => fn(v);
 
+  // Emplacement réservé par le rapport d'état de stock (entre le document généré et l'historique)
+  const [sortSlot, setSortSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setSortSlot(document.getElementById("stock-sort-bar-slot"));
+  }, []);
+  const sortBar = (
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
+      <Select
+        label="Site"
+        value={site}
+        onChange={(v: string) => {
+          setSite(v);
+          setDepot(ALL);
+        }}
+        options={[{ value: ALL, label: "Tous les sites" }, ...allSites]}
+      />
+      <Select
+        label="Dépôt"
+        value={depot}
+        onChange={reset(setDepot)}
+        options={[{ value: ALL, label: "Tous les dépôts" }, ...allDepots]}
+      />
+      <Select
+        label="Catégorie"
+        value={category}
+        onChange={reset(setCategory)}
+        options={[{ value: ALL, label: "Toutes les catégories" }, ...allCategories.map((c) => ({ value: c, label: c }))]}
+      />
+    </div>
+  );
+
   return (
     <div className="space-y-4">
-      {/* Filtres */}
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
-        <Select
-          label="Site"
-          value={site}
-          onChange={(v: string) => {
-            setSite(v);
-            setDepot(ALL);
-          }}
-          options={[{ value: ALL, label: "Tous les sites" }, ...allSites]}
-        />
-        <Select
-          label="Dépôt"
-          value={depot}
-          onChange={reset(setDepot)}
-          options={[{ value: ALL, label: "Tous les dépôts" }, ...allDepots]}
-        />
-        <Select
-          label="Catégorie"
-          value={category}
-          onChange={reset(setCategory)}
-          options={[{ value: ALL, label: "Toutes les catégories" }, ...allCategories.map((c) => ({ value: c, label: c }))]}
-        />
-      </div>
+      {/* Barre de tri : affichée entre le rapport généré et l'historique des rapports */}
+      {sortSlot ? createPortal(sortBar, sortSlot) : sortBar}
 
       {/* Graphiques */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
