@@ -26,9 +26,9 @@ const TONES: Record<string, { head: string; pill: string; btn: string; border: s
 
 const isToday = (s?: string) => !!s && new Date(s).toDateString() === new Date().toDateString();
 
-type Props = { onChanged: () => void; onInvoice: (o: any) => void; onShowHistory: () => void };
+type Props = { onChanged: () => void; onInvoice: (o: any) => void; onShowHistory: () => void; scope?: { site_id: string; warehouse_id: string } };
 
-export default function OrdersSection({ onChanged, onInvoice, onShowHistory }: Props) {
+export default function OrdersSection({ onChanged, onInvoice, onShowHistory, scope }: Props) {
   const { has } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -38,7 +38,7 @@ export default function OrdersSection({ onChanged, onInvoice, onShowHistory }: P
 
   const load = async () => {
     try {
-      const [o, v] = await Promise.all([api.get("/delivery/orders"), api.get("/delivery/vehicles")]);
+      const [o, v] = await Promise.all([api.get("/delivery/orders", { params: scope }), api.get("/delivery/vehicles")]);
       setOrders(Array.isArray(o.data) ? o.data : []);
       setVehicles((v.data || []).filter((x: any) => x.is_active !== false));
     } catch (err) {

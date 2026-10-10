@@ -4,6 +4,7 @@ import {
   ensureStockStructure,
   getLevel,
   nextTransferCode,
+  orderLocation,
   recordMovement,
   setGlobalStock,
   transfers,
@@ -40,6 +41,21 @@ const embarkedMoves = () => db.embarked_movements as any[];
 
 const MARKETER_ROLES = ["marketeur", "commercial", "chef_dept"];
 const canSeeAll = (u: User) => u.role_code === "super_admin" || !!u.is_transversal || u.role_code === "chef_dept";
+// Tri par site / dépôt : un utilisateur rattaché à un site ne voit que les commandes de son site
+// (la direction et les utilisateurs transversaux choisissent le site)
+const siteLockOf = (u: User) => (!!u.site_id && !["super_admin", "dg"].includes(u.role_code) && !u.is_transversal ? u.site_id : null);
+function scopeOf(req: any) {
+  const u = req.user as User;
+  const lock = siteLockOf(u);
+  const site = lock || (req.query?.site_id && req.query.site_id !== "all" ? String(req.query.site_id) : null);
+  const depot = req.query?.warehouse_id && req.query.warehouse_id !== "all" ? String(req.query.warehouse_id) : null;
+  return { site, depot };
+}
+function inScope(o: any, scope: { site: string | null; depot: string | null }) {
+  if (!scope.site && !scope.depot) return true;
+  const loc = orderLocation(o);
+  return (!scope.site || loc.site_id === scope.site) && (!scope.depot || loc.warehouse_id === scope.depot);
+}
 
 // Catégories des produits de la commande (affichées sur les cartes)
 function orderDepartment(order: Order) {
@@ -378,14 +394,19 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     tagLegacyPendingOrders();
     const stocks = embarkedStocks().filter((e) => all || e.marketer_id === u.id);
     const today = new Date().toDateString();
-    const orders = db.orders.filter((o) => (all || o.marketer_id === u.id) && o.status !== "cancelled" && (o as any).delivery_mode !== "embarked");
+    const scope = scopeOf(req);
+    const orders = db.orders.filter((o) => (all || o.marketer_id === u.id) && o.status !== "cancelled" && (o as any).delivery_mode !== "embarked" && inScope(o, scope));
+    // Stock dépôt : dépôts du site / du dépôt choisi
+    const scopeDepots = new Set(
+      db.warehouses.filter((w: any) => (!scope.site || w.site_id === scope.site) && (!scope.depot || w.id === scope.depot)).map((w: any) => w.id)
+    );
     res.json({
       can_see_all: all,
       embarked_units: stocks.reduce((s, e) => s + embarkedTotal(e.id), 0),
       orders_in_progress: orders.filter((o) => ["validated", "prepared", "shipped"].includes(o.status)).length,
       delivered_today: orders.filter((o) => o.status === "delivered" && new Date((o as any).delivered_at || o.updated_at).toDateString() === today).length,
       shipping_now: orders.filter((o) => o.status === "shipped").length,
-      depot_units: (db.stock_levels as any[]).reduce((s, l) => s + (Number(l.quantity) || 0), 0),
+      depot_units: (db.stock_levels as any[]).filter((l) => scopeDepots.has(l.warehouse_id)).reduce((s, l) => s + (Number(l.quantity) || 0), 0),
     });
   });
 
@@ -637,14 +658,16 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
   router.get("/delivery/orders", authenticate, (req: any, res: any) => {
     const u = me(req);
     tagLegacyPendingOrders();
+    const scope = scopeOf(req);
     res.json(
       db.orders
         .filter((o) => (canSeeAll(u) || o.marketer_id === u.id) && o.status !== "cancelled" && o.status !== "rejected" && o.status !== "pending_approval" && (o as any).delivery_mode !== "embarked")
+        .filter((o) => inScope(o, scope))
         .map((o) => {
           const del = (db.deliveries as any[]).find((d) => d.order_id === o.id);
           // Les lignes vendues depuis un stock embarqué ne sont jamais « à livrer »
           const items = (o.items || []).filter((it) => it.stock_source !== "embarked");
-          return { ...o, items, department: orderDepartment({ ...o, items }), delivery: del || null, delivered_at: (o as any).delivered_at || (o.status === "delivered" ? del?.updated_at || o.updated_at : null) };
+          return { ...o, ...orderLocation(o), items, department: orderDepartment({ ...o, items }), delivery: del || null, delivered_at: (o as any).delivered_at || (o.status === "delivered" ? del?.updated_at || o.updated_at : null) };
         })
     );
   });

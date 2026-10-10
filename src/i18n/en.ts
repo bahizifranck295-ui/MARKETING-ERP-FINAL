@@ -1316,6 +1316,7 @@ export const EXACT: Record<string, string> = {
   "Stock actuel": "Current stock",
   "Stock actuel (valeur)": "Current stock (value)",
   "Stock dépôt (global)": "Warehouse stock (global)",
+  "Stock dépôt (site / dépôt)": "Warehouse stock (site / warehouse)",
   "Stock embarqué": "Truck stock",
   "Stock embarqué (camions)": "Embarked stock (trucks)",
   "Stock embarqué (mon camion)": "Truck stock (my truck)",

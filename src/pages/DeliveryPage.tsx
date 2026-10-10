@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, CheckCircle2, ClipboardList, History, Loader2, PackageCheck, Plus, Settings2, Truck, Warehouse } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { CalendarDays, CheckCircle2, ClipboardList, History, Loader2, Settings2, Truck, Warehouse } from "lucide-react";
 import { api } from "@/lib/api";
 import { fmtNum } from "@/components/erp-ui";
 import InvoiceModal, { InvoiceData } from "@/components/InvoiceModal";
@@ -54,15 +55,32 @@ export default function DeliveryPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const formAnchor = useRef<HTMLDivElement>(null);
 
+  // Tri par site et par dépôt des commandes (en-tête) ; un utilisateur rattaché à un site reste sur son site
+  const { user } = useAuth();
+  const ALL = "all";
+  const siteLocked = !!(user as any)?.site_id && !["super_admin", "dg"].includes(user?.role_code || "") && !(user as any)?.is_transversal;
+  const [sites, setSites] = useState<any[]>([]);
+  const [depots, setDepots] = useState<any[]>([]);
+  const [siteFilter, setSiteFilter] = useState<string>(siteLocked ? (user as any).site_id : ALL);
+  const [depotFilter, setDepotFilter] = useState<string>(ALL);
+  useEffect(() => {
+    api.get("/stock/sites").then(({ data }) => setSites(Array.isArray(data) ? data : [])).catch(() => setSites([]));
+    api.get("/stock/depots").then(({ data }) => setDepots(Array.isArray(data) ? data : [])).catch(() => setDepots([]));
+  }, []);
+  useEffect(() => {
+    if (siteLocked) setSiteFilter((user as any).site_id);
+  }, [siteLocked, (user as any)?.site_id]);
+  const scope = { site_id: siteFilter, warehouse_id: depotFilter };
+
   const loadOverview = () =>
     api
-      .get("/delivery/overview")
+      .get("/delivery/overview", { params: scope })
       .then(({ data }) => setOverview(data))
       .catch(() => setOverview((o: any) => o || { can_see_all: false }));
 
   useEffect(() => {
     loadOverview();
-  }, [refreshKey]);
+  }, [refreshKey, siteFilter, depotFilter]);
 
   const changed = () => setRefreshKey((k) => k + 1);
   const openInvoice = (o: any) =>
@@ -77,10 +95,6 @@ export default function DeliveryPage() {
       items: o.items || [],
     } as InvoiceData);
 
-  const goLoad = () => {
-    setSection("embarked");
-    setTimeout(() => formAnchor.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-  };
 
   return (
     <div className="space-y-4">
@@ -95,37 +109,59 @@ export default function DeliveryPage() {
             <p className="text-sm text-slate-500">Deux modes de distribution, une seule gestion.</p>
           </div>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs">
-          <CalendarDays className="h-4 w-4 text-[#0F3D68]" />
-          {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
-        </span>
+        <div className="flex flex-wrap items-center gap-2" data-delivery-scope>
+          <select
+            aria-label="Site"
+            value={siteFilter}
+            disabled={siteLocked}
+            onChange={(e) => {
+              setSiteFilter(e.target.value);
+              setDepotFilter(ALL);
+            }}
+            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs disabled:bg-slate-50"
+          >
+            {!siteLocked && <option value={ALL}>Tous les sites</option>}
+            {sites
+              .filter((x) => !siteLocked || x.id === siteFilter)
+              .map((x) => (
+                <option key={x.id} value={x.id} data-no-translate>
+                  {x.name}
+                </option>
+              ))}
+          </select>
+          <select
+            aria-label="Dépôt"
+            value={depotFilter}
+            onChange={(e) => setDepotFilter(e.target.value)}
+            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs"
+          >
+            <option value={ALL}>Tous les dépôts</option>
+            {depots
+              .filter((d) => siteFilter === ALL || d.site_id === siteFilter)
+              .map((d) => (
+                <option key={d.id} value={d.id} data-no-translate>
+                  {siteFilter === ALL ? d.label || d.name : d.name}
+                </option>
+              ))}
+          </select>
+          <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs">
+            <CalendarDays className="h-4 w-4 text-[#0F3D68]" />
+            {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+          </span>
+        </div>
       </header>
 
-      {/* Indicateurs + actions rapides */}
+      {/* Indicateurs (suivent le tri site / dépôt) */}
       {!overview ? (
         <div className="flex justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={Truck} tone="bg-emerald-600" title="Stock embarqué" subtitle="Dans les camions des marketeurs" value={fmtNum(overview.embarked_units || 0)} unit="unités" onClick={() => setSection("embarked")} />
           <StatCard icon={ClipboardList} tone="bg-blue-600" title="Commandes en cours" subtitle="Approuvées, à préparer ou à livrer" value={fmtNum(overview.orders_in_progress || 0)} unit="commandes" onClick={() => setSection("orders")} />
           <StatCard icon={CheckCircle2} tone="bg-emerald-500" title="Livraisons du jour" subtitle={`Terminées · ${fmtNum(overview.shipping_now || 0)} en cours`} value={fmtNum(overview.delivered_today || 0)} unit="livrées" onClick={() => setSection("history")} />
-          <StatCard icon={Warehouse} tone="bg-violet-600" title="Stock dépôt (global)" subtitle="Unités disponibles dans les dépôts" value={fmtNum(overview.depot_units || 0)} unit="unités" onClick={() => navigate("/stock")} />
-          <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_-18px_rgba(15,61,104,0.35)] sm:col-span-2 xl:col-span-1">
-            <div className="text-sm font-bold text-slate-900">Actions rapides</div>
-            {overview.can_see_all && (
-              <button type="button" onClick={goLoad} className="flex items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">
-                <PackageCheck className="h-4 w-4" /> Déstocker vers stock embarqué
-              </button>
-            )}
-            <button type="button" onClick={() => navigate("/boutique")} className="flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">
-              <Plus className="h-4 w-4" /> Nouvelle commande client
-            </button>
-            <button type="button" onClick={() => setSection("history")} className="flex items-center gap-2 rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-700">
-              <History className="h-4 w-4" /> Voir l'historique des livraisons
-            </button>
-          </div>
+          <StatCard icon={Warehouse} tone="bg-violet-600" title={siteFilter === ALL && depotFilter === ALL ? "Stock dépôt (global)" : "Stock dépôt (site / dépôt)"} subtitle="Unités disponibles dans les dépôts" value={fmtNum(overview.depot_units || 0)} unit="unités" onClick={() => navigate("/stock")} />
         </div>
       )}
 
@@ -154,9 +190,9 @@ export default function DeliveryPage() {
         (section === "embarked" ? (
           <EmbarkedSection canManage={!!overview.can_see_all} onChanged={changed} formAnchor={formAnchor} onInvoice={openInvoice} />
         ) : section === "orders" ? (
-          <OrdersSection onChanged={changed} onInvoice={openInvoice} onShowHistory={() => setSection("history")} />
+          <OrdersSection key={`o-${siteFilter}-${depotFilter}`} scope={scope} onChanged={changed} onInvoice={openInvoice} onShowHistory={() => setSection("history")} />
         ) : section === "history" ? (
-          <DeliveryHistorySection onInvoice={openInvoice} />
+          <DeliveryHistorySection key={`h-${siteFilter}-${depotFilter}`} scope={scope} onInvoice={openInvoice} />
         ) : (
           <DeliveryConfigSection canManage={!!overview.can_see_all} onChanged={changed} />
         ))}

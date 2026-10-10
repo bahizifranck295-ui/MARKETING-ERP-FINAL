@@ -16,7 +16,7 @@ const dayLabel = (k: string) => {
 };
 
 /* ---------- Historique des livraisons (par jour) ---------- */
-export function DeliveryHistorySection({ onInvoice }: { onInvoice: (o: any) => void }) {
+export function DeliveryHistorySection({ onInvoice, scope }: { onInvoice: (o: any) => void; scope?: { site_id: string; warehouse_id: string } }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState("");
@@ -25,7 +25,7 @@ export function DeliveryHistorySection({ onInvoice }: { onInvoice: (o: any) => v
 
   useEffect(() => {
     api
-      .get("/delivery/orders")
+      .get("/delivery/orders", { params: scope })
       .then(({ data }) => setOrders((data || []).filter((o: any) => o.status === "delivered")))
       .catch((err) => toast.error(extractErrorMessage(err, "Erreur de chargement de l'historique")))
       .finally(() => setLoading(false));
