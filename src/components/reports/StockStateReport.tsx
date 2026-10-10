@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarDays, Download, Eye, FileText, History, Loader2, Printer, RefreshCw } from "lucide-react";
+import { CalendarDays, Download, Eye, FileText, History, Loader2, Printer } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -385,28 +385,6 @@ export default function StockStateReport({
     }
   };
 
-  const recompute = async (h: any) => {
-    setBusy(h.id);
-    try {
-      const { data } = await api.post("/reports/stock-state/history", {
-        site_id: h.site_id,
-        category: h.category,
-        warehouse_id: h.warehouse_id,
-        from: h.from,
-        to: h.to,
-        period_label: h.period_label,
-        period_key: h.period_key,
-      });
-      setCurrent({ ...data, period_key: h.period_key, recomputed_from: h.generated_at });
-      loadHistory();
-      toast.success("Rapport recalculé à partir des données actuelles");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Recalcul impossible"));
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -486,9 +464,7 @@ export default function StockStateReport({
       {current ? (
         <div className="space-y-2 rounded-2xl bg-slate-100 p-2 sm:p-4">
           <p className="text-center text-[11px] text-slate-600">
-            {current.recomputed_from
-              ? `Rapport recalculé à partir des données actuelles (version d'origine du ${new Date(current.recomputed_from).toLocaleString("fr-FR")})`
-              : `Instantané conservé tel que généré le ${new Date(current.generated_at).toLocaleString("fr-FR")} par ${current.generated_by}`}
+            {`Instantané conservé tel que généré le ${new Date(current.generated_at).toLocaleString("fr-FR")} par ${current.generated_by}`}
           </p>
           <ReportDocument report={current.data} periodLabel={current.period_label} preparedBy={current.generated_by} />
         </div>
@@ -534,15 +510,6 @@ export default function StockStateReport({
                     <div className="flex flex-wrap justify-center gap-1">
                       <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" disabled={busy === h.id} onClick={() => openFromHistory(h)}>
                         Ouvrir
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" disabled={busy === h.id} onClick={() => preview(() => openFromHistory(h))}>
-                        <Eye className="mr-1 h-3 w-3" /> Prévisualiser
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" disabled={busy === h.id} onClick={async () => { const d = await openFromHistory(h); if (d) download(d); }}>
-                        <Download className="mr-1 h-3 w-3" /> PDF
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" disabled={busy === h.id} onClick={() => recompute(h)} title="Recalculer avec les données actuelles">
-                        <RefreshCw className="mr-1 h-3 w-3" /> Recalculer
                       </Button>
                     </div>
                   </td>
