@@ -252,6 +252,8 @@ export interface Order {
 
 export interface CashSession {
   id: string;
+  site_id?: string;
+  site_name?: string;
   opened_by: string;
   opened_by_name?: string;
   opened_at: string;

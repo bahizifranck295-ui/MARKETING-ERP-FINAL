@@ -248,6 +248,16 @@ function parseCapacity(v: any): number | undefined | "invalid" {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : "invalid";
 }
 
+/** Site d'affectation d'un utilisateur : site choisi dans Utilisateurs, sinon site de son dépôt, sinon site principal. */
+export function userSite(u?: { site_id?: string; warehouse_id?: string } | null): { id: string | null; name: string } {
+  ensureStockStructure();
+  const all = sites();
+  const main = all.find((s) => s.is_active !== false) || all[0];
+  const fromWh = u?.warehouse_id ? db.warehouses.find((w) => w.id === u.warehouse_id)?.site_id : undefined;
+  const id = (u?.site_id && all.some((s) => s.id === u.site_id) ? u.site_id : fromWh) || main?.id || null;
+  return { id, name: all.find((s) => s.id === id)?.name || "Site principal" };
+}
+
 export function nextTransferCode() {
   const year = new Date().getFullYear();
   const n = transfers().filter((t) => t.code.startsWith(`TRF-${year}-`)).length + 1;
@@ -526,7 +536,8 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
   router.get("/reports/site-map", authenticate, withStructure, (_req: any, res: any) => {
     const siteOfWarehouse = (wid?: string) => db.warehouses.find((w) => w.id === wid)?.site_id;
     const mainSite = sites().find((s) => s.is_active !== false)?.id || sites()[0]?.id || null;
-    const siteOfUser = (u?: { warehouse_id?: string } | null) => (u ? siteOfWarehouse(u.warehouse_id) : undefined);
+    const siteOfUser = (u?: { site_id?: string; warehouse_id?: string } | null) =>
+      u ? (u.site_id && sites().some((s) => s.id === u.site_id) ? u.site_id : siteOfWarehouse(u.warehouse_id)) : undefined;
     // Vente : dépôt d'où la marchandise est sortie, sinon dépôt du marketeur, sinon dépôt du produit
     const orders: Record<string, string | null> = {};
     for (const o of db.orders as any[]) {
@@ -544,12 +555,19 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
       const m = c ? db.users.find((u) => u.id === (c as any).marketer_id || u.full_name === c.marketer_name) : undefined;
       return siteOfUser(m) || null;
     };
-    // Caisse : vente ou client concerné, sinon caissier, sinon caisse centrale (site principal)
+    // Caisse : la caissière gère les entrées et sorties de son site d'affectation.
+    // Opération : site de la session de caisse, sinon site affecté de la caissière, sinon vente ou client, sinon site principal
+    const sessions: Record<string, string | null> = {};
+    for (const s of db.cash_sessions as any[]) {
+      const cashier = db.users.find((u) => u.id === s.opened_by);
+      sessions[s.id] = s.site_id || siteOfUser(cashier) || mainSite;
+    }
     const cash: Record<string, string | null> = {};
     for (const op of db.cash_operations as any[]) {
       const order = (db.orders as any[]).find((o) => o.id === op.order_id || (op.reference && o.code === op.reference));
       const cashier = db.users.find((u) => u.full_name === op.created_by);
-      cash[op.id] = (order && orders[order.id]) || clientSite(op.client_id, op.client_name) || siteOfUser(cashier) || mainSite;
+      const sess = (db.cash_sessions as any[]).find((s) => s.id === op.session_id);
+      cash[op.id] = sess?.site_id || (cashier?.site_id && siteOfUser(cashier)) || (order && orders[order.id]) || clientSite(op.client_id, op.client_name) || siteOfUser(cashier) || mainSite;
     }
     const credits: Record<string, string | null> = {};
     for (const c of db.credits as any[]) credits[c.id] = (c.order_id && orders[c.order_id]) || clientSite(c.client_id, c.client_name) || mainSite;
@@ -561,7 +579,7 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
       if (!sid || !p) continue;
       stock_value[sid] = (stock_value[sid] || 0) + (Number(l.quantity) || 0) * (Number(p.cost_price) || 0);
     }
-    res.json({ sites: sites().map((s) => ({ id: s.id, name: s.name })), main_site: mainSite, orders, cash, credits, stock_value });
+    res.json({ sites: sites().map((s) => ({ id: s.id, name: s.name })), main_site: mainSite, orders, cash, sessions, credits, stock_value });
   });
 
   router.get("/stock/categories", authenticate, withStructure, (_req: any, res: any) => {

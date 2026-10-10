@@ -168,9 +168,12 @@ export default function ReportsPage() {
     }
     return list;
   }, [cashOps, search, period, selectedSite, siteMap]);
-  // Les clôtures de caisse appartiennent à la caisse centrale (site principal)
+  // Une clôture de caisse appartient au site d'affectation de la caissière
   const periodSessions = useMemo(
-    () => cashSessions.filter((s) => inPeriod(s.closed_at || s.opened_at) && (selectedSite === "all" || !siteMap || selectedSite === siteMap.main_site)),
+    () =>
+      cashSessions.filter(
+        (s) => inPeriod(s.closed_at || s.opened_at) && (selectedSite === "all" || !siteMap || (siteMap.sessions?.[s.id] ?? siteMap.main_site) === selectedSite)
+      ),
     [cashSessions, period, selectedSite, siteMap]
   );
   const periodCashInUSD = filteredCashOps.filter((c) => c.type === "in").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
@@ -218,6 +221,11 @@ export default function ReportsPage() {
     }
   };
 
+  const sessionSiteName = (sess: any) => {
+    const id = sess.site_id || siteMap?.sessions?.[sess.id] || siteMap?.main_site;
+    return sess.site_name || siteMap?.sites?.find((x: any) => x.id === id)?.name || "Site principal";
+  };
+
   // Export PDF du sous-module affiché du Livre de Caisse (mêmes lignes et colonnes que le tableau)
   const handleExportCash = async () => {
     const closings = cashSubTab === "closings";
@@ -241,11 +249,10 @@ export default function ReportsPage() {
           realUsd += real;
           realCdf += Number(sess.actual_balance_cdf || 0);
           return [
-            `CLOT-${String(sess.id).slice(0, 8).toUpperCase()}`,
             fmtDate(sess.opened_at, true),
             sess.closed_at ? fmtDate(sess.closed_at, true) : "-",
             sess.closed_by || sess.opened_by_name || "-",
-            sess.department || "Maize Mill",
+            sessionSiteName(sess),
             fmtMoney(expected, "USD"),
             fmtMoney(real, "USD"),
             fmtMoney(sess.actual_balance_cdf || 0, "CDF"),
@@ -258,14 +265,13 @@ export default function ReportsPage() {
           fileName: `Clotures_Billetages_PREMIDIS_${stamp}.pdf`,
           columns: [
             { label: "Session", weight: 1.1, bold: true },
-            { label: "Ouverture", weight: 1.1 },
             { label: "Clôture", weight: 1.1 },
             { label: "Caissier", weight: 1.2, bold: true },
-            { label: "Département", weight: 1 },
+            { label: "Site", weight: 1 },
             { label: "Solde attendu", weight: 1, right: true },
             { label: "Billetage réel USD", weight: 1.1, right: true, color: () => GREEN },
             { label: "Billetage réel CDF", weight: 1.2, right: true },
-            { label: "Écart", weight: 0.9, color: (r) => (r[8] === "Équilibrée" ? GREEN : RED) },
+            { label: "Écart", weight: 0.9, color: (r) => (r[7] === "Équilibrée" ? GREEN : RED) },
             { label: "Motif", weight: 1.5 },
           ],
           rows,
@@ -913,8 +919,8 @@ export default function ReportsPage() {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                      <th className="p-3.5">Session / Horodatage</th>
-                      <th className="p-3.5">Caissier & Département</th>
+                      <th className="p-3.5">Session</th>
+                      <th className="p-3.5">Caissier & Site</th>
                       <th className="p-3.5 text-right">Solde Attendu</th>
                       <th className="p-3.5 text-right">Billetage Réel</th>
                       <th className="p-3.5 text-center">Écart</th>
@@ -926,16 +932,14 @@ export default function ReportsPage() {
                     {periodSessions.map((sess) => (
                       <tr key={sess.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-3.5">
-                          <span className="font-mono font-bold text-slate-900 block">
-                            CLOT-{sess.id.slice(0, 8).toUpperCase()}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            {fmtDate(sess.opened_at, true)}
-                          </span>
+                          <span className="font-bold text-slate-900 block">{fmtDate(sess.opened_at, true)}</span>
+                          {sess.closed_at && (
+                            <span className="text-[10px] text-slate-400">Clôturée le {fmtDate(sess.closed_at, true)}</span>
+                          )}
                         </td>
                         <td className="p-3.5">
                           <div className="font-bold text-slate-800">{sess.closed_by || sess.opened_by_name}</div>
-                          <div className="text-[10px] text-slate-500">{sess.department || "Maize Mill"}</div>
+                          <div className="text-[10px] text-slate-500">{sessionSiteName(sess)}</div>
                         </td>
                         <td className="p-3.5 text-right">
                           <div className="font-bold text-slate-900">

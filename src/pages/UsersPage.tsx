@@ -21,16 +21,19 @@ export default function UsersPage() {
   const [userModal, setUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [sites, setSites] = useState<any[]>([]);
 
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const [uRes, rRes] = await Promise.all([
+      const [uRes, rRes, sRes] = await Promise.all([
         api.get("/users"),
         api.get("/roles"),
+        api.get("/stock/sites").catch(() => ({ data: [] })),
       ]);
       setUsers(Array.isArray(uRes.data) ? uRes.data : []);
       setRoles(Array.isArray(rRes.data) ? rRes.data : []);
+      setSites(Array.isArray(sRes.data) ? sRes.data : []);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Erreur chargement utilisateurs"));
     } finally {
@@ -52,6 +55,7 @@ export default function UsersPage() {
       role_code: form.elements.role_code.value,
       phone: form.elements.phone.value.trim(),
       department: form.elements.department.value,
+      site_id: form.elements.site_id?.value || "",
       is_active: form.elements.is_active.checked,
     };
     if (form.elements.password?.value) {
@@ -109,6 +113,7 @@ export default function UsersPage() {
                   <th className="p-3.5">Email</th>
                   <th className="p-3.5">Rôle</th>
                   <th className="p-3.5">Département</th>
+                  <th className="p-3.5">Site d'affectation</th>
                   <th className="p-3.5 text-center">Statut</th>
                   {has("users.write") && <th className="p-3.5 text-center">Action</th>}
                 </tr>
@@ -124,6 +129,7 @@ export default function UsersPage() {
                       </span>
                     </td>
                     <td className="p-3.5 text-slate-600 capitalize">{u.department || "-"}</td>
+                    <td className="p-3.5 text-slate-600">{sites.find((x) => x.id === u.site_id)?.name || "-"}</td>
                     <td className="p-3.5 text-center">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -237,6 +243,24 @@ export default function UsersPage() {
                     <option value="direction">Direction</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Site d'affectation</Label>
+                <select
+                  name="site_id"
+                  defaultValue={editingUser?.site_id || ""}
+                  className="w-full mt-1 h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs"
+                >
+                  <option value="">Site principal (par défaut)</option>
+                  {sites.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Une caissière gère les entrées et sorties de caisse de son site d'affectation.
+                </p>
               </div>
               <div className="flex items-center gap-2 pt-2">
                 <input

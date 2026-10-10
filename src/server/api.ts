@@ -19,7 +19,7 @@ import {
   PERMISSION_CATALOG,
   ALL_PERMISSION_CODES,
 } from "./db";
-import { mountStockStructureRoutes } from "./stockStructure";
+import { mountStockStructureRoutes, userSite } from "./stockStructure";
 import { applyOrderStockOut, embarkedAvailability, mountDeliveryRoutes, productStockMode, restoreOrderStock, tagOrderStockSource } from "./delivery";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "erp_secret_jwt_key_2026";
@@ -230,7 +230,7 @@ apiRouter.get("/users", authenticate, (req, res) => {
 });
 
 apiRouter.post("/users", authenticate, (req, res) => {
-  const { email, full_name, phone, department, role_code, warehouse_id, password } = req.body;
+  const { email, full_name, phone, department, role_code, warehouse_id, site_id, password } = req.body;
   if (!email || !password) return res.status(400).json({ detail: "Email et mot de passe requis" });
   if (db.users.some((u) => u.email.toLowerCase() === email.toLowerCase().trim())) {
     return res.status(400).json({ detail: "Cet email est déjà utilisé" });
@@ -244,6 +244,7 @@ apiRouter.post("/users", authenticate, (req, res) => {
     department,
     role_code: role_code || "marketeur",
     warehouse_id,
+    site_id: site_id || undefined,
     is_active: true,
     password_hash: bcrypt.hashSync(password, 10),
     created_at: new Date().toISOString(),
@@ -262,6 +263,7 @@ apiRouter.put("/users/:id", authenticate, (req, res) => {
   if (req.body.department !== undefined) user.department = req.body.department;
   if (req.body.role_code) user.role_code = req.body.role_code;
   if (req.body.warehouse_id !== undefined) user.warehouse_id = req.body.warehouse_id;
+  if (req.body.site_id !== undefined) user.site_id = req.body.site_id || undefined;
   if (req.body.is_active !== undefined) user.is_active = req.body.is_active;
   if (req.body.password) user.password_hash = bcrypt.hashSync(req.body.password, 10);
   user.updated_at = new Date().toISOString();
@@ -1160,6 +1162,9 @@ apiRouter.post("/cash/sessions/open", authenticate, (req, res) => {
     initial_balance_cdf: initialCDF,
     exchange_rate: rate,
     department: req.body.department || "Maize Mill",
+    // La caisse est rattachée au site d'affectation de la caissière
+    site_id: userSite(user).id || undefined,
+    site_name: userSite(user).name,
     status: "open",
   };
   db.cash_sessions.unshift(newSession);
