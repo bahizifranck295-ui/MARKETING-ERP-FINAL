@@ -1858,6 +1858,9 @@ apiRouter.post("/objectives/:id/claim-bonus", authenticate, (req, res) => {
     ben.status = "paid";
     ben.paid_at = new Date().toISOString();
   }
+  // Seuil atteint et toutes les primes encaissées : l'objectif est clôturé
+  const reached = (obj.actual_qty || obj.actual_amount || 0) >= (obj.target_qty || obj.target_amount || 1) || obj.status === "reached";
+  if (reached && obj.beneficiaries?.length && obj.beneficiaries.every((b) => b.status === "paid")) obj.status = "completed";
   res.json({ success: true, objective: obj, beneficiary: ben });
 });
 

@@ -159,6 +159,18 @@ export default function ObjectivesPage() {
     }
   };
 
+  // Objectif clôturé : seuil atteint et toutes les primes individuelles encaissées → retiré de la liste
+  const isClosedObjective = (obj: any) => {
+    const target = obj.target_qty || obj.target_amount || 1;
+    const current = obj.actual_qty || obj.actual_amount || 0;
+    const reached = current >= target || obj.status === "reached" || obj.status === "completed";
+    const bens = obj.beneficiaries || [];
+    return reached && bens.length > 0 && bens.every((b: any) => b.status === "paid");
+  };
+  const [showClosed, setShowClosed] = useState(false);
+  const closedObjectives = objectives.filter(isClosedObjective);
+  const listedObjectives = objectives.filter((o) => isClosedObjective(o) === showClosed);
+
   const handleClaimBonus = async (objectiveId: string, beneficiary: any) => {
     setClaimingUserId(beneficiary.user_id);
     try {
@@ -171,6 +183,9 @@ export default function ObjectivesPage() {
       );
       if (res.data?.objective) {
         setSelectedObjective(res.data.objective);
+        if (!isClosedObjective(selectedObjective || {}) && isClosedObjective(res.data.objective)) {
+          toast.success("Objectif atteint et toutes les primes encaissées : il est retiré de la liste des objectifs en cours.");
+        }
       }
       loadObjectives();
     } catch (err) {
@@ -348,15 +363,35 @@ export default function ObjectivesPage() {
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
-      ) : objectives.length === 0 ? (
+      ) : (
+        <>
+          {closedObjectives.length > 0 && (
+            <div role="group" aria-label="Objectifs en cours / clôturés" className="inline-flex rounded-xl bg-slate-100 p-1">
+              {([
+                [false, `En cours (${objectives.length - closedObjectives.length})`],
+                [true, `Clôturés (${closedObjectives.length})`],
+              ] as const).map(([v, l]) => (
+                <button
+                  key={String(v)}
+                  type="button"
+                  aria-pressed={showClosed === v}
+                  onClick={() => setShowClosed(v)}
+                  className={`rounded-lg px-3 py-1 text-xs font-bold transition ${showClosed === v ? "bg-[#0F3D68] text-white shadow-xs" : "text-slate-600 hover:bg-white"}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
+          {listedObjectives.length === 0 ? (
         <EmptyState
           icon={Target}
-          title="Aucun objectif configuré"
-          subtitle="Créez votre premier objectif par Business Unit et Site."
+          title={objectives.length === 0 ? "Aucun objectif configuré" : "Aucun objectif en cours"}
+          subtitle={objectives.length === 0 ? "Créez votre premier objectif par Business Unit et Site." : "Les objectifs atteints dont toutes les primes sont encaissées sont dans « Clôturés »."}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {objectives.map((obj) => {
+          {listedObjectives.map((obj) => {
             const target = obj.target_qty || obj.target_amount || 1;
             const current = obj.actual_qty || obj.actual_amount || 0;
             const percent = Math.min(100, Math.round((current / target) * 100));
@@ -421,6 +456,8 @@ export default function ObjectivesPage() {
             );
           })}
         </div>
+      )}
+        </>
       )}
 
       {/* CREATE MODAL */}
