@@ -66,13 +66,11 @@ function classify(m: any): { bucket: Bucket; qty: number } {
   return { bucket: "received", qty: q };
 }
 
-/** Transfert entre deux dépôts du même site : ni sortie ni entrée pour le site. */
-function isIntraSiteTransfer(m: any) {
+/** Transfert entre deux dépôts d'un même périmètre (site, ou toute l'entreprise) : ni sortie ni entrée pour ce périmètre. */
+function isInternalTransfer(m: any, scope: Set<string>) {
   if (!/^Transfert /.test(String(m.reason || ""))) return false;
   const t = (db.stock_transfers as any[]).find((x) => x.code === m.reference);
-  if (!t) return false;
-  const a = siteOfWarehouse(t.from_warehouse_id);
-  return !!a && a === siteOfWarehouse(t.to_warehouse_id);
+  return !!t && scope.has(t.from_warehouse_id) && scope.has(t.to_warehouse_id);
 }
 
 function damageNote(m: any) {
@@ -84,14 +82,16 @@ function damageNote(m: any) {
 
 export function computeStockState(params: { site_id: string; category: string; warehouse_id?: string; from: string; to: string }) {
   ensureStockStructure();
-  const site = sitesList().find((s) => s.id === params.site_id);
+  // « Tous les sites » : vue d'ensemble de l'entreprise, avec une section par site
+  const allSites = params.site_id === "all";
+  const site = allSites ? { id: "all", name: "Tous les sites" } : sitesList().find((s) => s.id === params.site_id);
   if (!site) throw new Error("Site introuvable");
   const from = new Date(params.from).getTime();
   const to = new Date(params.to).getTime();
   if (!Number.isFinite(from) || !Number.isFinite(to) || from > to) throw new Error("Période invalide");
 
-  const siteDepots = db.warehouses.filter((w) => w.site_id === site.id);
-  const depots = params.warehouse_id && params.warehouse_id !== "all" ? siteDepots.filter((w) => w.id === params.warehouse_id) : siteDepots;
+  const siteDepots = allSites ? db.warehouses.filter((w) => sitesList().some((x) => x.id === w.site_id)) : db.warehouses.filter((w) => w.site_id === site.id);
+  const depots = !allSites && params.warehouse_id && params.warehouse_id !== "all" ? siteDepots.filter((w) => w.id === params.warehouse_id) : siteDepots;
   if (params.warehouse_id && params.warehouse_id !== "all" && !depots.length) throw new Error("Ce dépôt n'appartient pas au site choisi");
   const depotIds = new Set(depots.map((w) => w.id));
 
@@ -104,7 +104,8 @@ export function computeStockState(params: { site_id: string; category: string; w
   const moves = (db.stock_movements as any[]).filter((m) => depotIds.has(m.warehouse_id) && productIds.has(m.product_id));
   const tsOf = (m: any) => new Date(m.at).getTime();
 
-  const buildRows = (wids: Set<string>, opts: { siteView: boolean; onlyHeld: boolean }) => {
+  // neutral : dépôts entre lesquels un transfert est interne (non compté)
+  const buildRows = (wids: Set<string>, opts: { neutral: Set<string> | null; onlyHeld: boolean }) => {
     const rows: Row[] = [];
     for (const p of products) {
       const current = (db.stock_levels as any[])
@@ -119,7 +120,7 @@ export function computeStockState(params: { site_id: string; category: string; w
       let net = 0;
       for (const m of within) {
         net += Number(m.quantity) || 0;
-        if (opts.siteView && isIntraSiteTransfer(m)) continue; // neutre pour le site
+        if (opts.neutral && isInternalTransfer(m, opts.neutral)) continue; // neutre pour le périmètre
         const c = classify(m);
         r[c.bucket] += c.qty;
       }
@@ -141,11 +142,21 @@ export function computeStockState(params: { site_id: string; category: string; w
     return t;
   };
 
-  const mainRows = buildRows(depotIds, { siteView: depots.length > 1, onlyHeld: false });
-  const sections = depots.map((w) => {
-    const rows = buildRows(new Set([w.id]), { siteView: false, onlyHeld: true });
-    return { warehouse_id: w.id, warehouse_name: w.name, rows, totals: totals(rows) };
-  });
+  const mainRows = buildRows(depotIds, { neutral: depots.length > 1 ? depotIds : null, onlyHeld: false });
+  const sections = allSites
+    ? // Vue d'ensemble : synthèse de chaque site (transferts entre dépôts du même site neutres)
+      sitesList()
+        .filter((x) => depots.some((w) => w.site_id === x.id))
+        .map((x) => {
+          const ids = new Set(depots.filter((w) => w.site_id === x.id).map((w) => w.id));
+          const rows = buildRows(ids, { neutral: ids, onlyHeld: true });
+          return { kind: "site", warehouse_id: x.id, warehouse_name: x.name, rows, totals: totals(rows) };
+        })
+    : depots.map((w) => {
+        const rows = buildRows(new Set([w.id]), { neutral: null, onlyHeld: true });
+        return { kind: "depot", warehouse_id: w.id, warehouse_name: w.name, rows, totals: totals(rows) };
+      });
+  const siteNameOf = (wid?: string) => sitesList().find((x) => x.id === siteOfWarehouse(wid))?.name;
 
   // Notes : justification des dommages et cadeaux de la période
   const notes = moves
@@ -154,7 +165,7 @@ export function computeStockState(params: { site_id: string; category: string; w
     .map((m) => {
       const w = db.warehouses.find((x) => x.id === m.warehouse_id);
       const { motif, comment } = damageNote(m);
-      return { date: m.at, product: m.product_name, quantity: Math.abs(Number(m.quantity) || 0), depot: w?.name || "-", motif, comment, user_name: m.user_name || "" };
+      return { date: m.at, product: m.product_name, quantity: Math.abs(Number(m.quantity) || 0), depot: (allSites ? `${siteNameOf(w?.id) || ""} / ` : "") + (w?.name || "-"), motif, comment, user_name: m.user_name || "" };
     });
 
   // Ventes à crédit de la période : quantités réellement sorties des dépôts du périmètre
@@ -170,7 +181,7 @@ export function computeStockState(params: { site_id: string; category: string; w
       const fromDepots = moves.filter((m) => m.reference === o.code && m.product_id === it.product_id && tsOf(m) >= from && tsOf(m) <= to && classify(m).bucket === "credit");
       const qty = fromDepots.reduce((s, m) => s + classify(m).qty, 0);
       if (qty) {
-        const depotNames = Array.from(new Set(fromDepots.map((m) => db.warehouses.find((w) => w.id === m.warehouse_id)?.name).filter(Boolean)));
+        const depotNames = Array.from(new Set(fromDepots.map((m) => { const w = db.warehouses.find((x) => x.id === m.warehouse_id); return w ? (allSites ? `${siteNameOf(w.id) || ""} / ` : "") + w.name : ""; }).filter(Boolean)));
         credit.push({ order_code: o.code, date: fromDepots[0]?.at || o.approved_at || o.created_at, client: o.client_name, product: it.product_name || products.find((p) => p.id === it.product_id)?.name, qty, price, amount: Math.round(qty * price * 100) / 100, currency: cur, comment: `${o.code} · ${depotNames.join(", ")}` });
       }
       // Vente à crédit servie depuis un camion du site (hors tableau des dépôts)
@@ -178,7 +189,7 @@ export function computeStockState(params: { site_id: string; category: string; w
       const when = new Date(o.stock_applied_at || o.approved_at || o.created_at).getTime();
       const marketer = db.users.find((u) => u.id === o.marketer_id) as any;
       const mSite = marketer?.site_id || siteOfWarehouse(marketer?.warehouse_id);
-      if (ledgerEmbarked.length && (!params.warehouse_id || params.warehouse_id === "all") && mSite === site.id && when >= from && when <= to) {
+      if (ledgerEmbarked.length && (!params.warehouse_id || params.warehouse_id === "all") && (allSites ? !!mSite : mSite === site.id) && when >= from && when <= to) {
         const q = ledgerEmbarked.reduce((s: number, e: any) => s + (Number(e.quantity) || 0), 0);
         truckCredit.push({ order_code: o.code, date: o.stock_applied_at || o.approved_at || o.created_at, client: o.client_name, product: it.product_name, qty: q, price, amount: Math.round(q * price * 100) / 100, currency: cur, comment: `${o.code} · camion de ${o.marketer_name || "marketeur"} (hors tableau des dépôts)` });
       }
@@ -195,6 +206,7 @@ export function computeStockState(params: { site_id: string; category: string; w
     warehouse_name: params.warehouse_id && params.warehouse_id !== "all" ? depots[0]?.name : "Tous les dépôts",
     from: params.from,
     to: params.to,
+    all_sites: allSites,
     main: { rows: mainRows, totals: totals(mainRows), intra_site_neutral: depots.length > 1 },
     sections,
     notes,
@@ -206,7 +218,7 @@ export function computeStockState(params: { site_id: string; category: string; w
 export function mountStockReportRoutes(router: any, authenticate: any) {
   const userName = (req: any) => req.user?.full_name || req.user?.email || "Utilisateur";
   // Séparation des données par site : un utilisateur rattaché à un site ne voit que ce site
-  const allowedSite = (req: any, siteId: string) => canSeeAllSites(req.user) || req.user?.site_id === siteId;
+  const allowedSite = (req: any, siteId: string) => canSeeAllSites(req.user) || (siteId !== "all" && req.user?.site_id === siteId);
 
   router.get("/reports/stock-state", authenticate, (req: any, res: any) => {
     const q = req.query || {};

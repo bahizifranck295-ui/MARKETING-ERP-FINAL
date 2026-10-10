@@ -31,6 +31,18 @@ export const STOCK_COLUMNS = [
 
 export const CREDIT_COLUMNS = ["S. No.", "Client Name", "Particulars", "Qty", "Price", "Amount", "Comments"];
 
+export const mainTitle = (report: any) =>
+  report.all_sites
+    ? "Vue d'ensemble — Tous les sites (synthèse de tous les dépôts)"
+    : report.warehouse_id === "all"
+    ? `État de stock — ${report.site_name} (synthèse des dépôts du site)`
+    : `État de stock — ${report.warehouse_name}`;
+export const neutralNote = (report: any) =>
+  report.all_sites
+    ? "Vue d'ensemble : les transferts entre dépôts de l'entreprise ne sont comptés ni en sortie ni en entrée."
+    : "Synthèse du site : les transferts entre dépôts du même site ne sont comptés ni en sortie ni en entrée.";
+export const sectionTitleOf = (s: any) => (s.kind === "site" ? `Site : ${s.warehouse_name}` : `Dépôt : ${s.warehouse_name}`);
+
 export function reportTitle(category: string) {
   return `${category} Sales & Stock Report`;
 }
@@ -188,20 +200,20 @@ export async function buildStockStateReportPdf(report: any, opts: { periodLabel:
   };
 
   header();
-  sectionTitle(report.warehouse_id === "all" ? `État de stock — ${report.site_name} (synthèse des dépôts du site)` : `État de stock — ${report.warehouse_name}`);
+  sectionTitle(mainTitle(report));
   stockTable(report.main.rows, report.main.totals);
   if (report.main.intra_site_neutral) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(6.8);
     doc.setTextColor(...SLATE);
-    doc.text("Synthèse du site : les transferts entre dépôts du même site ne sont comptés ni en sortie ni en entrée.", M, y - 1.5);
+    doc.text(neutralNote(report), M, y - 1.5);
     y += 2;
   }
 
   // ---------- Détail par dépôt ----------
   if (report.warehouse_id === "all") {
     report.sections.forEach((s: any) => {
-      sectionTitle(`Dépôt : ${s.warehouse_name}`);
+      sectionTitle(sectionTitleOf(s));
       stockTable(s.rows, s.totals);
     });
   }

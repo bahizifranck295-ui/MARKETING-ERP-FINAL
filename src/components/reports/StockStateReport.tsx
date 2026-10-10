@@ -12,6 +12,9 @@ import {
   fmtAmount,
   fmtDay,
   fmtQty,
+  mainTitle,
+  neutralNote,
+  sectionTitleOf,
   reportTitle,
   stockStateFileName,
 } from "@/lib/exportStockStateReportPdf";
@@ -126,22 +129,16 @@ function ReportDocument({ report, periodLabel, preparedBy }: { report: any; peri
         </div>
       </div>
 
-      <h4 className="mb-1.5 mt-4 text-xs font-bold text-[#211A5C]">
-        {report.warehouse_id === "all" ? `État de stock — ${report.site_name} (synthèse des dépôts du site)` : `État de stock — ${report.warehouse_name}`}
-      </h4>
+      <h4 className="mb-1.5 mt-4 text-xs font-bold text-[#211A5C]">{mainTitle(report)}</h4>
       <StockTableView rows={report.main.rows} totals={report.main.totals} />
       {report.main.intra_site_neutral && (
-        <p className="mt-1 text-[10px] italic text-slate-500">
-          Synthèse du site : les transferts entre dépôts du même site ne sont comptés ni en sortie ni en entrée.
-        </p>
+        <p className="mt-1 text-[10px] italic text-slate-500">{neutralNote(report)}</p>
       )}
 
       {report.warehouse_id === "all" &&
         report.sections.map((s: any) => (
           <div key={s.warehouse_id}>
-            <h4 className="mb-1.5 mt-4 text-xs font-bold text-[#211A5C]">
-              Dépôt : <span data-no-translate>{s.warehouse_name}</span>
-            </h4>
+            <h4 className="mb-1.5 mt-4 text-xs font-bold text-[#211A5C]">{sectionTitleOf(s)}</h4>
             <StockTableView rows={s.rows} totals={s.totals} />
           </div>
         ))}
@@ -260,8 +257,15 @@ export default function StockStateReport({ siteKey }: { siteKey?: string }) {
   // Site : celui choisi en haut des Rapports, sinon le site d'affectation, sinon le premier site
   useEffect(() => {
     if (!sites.length) return;
-    const pick = (siteKey && siteKey !== "all" && sites.find((x) => x.id === siteKey)?.id) || (user?.site_id && sites.find((x) => x.id === user.site_id)?.id) || sites[0].id;
-    setSiteId((cur) => (cur && sites.some((x) => x.id === cur) && (!siteKey || siteKey === "all") ? cur : pick));
+    // En-tête des Rapports sur « Tous les sites » : vue d'ensemble (si l'utilisateur voit tous les sites)
+    const overview = !restrictedSite && sites.length > 1 ? "all" : null;
+    const pick =
+      (siteKey && siteKey !== "all" && sites.find((x) => x.id === siteKey)?.id) ||
+      (siteKey === "all" && overview) ||
+      (user?.site_id && sites.find((x) => x.id === user.site_id)?.id) ||
+      overview ||
+      sites[0].id;
+    setSiteId(pick);
     setDepotId("all");
   }, [sites, siteKey]);
 
@@ -399,6 +403,7 @@ export default function StockStateReport({ siteKey }: { siteKey?: string }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Site">
           <select value={siteId} onChange={(e) => { setSiteId(e.target.value); setDepotId("all"); }} className={fieldCls} disabled={!!restrictedSite}>
+            {!restrictedSite && sites.length > 1 && <option value="all">Tous les sites (vue d'ensemble)</option>}
             {sites.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
@@ -432,7 +437,7 @@ export default function StockStateReport({ siteKey }: { siteKey?: string }) {
           </div>
         )}
         <Field label="Dépôt">
-          <select value={depotId} onChange={(e) => setDepotId(e.target.value)} className={fieldCls}>
+          <select value={depotId} onChange={(e) => setDepotId(e.target.value)} className={fieldCls} disabled={siteId === "all"}>
             <option value="all">Tous les dépôts</option>
             {siteDepots.map((w) => (
               <option key={w.id} value={w.id}>{w.name}</option>
