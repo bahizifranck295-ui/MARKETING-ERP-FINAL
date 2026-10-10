@@ -276,6 +276,22 @@ export default function CashPage() {
     const balanceUSD = activeSession?.theoretical_balance_usd ?? (activeSession?.initial_balance_usd || 0) + totalInUSD - totalOutUSD;
     const balanceCDF = activeSession?.theoretical_balance_cdf ?? (activeSession?.initial_balance_cdf || 0) + totalInCDF - totalOutCDF;
 
+    // Solde actuel en caisse : dollars et francs physiquement présents (fonds de départ + billetage ou devise
+    // de chaque opération de la session), les francs étant convertis au taux du jour puis ajoutés aux dollars
+    const sessionOps = activeSession?.id ? operations.filter((o) => o.session_id === activeSession.id) : todayOps;
+    let cashUSD = Number(activeSession?.initial_balance_usd ?? activeSession?.initial_balance ?? 0) || 0;
+    let cashCDF = Number(activeSession?.initial_balance_cdf || 0) || 0;
+    for (const o of sessionOps) {
+      const sign = o.type === "in" ? 1 : o.type === "out" ? -1 : 0;
+      const b: any = (o as any).billetage;
+      const hasBillet = b && (Number(b.total_usd) > 0 || Number(b.total_cdf) > 0);
+      const usd = hasBillet ? Number(b.total_usd) || 0 : o.currency === "USD" ? Number(o.amount) || 0 : 0;
+      const cdf = hasBillet ? Number(b.total_cdf) || 0 : o.currency === "CDF" ? Number(o.amount) || 0 : 0;
+      cashUSD += sign * usd;
+      cashCDF += sign * cdf;
+    }
+    const currentCashUSD = cashUSD + (exchangeRate > 0 ? cashCDF / exchangeRate : 0);
+
     return {
       totalInUSD,
       totalOutUSD,
@@ -283,6 +299,9 @@ export default function CashPage() {
       totalOutCDF,
       balanceUSD: Math.round(balanceUSD * 100) / 100,
       balanceCDF: Math.round(balanceCDF),
+      cashUSD: Math.round(cashUSD * 100) / 100,
+      cashCDF: Math.round(cashCDF),
+      currentCashUSD: Math.round(currentCashUSD * 100) / 100,
     };
   }, [operations, activeSession, exchangeRate]);
 
@@ -664,32 +683,21 @@ export default function CashPage() {
       />
 
       {/* Synthesis Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Solde USD */}
-        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Solde actuel en caisse : dollars + francs convertis au taux du jour */}
+        <div data-current-cash className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Solde Théorique (USD)</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Solde actuel en caisse (USD)</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-              {fmtMoney(metrics.balanceUSD, "USD")}
+              {fmtMoney(metrics.currentCashUSD, "USD")}
             </p>
-            <p className="text-xs text-slate-400 mt-0.5">Taux du jour: 1$ = {exchangeRate} FC</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {fmtMoney(metrics.cashUSD, "USD")} + {fmtNum(metrics.cashCDF)} FC
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">Francs convertis au taux : 1$ = {fmtNum(exchangeRate)} FC</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#0F3D68] dark:text-blue-400 flex items-center justify-center">
             <DollarSign className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Solde CDF */}
-        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Solde Théorique (CDF)</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-              {fmtNum(metrics.balanceCDF)} <span className="text-sm font-semibold text-slate-400">CDF</span>
-            </p>
-            <p className="text-xs text-slate-400 mt-0.5">Équiv. ~{fmtMoney(metrics.balanceCDF / exchangeRate, "USD")}</p>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
-            <Coins className="w-6 h-6" />
           </div>
         </div>
 
