@@ -230,8 +230,18 @@ apiRouter.get("/users", authenticate, (req, res) => {
   res.json(listWithStats);
 });
 
+// Départements de l'utilisateur = catégories de produits : accès à toutes, ou rattaché à une sélection
+function categoryAccess(body: any) {
+  if (body?.all_categories === undefined && body?.categories === undefined) return null;
+  const all = body.all_categories === true;
+  const categories = all ? [] : Array.from(new Set((Array.isArray(body.categories) ? body.categories : []).map((c: any) => String(c).trim()).filter(Boolean))) as string[];
+  return { all_categories: all, categories, department: all ? "Toutes les catégories" : categories.join(", ") };
+}
+
 apiRouter.post("/users", authenticate, (req, res) => {
   const { email, full_name, phone, department, role_code, warehouse_id, site_id, password } = req.body;
+  const access = categoryAccess(req.body);
+  if (access && !access.all_categories && !access.categories.length) return res.status(400).json({ detail: "Choisissez au moins une catégorie, ou donnez l'accès à toutes les catégories" });
   if (!email || !password) return res.status(400).json({ detail: "Email et mot de passe requis" });
   if (db.users.some((u) => u.email.toLowerCase() === email.toLowerCase().trim())) {
     return res.status(400).json({ detail: "Cet email est déjà utilisé" });
@@ -242,7 +252,8 @@ apiRouter.post("/users", authenticate, (req, res) => {
     email: email.toLowerCase().trim(),
     full_name: full_name || email,
     phone,
-    department,
+    department: access ? access.department : department,
+    ...(access ? { categories: access.categories, all_categories: access.all_categories } : {}),
     role_code: role_code || "marketeur",
     warehouse_id,
     site_id: site_id || undefined,
@@ -262,6 +273,9 @@ apiRouter.put("/users/:id", authenticate, (req, res) => {
   if (req.body.full_name) user.full_name = req.body.full_name;
   if (req.body.phone !== undefined) user.phone = req.body.phone;
   if (req.body.department !== undefined) user.department = req.body.department;
+  const access = categoryAccess(req.body);
+  if (access && !access.all_categories && !access.categories.length) return res.status(400).json({ detail: "Choisissez au moins une catégorie, ou donnez l'accès à toutes les catégories" });
+  if (access) Object.assign(user, access);
   if (req.body.role_code) user.role_code = req.body.role_code;
   if (req.body.warehouse_id !== undefined) user.warehouse_id = req.body.warehouse_id;
   if (req.body.site_id !== undefined) user.site_id = req.body.site_id || undefined;

@@ -22,6 +22,10 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [sites, setSites] = useState<any[]>([]);
+  // Départements = catégories de produits du module Stock › Catégories
+  const [categories, setCategories] = useState<string[]>([]);
+  const [allCategories, setAllCategories] = useState(true);
+  const [userCategories, setUserCategories] = useState<string[]>([]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -31,6 +35,10 @@ export default function UsersPage() {
         api.get("/roles"),
         api.get("/stock/sites").catch(() => ({ data: [] })),
       ]);
+      api
+        .get("/stock/categories")
+        .then(({ data }) => setCategories((Array.isArray(data) ? data : []).map((c: any) => c.name).filter(Boolean)))
+        .catch(() => setCategories([]));
       setUsers(Array.isArray(uRes.data) ? uRes.data : []);
       setRoles(Array.isArray(rRes.data) ? rRes.data : []);
       setSites(Array.isArray(sRes.data) ? sRes.data : []);
@@ -45,8 +53,25 @@ export default function UsersPage() {
     loadUsers();
   }, []);
 
+  // À l'ouverture du formulaire : reprendre l'accès aux catégories de l'utilisateur modifié
+  useEffect(() => {
+    if (!userModal) return;
+    const cats: string[] = Array.isArray(editingUser?.categories) ? editingUser.categories : [];
+    const legacy = categories.filter((c) => c.toLowerCase() === String(editingUser?.department || "").toLowerCase());
+    const picked = cats.length ? cats : legacy;
+    setAllCategories(editingUser ? editingUser.all_categories === true || !picked.length : true);
+    setUserCategories(picked);
+  }, [userModal, editingUser, categories]);
+
+  const departmentLabel = (u: any) =>
+    u.all_categories ? "Toutes les catégories" : Array.isArray(u.categories) && u.categories.length ? u.categories.join(", ") : u.department || "-";
+
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!allCategories && !userCategories.length) {
+      toast.error("Choisissez au moins une catégorie, ou donnez l'accès à toutes les catégories");
+      return;
+    }
     setSaving(true);
     const form = e.target as any;
     const payload: any = {
@@ -54,7 +79,8 @@ export default function UsersPage() {
       email: form.elements.email.value.trim(),
       role_code: form.elements.role_code.value,
       phone: form.elements.phone.value.trim(),
-      department: form.elements.department.value,
+      all_categories: allCategories,
+      categories: allCategories ? [] : userCategories,
       site_id: form.elements.site_id?.value || "",
       is_active: form.elements.is_active.checked,
     };
@@ -128,7 +154,9 @@ export default function UsersPage() {
                         {roles.find((r) => r.code === u.role_code)?.name || u.role_code}
                       </span>
                     </td>
-                    <td className="p-3.5 text-slate-600 capitalize">{u.department || "-"}</td>
+                    <td className="p-3.5 text-slate-600" data-no-translate={!u.all_categories || undefined}>
+                      {departmentLabel(u)}
+                    </td>
                     <td className="p-3.5 text-slate-600">{sites.find((x) => x.id === u.site_id)?.name || "-"}</td>
                     <td className="p-3.5 text-center">
                       <span
@@ -215,7 +243,7 @@ export default function UsersPage() {
                   className="mt-1 h-9 rounded-lg"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div>
                 <div>
                   <Label className="text-xs font-semibold">Rôle</Label>
                   <select
@@ -230,19 +258,55 @@ export default function UsersPage() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <Label className="text-xs font-semibold">Département</Label>
-                  <select
-                    name="department"
-                    defaultValue={editingUser?.department || "ventes"}
-                    className="w-full mt-1 h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs capitalize"
-                  >
-                    <option value="ventes">Ventes / Commercial</option>
-                    <option value="finance">Finance / Caisse</option>
-                    <option value="logistique">Logistique / Dépôt</option>
-                    <option value="direction">Direction</option>
-                  </select>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2" data-dept-section>
+                <Label className="text-xs font-semibold">Département (catégories de produits)</Label>
+                <div role="group" aria-label="Accès aux catégories" className="grid grid-cols-2 gap-2">
+                  {([
+                    [true, "Accès à toutes les catégories"],
+                    [false, "Rattaché à des catégories"],
+                  ] as const).map(([v, l]) => (
+                    <button
+                      key={String(v)}
+                      type="button"
+                      aria-pressed={allCategories === v}
+                      onClick={() => setAllCategories(v)}
+                      className={`h-9 rounded-lg border px-2 text-xs font-bold transition ${
+                        allCategories === v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
                 </div>
+                {allCategories ? (
+                  <p className="text-[10px] text-slate-500">L'utilisateur gère les informations de tous les départements.</p>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap gap-1.5" data-no-translate>
+                      {categories.map((c) => {
+                        const on = userCategories.includes(c);
+                        return (
+                          <label
+                            key={c}
+                            className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                              on ? "border-[#0F3D68] bg-[#0F3D68]/10 text-[#0F3D68]" : "border-slate-200 bg-white text-slate-600"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() => setUserCategories((cur) => (on ? cur.filter((x) => x !== c) : [...cur, c]))}
+                              className="h-3.5 w-3.5 rounded border-slate-300"
+                            />
+                            {c}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-slate-500">Cochez une ou plusieurs catégories gérées par cet utilisateur.</p>
+                  </>
+                )}
               </div>
               <div>
                 <Label className="text-xs font-semibold">Site d'affectation</Label>

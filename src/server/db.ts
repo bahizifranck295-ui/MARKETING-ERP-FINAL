@@ -78,6 +78,9 @@ export interface User {
   full_name: string;
   phone?: string;
   department?: string;
+  /** Départements = catégories de produits (Stock › Catégories) ; all_categories = accès à toutes */
+  categories?: string[];
+  all_categories?: boolean;
   role_code: string;
   warehouse_id?: string;
   business_unit_id?: string;
