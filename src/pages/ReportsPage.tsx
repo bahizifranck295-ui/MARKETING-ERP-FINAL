@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Search,
   FileText,
-  FileCheck,
   Lock,
   Coins,
   AlertCircle,
@@ -24,7 +23,6 @@ import { api, extractErrorMessage } from "@/lib/api";
 import { PageHeader, fmtMoney, fmtDate } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { printDocument } from "@/lib/print";
 import {
   generateCashClosingReceiptPdf,
   generateCashReceiptPdf,
@@ -60,7 +58,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("month");
   const [activeTab, setActiveTab] = useState<
-    "overview" | "sales" | "cash" | "credits" | "stock" | "documents"
+    "overview" | "sales" | "cash" | "credits" | "stock"
   >("overview");
   const [selectedBU, setSelectedBU] = useState("all");
   // Filtre par site (ou tous les sites en commun)
@@ -573,151 +571,6 @@ export default function ReportsPage() {
     saveFile(new Blob([csv], { type: "text/csv" }), `Rapport_PREMIDIS_${period}_${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
-  const handlePrintReport = (docType: string) => {
-    const todayStr = new Date().toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-
-    let docTitle = `PREMIDIS SARL - ${docType}`;
-    let tableHtml = "";
-
-    if (docType === "Livre des Ventes Journalier") {
-      tableHtml = `
-        <table border="1" cellpadding="6" style="width:100%; border-collapse:collapse; font-size:11px;">
-          <thead>
-            <tr style="background:#f1f5f9;">
-              <th>Réf Commande</th>
-              <th>Client</th>
-              <th>Marketeur</th>
-              <th>Paiement</th>
-              <th style="text-align:right;">Montant Total</th>
-              <th style="text-align:right;">Payé</th>
-              <th style="text-align:right;">Reste</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${filteredOrders
-              .slice(0, 30)
-              .map(
-                (o) => `
-              <tr>
-                <td><strong>${o.code}</strong></td>
-                <td>${o.client_name}</td>
-                <td>${o.marketer_name || "N/A"}</td>
-                <td>${o.payment_method === "cash" ? "Comptant" : "Crédit"}</td>
-                <td style="text-align:right;"><strong>$ ${Number(o.total || 0).toFixed(2)}</strong></td>
-                <td style="text-align:right; color:#16a34a;">$ ${Number(o.amount_paid || 0).toFixed(2)}</td>
-                <td style="text-align:right; color:#dc2626;">$ ${Number(o.outstanding || 0).toFixed(2)}</td>
-                <td>${o.status}</td>
-              </tr>
-            `
-              )
-              .join("")}
-          </tbody>
-        </table>
-      `;
-    } else if (docType === "Livre de Caisse & Billetage") {
-      tableHtml = `
-        <table border="1" cellpadding="6" style="width:100%; border-collapse:collapse; font-size:11px;">
-          <thead>
-            <tr style="background:#f1f5f9;">
-              <th>Date / Heure</th>
-              <th>Réf</th>
-              <th>Type</th>
-              <th>Motif / Libellé</th>
-              <th>Bénéficiaire / Client</th>
-              <th style="text-align:right;">Montant (USD)</th>
-              <th>Caissier</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${cashOps
-              .slice(0, 30)
-              .map(
-                (op) => `
-              <tr>
-                <td>${new Date(op.created_at).toLocaleString("fr-FR")}</td>
-                <td><strong>${op.reference || "CSH"}</strong></td>
-                <td style="color:${op.type === "in" ? "#16a34a" : "#dc2626"}; font-weight:bold;">
-                  ${op.type === "in" ? "ENTRÉE" : "SORTIE"}
-                </td>
-                <td>${op.reason || op.category}</td>
-                <td>${op.client_name || "-"}</td>
-                <td style="text-align:right; font-weight:bold;">$ ${Number(op.amount || 0).toFixed(2)}</td>
-                <td>${op.created_by || "Caisse Principale"}</td>
-              </tr>
-            `
-              )
-              .join("")}
-          </tbody>
-        </table>
-      `;
-    } else {
-      tableHtml = `
-        <table border="1" cellpadding="6" style="width:100%; border-collapse:collapse; font-size:11px;">
-          <thead>
-            <tr style="background:#f1f5f9;">
-              <th>Client</th>
-              <th>Code</th>
-              <th>Marketeur Responsable</th>
-              <th>Date de Dette</th>
-              <th style="text-align:right;">Montant Initial</th>
-              <th style="text-align:right;">Déjà Payé</th>
-              <th style="text-align:right;">Solde Restant</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${credits
-              .map(
-                (c) => `
-              <tr>
-                <td><strong>${c.client_name}</strong></td>
-                <td>${c.client_code || "CLI"}</td>
-                <td>${c.marketer_name || "Direction Commerciale"}</td>
-                <td>${c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "-"}</td>
-                <td style="text-align:right;">$ ${Number(c.initial_amount || c.amount || 0).toFixed(2)}</td>
-                <td style="text-align:right; color:#16a34a;">$ ${Number(c.paid || 0).toFixed(2)}</td>
-                <td style="text-align:right; color:#dc2626; font-weight:bold;">$ ${Number(
-                  c.remaining !== undefined ? c.remaining : c.amount || 0
-                ).toFixed(2)}</td>
-              </tr>
-            `
-              )
-              .join("")}
-          </tbody>
-        </table>
-      `;
-    }
-
-    const fullHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b;">
-        <div style="border-bottom: 2px solid #0f3d68; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <h1 style="color: #0f3d68; margin: 0; font-size: 22px; font-weight: 800;">PREMIDIS SARL</h1>
-            <p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b;">
-              Distribution Agroalimentaire & Boissons • République Démocratique du Congo<br/>
-              Siège Social : Goma, Nord-Kivu • Dépôts : Goma, Bukavu, Kindu, Kisangani
-            </p>
-          </div>
-          <div style="text-align: right; font-size: 11px;">
-            <p style="margin: 0; font-weight: bold; color: #0f3d68;">Document Officiel de Gestion</p>
-            <p style="margin: 2px 0 0 0; color: #64748b;">Date d'édition : ${todayStr}</p>
-          </div>
-        </div>
-        <div style="margin-bottom: 16px;">
-          <h2 style="font-size: 16px; margin: 0 0 4px 0; color: #0f3d68;">${docTitle}</h2>
-          <p style="font-size: 11px; color: #64748b; margin: 0;">Période sélectionnée : ${period} • Généré automatiquement par le système central ERP</p>
-        </div>
-        ${tableHtml}
-      </div>
-    `;
-    printDocument({ title: docTitle, html: fullHtml });
-    toast.success(`Génération de la fiche : ${docType}`);
-  };
-
   return (
     <div className="space-y-5 pb-16">
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -845,7 +698,6 @@ export default function ReportsPage() {
           { id: "cash", label: "Livre de Caisse", icon: Wallet },
           { id: "credits", label: "Créances & Marketeurs", icon: Users },
           { id: "stock", label: "État des Stocks", icon: Package },
-          { id: "documents", label: "Fiches & Documents Officiels", icon: FileCheck },
         ].map((t) => {
           const Icon = t.icon;
           const isActive = activeTab === t.id;
