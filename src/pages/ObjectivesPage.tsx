@@ -42,7 +42,9 @@ export default function ObjectivesPage() {
     { id: "usr_jean_k", name: "Jean Kasongo", role: "commercial", bu: "Farine de Maïs Extra", site: "Bukavu" },
   ]);
 
-  const [formBU, setFormBU] = useState("Farine de Maïs Extra");
+  const [formBU, setFormBU] = useState("");
+  // Business Units = catégories de produits du module Stock › Catégories
+  const [categories, setCategories] = useState<string[]>([]);
   const [formSite, setFormSite] = useState("Goma");
   const [formLabel, setFormLabel] = useState("");
   const [formTargetQty, setFormTargetQty] = useState(4000);
@@ -74,6 +76,14 @@ export default function ObjectivesPage() {
 
   useEffect(() => {
     loadObjectives();
+    api
+      .get("/stock/categories")
+      .then(({ data }) => {
+        const names = (Array.isArray(data) ? data : []).map((c: any) => c.name).filter(Boolean);
+        setCategories(names);
+        setFormBU((cur) => (cur && names.includes(cur) ? cur : names[0] || ""));
+      })
+      .catch(() => setCategories([]));
   }, []);
 
   const handleCreateObjective = async (e: React.FormEvent) => {
@@ -397,16 +407,20 @@ export default function ObjectivesPage() {
             <form onSubmit={handleCreateObjective} className="space-y-4 pt-2 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs font-semibold">Business Unit (Département) *</Label>
+                  <Label className="text-xs font-semibold">Business Unit (Catégorie de produit) *</Label>
                   <select
                     value={formBU}
                     onChange={(e) => setFormBU(e.target.value)}
+                    required
+                    data-no-translate
                     className="w-full mt-1 h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold"
                   >
-                    <option value="Farine de Maïs Extra">Farine de Maïs Extra</option>
-                    <option value="Eau Pure La Vie">Eau Pure La Vie</option>
-                    <option value="Jus & Boissons">Jus & Boissons</option>
-                    <option value="Whisky & Liqueurs">Whisky & Liqueurs</option>
+                    {!categories.length && <option value="">Aucune catégorie</option>}
+                    {categories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
