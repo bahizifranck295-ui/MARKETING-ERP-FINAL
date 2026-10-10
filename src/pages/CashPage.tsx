@@ -125,6 +125,14 @@ export default function CashPage() {
   const [categoryRatesInput, setCategoryRatesInput] = useState<Record<string, string>>({});
   const [savingRates, setSavingRates] = useState<boolean>(false);
 
+  // Caisses par site : une caissière rattachée à un site opère sa caisse ; la direction choisit la caisse
+  // ou la vue générale de toutes les caisses
+  const ALL_CASH = "all";
+  const cashLocked = !!(user as any)?.site_id && !["super_admin", "dg"].includes(user?.role_code || "") && !(user as any)?.is_transversal;
+  const [cashSites, setCashSites] = useState<Array<{ id: string; name: string }>>([]);
+  const [cashSite, setCashSite] = useState<string>((user as any)?.site_id || "");
+  const [overview, setOverview] = useState<any>(null);
+
   // Modals visibility
   const [isInflowOpen, setIsInflowOpen] = useState(false);
   const [isOutflowOpen, setIsOutflowOpen] = useState(false);
@@ -176,6 +184,19 @@ export default function CashPage() {
   // Fetch full data
   const loadData = async () => {
     setLoading(true);
+    if (cashSite === ALL_CASH) {
+      try {
+        const { data } = await api.get("/cash/overview");
+        setOverview(data);
+      } catch (err) {
+        toast.error(extractErrorMessage(err, "Erreur de chargement des caisses"));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    // Toutes les requêtes de cette page (et des fenêtres d'entrée / sortie) visent la caisse du site choisi
+    if (cashSite) api.defaults.headers.common["X-Cash-Site"] = cashSite;
     try {
       const [sessionRes, opsRes, markRes, sessionsRes, clientsRes, usersRes, ratesRes] = await Promise.all([
         api.get("/cash/active-session"),
@@ -213,8 +234,9 @@ export default function CashPage() {
         }
       }
 
-      setOperations(Array.isArray(opsRes.data) ? opsRes.data : []);
-      setAllSessions(Array.isArray(sessionsRes.data) ? sessionsRes.data : []);
+      const site = cashSite || sessionRes.data?.session?.site_id;
+      setOperations((Array.isArray(opsRes.data) ? opsRes.data : []).filter((o: any) => !site || !o.site_id || o.site_id === site));
+      setAllSessions((Array.isArray(sessionsRes.data) ? sessionsRes.data : []).filter((x: any) => !site || !x.site_id || x.site_id === site));
 
       if (markRes.data) {
         setMarketerDeposits(Array.isArray(markRes.data.marketers) ? markRes.data.marketers : []);
@@ -248,9 +270,24 @@ export default function CashPage() {
     }
   };
 
+  // Liste des sites (caisses) ; par défaut la caisse du site de l'utilisateur, sinon le site principal
+  useEffect(() => {
+    api
+      .get("/stock/sites")
+      .then(({ data }) => {
+        const list = (Array.isArray(data) ? data : []).filter((x: any) => x.is_active !== false).map((x: any) => ({ id: x.id, name: x.name }));
+        setCashSites(list);
+        setCashSite((cur) => (cur && (cur === ALL_CASH || list.some((x) => x.id === cur)) ? cur : list[0]?.id || ""));
+      })
+      .catch(() => setCashSites([]));
+    return () => {
+      delete api.defaults.headers.common["X-Cash-Site"];
+    };
+  }, []);
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [cashSite]);
 
   // Compute Live Metrics
   const metrics = useMemo(() => {
@@ -634,7 +671,26 @@ export default function CashPage() {
         subtitle="Suivi des mouvements en espèces, encaissements clients, décaissements et clôtures journalières"
         right={
           <div className="flex flex-wrap items-center gap-2.5">
-            {activeSession ? (
+            {cashLocked ? (
+              <Badge className="bg-slate-50 text-slate-700 border-slate-200 px-3 py-1 font-semibold" data-no-translate>
+                Caisse : {cashSites.find((x) => x.id === cashSite)?.name || "Mon site"}
+              </Badge>
+            ) : (
+              <select
+                aria-label="Caisse"
+                value={cashSite}
+                onChange={(e) => setCashSite(e.target.value)}
+                className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
+              >
+                <option value={ALL_CASH}>Toutes les caisses (vue générale)</option>
+                {cashSites.map((x) => (
+                  <option key={x.id} value={x.id} data-no-translate>
+                    Caisse {x.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {cashSite === ALL_CASH ? null : activeSession ? (
               <>
                 <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 px-3 py-1 font-medium flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -682,6 +738,93 @@ export default function CashPage() {
         }
       />
 
+      {cashSite === ALL_CASH ? (
+        <div className="space-y-4" data-cash-overview>
+          {loading || !overview ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div data-cash-total className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Solde actuel de toutes les caisses (USD)</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{fmtMoney(overview.total.current_usd, "USD")}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {fmtMoney(overview.total.cash_usd, "USD")} + {fmtNum(overview.total.cash_cdf)} FC
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">Francs convertis au taux : 1$ = {fmtNum(overview.rate)} FC</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
+                  <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Entrées des caisses ouvertes</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-1">+{fmtMoney(overview.total.in_usd, "USD")}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {overview.total.open_count} caisse(s) ouverte(s) sur {overview.sites.length}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
+                  <p className="text-xs font-medium text-rose-600 uppercase tracking-wider">Sorties des caisses ouvertes</p>
+                  <p className="text-2xl font-bold text-rose-600 mt-1">-{fmtMoney(overview.total.out_usd, "USD")}</p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                      <th className="px-4 py-3 font-semibold">Caisse (site)</th>
+                      <th className="px-4 py-3 font-semibold">Statut</th>
+                      <th className="px-4 py-3 font-semibold">Caissière</th>
+                      <th className="px-4 py-3 text-right font-semibold">Entrées</th>
+                      <th className="px-4 py-3 text-right font-semibold">Sorties</th>
+                      <th className="px-4 py-3 text-right font-semibold">Solde actuel (USD)</th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {overview.sites.map((r: any) => (
+                      <tr key={r.site_id} data-cash-site-row>
+                        <td className="px-4 py-3 font-semibold text-slate-900" data-no-translate>{r.site_name}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${r.is_open ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${r.is_open ? "bg-emerald-500" : "bg-slate-400"}`} />
+                            {r.is_open ? "Ouverte" : "Fermée"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600" data-no-translate>
+                          {r.opened_by_name || r.cashiers?.join(", ") || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums text-emerald-700">+{fmtMoney(r.in_usd, "USD")}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-rose-600">-{fmtMoney(r.out_usd, "USD")}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="font-bold tabular-nums text-slate-900">{fmtMoney(r.current_usd, "USD")}</div>
+                          <div className="text-[11px] text-slate-500 tabular-nums">
+                            {fmtMoney(r.cash_usd, "USD")} + {fmtNum(r.cash_cdf)} FC
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button size="sm" variant="outline" onClick={() => setCashSite(r.site_id)} className="h-8 text-xs">
+                            Ouvrir cette caisse
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold">
+                      <td className="px-4 py-3" colSpan={3}>Total toutes caisses</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-emerald-700">+{fmtMoney(overview.total.in_usd, "USD")}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-rose-600">-{fmtMoney(overview.total.out_usd, "USD")}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{fmtMoney(overview.total.current_usd, "USD")}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+      <>
       {/* Synthesis Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Solde actuel en caisse : dollars + francs convertis au taux du jour */}
@@ -1547,6 +1690,9 @@ export default function CashPage() {
             </Button>
           </div>
         </div>
+      )}
+
+      </>
       )}
 
       {/* ========================================================================= */}

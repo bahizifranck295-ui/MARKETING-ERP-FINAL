@@ -456,6 +456,29 @@ export function orderCategory(order: any): string | undefined {
 }
 export const orderRate = (order: any) => categoryRate(orderCategory(order));
 
+/* ---------- Caisses par site ----------
+ * Chaque site a sa propre caisse (une session ouverte au plus par site).
+ * Une caissière rattachée à un site n'opère que la caisse de son site ;
+ * le super administrateur, le DG et les utilisateurs transversaux choisissent le site (en-tête X-Cash-Site).
+ */
+const CASH_ALL_SITES_ROLES = ["super_admin", "dg"];
+export function cashSiteLocked(u?: User | null) {
+  return !!u?.site_id && !CASH_ALL_SITES_ROLES.includes(u.role_code) && !u.is_transversal;
+}
+export function sessionSiteId(s: CashSession) {
+  return s.site_id || userSite(null).id;
+}
+export function cashSiteFor(user?: User | null, requested?: any): string | null {
+  if (cashSiteLocked(user)) return userSite(user).id;
+  const r = typeof requested === "string" ? requested : "";
+  return (r && r !== "all" ? r : null) || userSite(user).id;
+}
+const requestedCashSite = (req: any) => req.body?.site_id || req.query?.site_id || req.headers?.["x-cash-site"];
+export function openSessionOf(siteId: string | null) {
+  return db.cash_sessions.find((s) => s.status === "open" && sessionSiteId(s) === siteId);
+}
+const siteNameOf = (id: string | null) => userSite({ site_id: id || undefined }).name;
+
 export function recordCashInflow(params: {
   amount: number;
   category: string;
@@ -471,11 +494,15 @@ export function recordCashInflow(params: {
   department?: string;
   currency?: "USD" | "CDF";
   exchange_rate?: number;
+  site_id?: string | null;
 }) {
-  let openSession = db.cash_sessions.find((s) => s.status === "open");
+  const siteId = params.site_id || userSite(null).id;
+  let openSession = openSessionOf(siteId);
   if (!openSession) {
     openSession = {
       id: uuidv4(),
+      site_id: siteId || undefined,
+      site_name: siteNameOf(siteId),
       opened_by: "system",
       opened_by_name: params.userName || "Système",
       opened_at: new Date().toISOString(),
@@ -856,6 +883,7 @@ apiRouter.post("/clients/:id/payments", authenticate, (req, res) => {
     billetage,
     document_url,
     document_name,
+    site_id: cashSiteFor(user, requestedCashSite(req)),
   });
 
   // Convert amount to USD for balance reduction if paid in CDF
@@ -1163,7 +1191,8 @@ apiRouter.get("/boutique/marketers", authenticate, (req, res) => {
 
 // CASH SESSIONS & OPERATIONS
 apiRouter.get("/cash/active-session", authenticate, (req, res) => {
-  const active = db.cash_sessions.find((s) => s.status === "open");
+  const user = (req as any).user as User;
+  const active = openSessionOf(cashSiteFor(user, requestedCashSite(req)));
   if (!active) return res.json({ session: null, transactions: [] });
   const ops = db.cash_operations.filter((o) => o.session_id === active.id);
 
@@ -1204,13 +1233,17 @@ apiRouter.get("/cash/active-session", authenticate, (req, res) => {
 });
 
 apiRouter.get("/cash/sessions", authenticate, (req, res) => {
-  res.json(db.cash_sessions);
+  const user = (req as any).user as User;
+  // Une caissière rattachée à un site ne voit que les sessions de sa caisse
+  const mine = cashSiteLocked(user) ? userSite(user).id : null;
+  res.json(db.cash_sessions.filter((s) => !mine || sessionSiteId(s) === mine).map((s) => ({ ...s, site_id: sessionSiteId(s), site_name: s.site_name || siteNameOf(sessionSiteId(s)) })));
 });
 
 apiRouter.post("/cash/sessions/open", authenticate, (req, res) => {
   const user = (req as any).user as User;
-  const existing = db.cash_sessions.find((s) => s.status === "open");
-  if (existing) return res.status(400).json({ detail: "Session déjà ouverte" });
+  const siteId = cashSiteFor(user, requestedCashSite(req));
+  const existing = openSessionOf(siteId);
+  if (existing) return res.status(400).json({ detail: `La caisse du site ${siteNameOf(siteId)} est déjà ouverte` });
 
   const initialUSD = Number(req.body.initial_amount_usd) || 500;
   const initialCDF = Number(req.body.initial_amount_cdf) || 250000;
@@ -1226,9 +1259,9 @@ apiRouter.post("/cash/sessions/open", authenticate, (req, res) => {
     initial_balance_cdf: initialCDF,
     exchange_rate: rate,
     department: req.body.department || "Maize Mill",
-    // La caisse est rattachée au site d'affectation de la caissière
-    site_id: userSite(user).id || undefined,
-    site_name: userSite(user).name,
+    // La caisse est rattachée à son site (site d'affectation de la caissière, ou site choisi par la direction)
+    site_id: siteId || undefined,
+    site_name: siteNameOf(siteId),
     status: "open",
   };
   db.cash_sessions.unshift(newSession);
@@ -1239,7 +1272,7 @@ apiRouter.post("/cash/sessions/open", authenticate, (req, res) => {
     actor_name: user.full_name,
     actor_email: user.email,
     action: "cash.session.open",
-    summary: `Ouverture session de caisse: Initial $${initialUSD} + ${initialCDF} FC (Taux: ${rate})`,
+    summary: `Ouverture caisse ${siteNameOf(siteId)} : Initial $${initialUSD} + ${initialCDF} FC (Taux: ${rate})`,
     success: true,
     at: new Date().toISOString(),
   });
@@ -1251,8 +1284,10 @@ apiRouter.post("/cash/sessions/:id/close", authenticate, (req, res) => {
   const user = (req as any).user as User;
   const active =
     db.cash_sessions.find((s) => s.id === req.params.id && s.status === "open") ||
-    db.cash_sessions.find((s) => s.status === "open");
+    openSessionOf(cashSiteFor(user, requestedCashSite(req)));
   if (!active) return res.status(400).json({ detail: "Aucune session ouverte à clôturer" });
+  if (cashSiteLocked(user) && sessionSiteId(active) !== userSite(user).id)
+    return res.status(403).json({ detail: "Vous ne pouvez clôturer que la caisse de votre site" });
 
   const {
     actual_usd: actualUsdIn,
@@ -1333,7 +1368,74 @@ apiRouter.post("/cash/sessions/:id/close", authenticate, (req, res) => {
 });
 
 apiRouter.get("/cash/operations", authenticate, (req, res) => {
-  res.json(db.cash_operations);
+  const user = (req as any).user as User;
+  // Chaque opération porte le site de sa caisse ; une caissière rattachée à un site ne voit que sa caisse
+  const siteOfSession = new Map(db.cash_sessions.map((s) => [s.id, sessionSiteId(s)]));
+  const mainSite = userSite(null).id;
+  const mine = cashSiteLocked(user) ? userSite(user).id : null;
+  const list = db.cash_operations.map((o) => {
+    const sid = siteOfSession.get(o.session_id) || mainSite;
+    return { ...o, site_id: sid, site_name: siteNameOf(sid) };
+  });
+  res.json(mine ? list.filter((o) => o.site_id === mine) : list);
+});
+
+// Vue générale des caisses : une ligne par site (session ouverte, caissière, solde actuel), plus le total
+apiRouter.get("/cash/overview", authenticate, (req, res) => {
+  const user = (req as any).user as User;
+  ensureStockStructure();
+  const rate = Number(db.rates_config?.general_rate) || 2500;
+  const mine = cashSiteLocked(user) ? userSite(user).id : null;
+  const allSites = ((db as any).sites || []).filter((x: any) => x.is_active !== false && (!mine || x.id === mine));
+  const rows = allSites.map((site: any) => {
+    const session = openSessionOf(site.id);
+    let usd = 0;
+    let cdf = 0;
+    let inUsd = 0;
+    let outUsd = 0;
+    if (session) {
+      usd = Number(session.initial_balance_usd ?? session.initial_balance ?? 0) || 0;
+      cdf = Number(session.initial_balance_cdf || 0) || 0;
+      for (const o of db.cash_operations.filter((x) => x.session_id === session.id)) {
+        const sign = o.type === "in" ? 1 : -1;
+        const b: any = (o as any).billetage;
+        const hasBillet = b && (Number(b.total_usd) > 0 || Number(b.total_cdf) > 0);
+        usd += sign * (hasBillet ? Number(b.total_usd) || 0 : o.currency === "USD" ? Number(o.amount) || 0 : 0);
+        cdf += sign * (hasBillet ? Number(b.total_cdf) || 0 : o.currency === "CDF" ? Number(o.amount) || 0 : 0);
+        const u = Number(o.amount_usd) || (o.currency === "USD" ? Number(o.amount) || 0 : (Number(o.amount) || 0) / (o.exchange_rate || rate));
+        if (o.type === "in") inUsd += u;
+        else outUsd += u;
+      }
+    }
+    const cashiers = db.users.filter((u) => u.is_active !== false && u.role_code === "caissier" && u.site_id === site.id).map((u) => u.full_name);
+    return {
+      site_id: site.id,
+      site_name: site.name,
+      is_open: !!session,
+      session_id: session?.id || null,
+      opened_by_name: session?.opened_by_name || null,
+      opened_at: session?.opened_at || null,
+      cashiers,
+      cash_usd: Math.round(usd * 100) / 100,
+      cash_cdf: Math.round(cdf),
+      current_usd: Math.round((usd + cdf / rate) * 100) / 100,
+      in_usd: Math.round(inUsd * 100) / 100,
+      out_usd: Math.round(outUsd * 100) / 100,
+    };
+  });
+  const sum = (k: string) => rows.reduce((t: number, r: any) => t + (Number(r[k]) || 0), 0);
+  res.json({
+    rate,
+    sites: rows,
+    total: {
+      cash_usd: Math.round(sum("cash_usd") * 100) / 100,
+      cash_cdf: Math.round(sum("cash_cdf")),
+      current_usd: Math.round(sum("current_usd") * 100) / 100,
+      in_usd: Math.round(sum("in_usd") * 100) / 100,
+      out_usd: Math.round(sum("out_usd") * 100) / 100,
+      open_count: rows.filter((r: any) => r.is_open).length,
+    },
+  });
 });
 
 // EXPENSE CATEGORIES API
@@ -1400,9 +1502,8 @@ apiRouter.post("/cash/rates", authenticate, (req, res) => {
 
   if (general_rate && Number(general_rate) > 0) {
     db.rates_config.general_rate = Number(general_rate);
-    const active = db.cash_sessions.find((s) => s.status === "open");
-    if (active) {
-      active.exchange_rate = db.rates_config.general_rate;
+    for (const open of db.cash_sessions.filter((s) => s.status === "open")) {
+      open.exchange_rate = db.rates_config.general_rate;
     }
   }
 
@@ -1484,10 +1585,13 @@ apiRouter.get("/cash/operations/:id/document", authenticate, (req, res) => {
 
 apiRouter.post("/cash/operations", authenticate, (req, res) => {
   const user = (req as any).user as User;
-  let active = db.cash_sessions.find((s) => s.status === "open");
+  const opSite = cashSiteFor(user, requestedCashSite(req));
+  let active = openSessionOf(opSite);
   if (!active) {
     active = {
       id: uuidv4(),
+      site_id: opSite || undefined,
+      site_name: siteNameOf(opSite),
       opened_by: user.id,
       opened_by_name: user.full_name,
       opened_at: new Date().toISOString(),
@@ -1708,6 +1812,7 @@ apiRouter.post("/cash/marketer-deposits/approve", authenticate, (req, res) => {
     billetage: req.body.billetage || { usd: billetUSD, cdf: billetCDF, exchange_rate: fxRate },
     department: fxCategory || department || "Maize Mill",
     exchange_rate: fxRate,
+    site_id: cashSiteFor(user, requestedCashSite(req)),
   });
 
   for (const ord of ordersToApprove) {
