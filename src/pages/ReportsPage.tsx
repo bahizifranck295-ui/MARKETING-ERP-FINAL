@@ -261,10 +261,11 @@ export default function ReportsPage() {
 
   const filteredReceivables = useMemo(() => {
     const q = search.trim().toLowerCase();
+    // Mêmes créances que le module Crédits : toutes les dettes en cours, rattachées au même site
     return receivables
-      .filter((r) => inPeriod(r.debt_date) && inSite("credits", r.id))
+      .filter((r) => selectedSite === "all" || r.site_id === selectedSite)
       .filter((r) => !q || [r.client_name, r.marketer_name, r.client_phone].some((x) => x && String(x).toLowerCase().includes(q)));
-  }, [receivables, search, period, selectedSite, siteMap]);
+  }, [receivables, search, selectedSite]);
   const receivablesTotal = filteredReceivables.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   const handleExportReceivables = async () => {
@@ -275,7 +276,7 @@ export default function ReportsPage() {
       const ok = await exportReceivablesPdf({
         rows: filteredReceivables,
         editedBy: user?.full_name || "Utilisateur",
-        filtersLabel: `${siteName} · dettes : ${periodLabel}${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`,
+        filtersLabel: `${siteName} · créances en cours${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`,
         tab,
       });
       if (!ok) closeTab(tab);
@@ -783,7 +784,7 @@ export default function ReportsPage() {
             <div className="text-2xl font-black text-amber-700 tracking-tight">
               {fmtMoney(receivablesTotal)}
             </div>
-            <div className="text-[11px] text-slate-500 font-medium">Créances clients dues · dettes {periodLabel.toLowerCase()}</div>
+            <div className="text-[11px] text-slate-500 font-medium">Créances clients en cours (module Crédits)</div>
           </div>
         </div>
 
@@ -1076,7 +1077,7 @@ export default function ReportsPage() {
             <div>
               <h3 className="text-sm font-bold text-slate-900">Rapport des créances clients</h3>
               <p className="text-[11px] text-slate-500">
-                {filteredReceivables.length} client(s) débiteur(s) · total dû {fmtMoney(receivablesTotal)}
+                {filteredReceivables.length} créance(s) · {new Set(filteredReceivables.map((r) => r.client_id || r.client_name)).size} client(s) débiteur(s) · total dû {fmtMoney(receivablesTotal)}
               </p>
             </div>
             <Button

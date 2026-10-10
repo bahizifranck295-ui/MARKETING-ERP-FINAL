@@ -1907,8 +1907,11 @@ apiRouter.get("/credits/marketers", authenticate, (req, res) => {
 });
 
 // Rapport des créances clients : une ligne par dette restante, enrichie depuis la fiche client
-apiRouter.get("/credits/receivables", authenticate, (_req, res) => {
+apiRouter.get("/credits/receivables", authenticate, (req, res) => {
+  const user = (req as any).user as User;
   db.orders.forEach(ensureCreditForOrder);
+  // Mêmes dettes et même site que le module Crédits (/credits/debts) ; limité au site d'affectation si besoin
+  const mine = cashSiteLocked(user) ? userSite(user).id : null;
   const rows = db.credits
     .map((c: any) => {
       const remaining = Number(c.remaining ?? c.balance ?? c.initial_amount ?? 0) || 0;
@@ -1927,9 +1930,10 @@ apiRouter.get("/credits/receivables", authenticate, (_req, res) => {
         client_phone: client?.phone || c.client_phone || "",
         amount: Math.round(remaining * 100) / 100,
         status: c.status,
+        ...creditSite(c),
       };
     })
-    .filter((r) => r.amount > 0 && r.status !== "cancelled")
+    .filter((r) => r.amount > 0 && r.status !== "cancelled" && (!mine || r.site_id === mine))
     .sort((a, b) => String(b.debt_date).localeCompare(String(a.debt_date)));
   res.json(rows);
 });
