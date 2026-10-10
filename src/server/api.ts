@@ -19,7 +19,7 @@ import {
   PERMISSION_CATALOG,
   ALL_PERMISSION_CODES,
 } from "./db";
-import { ensureStockStructure, mountStockStructureRoutes, userSite } from "./stockStructure";
+import { ensureStockStructure, mountStockStructureRoutes, orderLocation, userSite } from "./stockStructure";
 import { mountStockReportRoutes } from "./stockReport";
 import { applyOrderStockOut, embarkedAvailability, mountDeliveryRoutes, productStockMode, restoreOrderStock, tagOrderStockSource } from "./delivery";
 
@@ -921,7 +921,16 @@ apiRouter.get("/orders", authenticate, (req, res) => {
   const status = req.query.status as string;
   if (status && status !== "all") list = list.filter((o) => o.status === status);
   if (q) list = list.filter((o) => o.code.toLowerCase().includes(q) || o.client_name.toLowerCase().includes(q));
-  res.json(list.map((ord) => ({ ...ord, credit_check: getClientFinancialSnapshot(ord.client_id, ord.total, ord.payment_method) })));
+  // Site et dépôt de chaque commande ; un utilisateur rattaché à un site ne voit que les commandes de son site
+  // (la direction et les utilisateurs transversaux voient tous les sites)
+  const siteLocked = !!user.site_id && !["super_admin", "dg"].includes(user.role_code) && !user.is_transversal;
+  let located = list.map((ord) => ({ ...ord, ...orderLocation(ord) }));
+  if (siteLocked) located = located.filter((o) => o.site_id === user.site_id);
+  const siteQ = req.query.site_id as string;
+  const depotQ = req.query.warehouse_id as string;
+  if (siteQ && siteQ !== "all") located = located.filter((o) => o.site_id === siteQ);
+  if (depotQ && depotQ !== "all") located = located.filter((o) => o.warehouse_id === depotQ);
+  res.json(located.map((ord) => ({ ...ord, credit_check: getClientFinancialSnapshot(ord.client_id, ord.total, ord.payment_method) })));
 });
 
 apiRouter.get("/orders/:id", authenticate, (req, res) => {

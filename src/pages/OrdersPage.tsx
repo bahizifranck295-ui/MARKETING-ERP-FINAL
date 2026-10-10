@@ -56,6 +56,23 @@ export default function OrdersPage() {
     user?.role_code === "dg" ||
     user?.is_transversal;
 
+  // Tri par site et par dépôt ; un utilisateur rattaché à un site ne voit que son site
+  const ALL = "all";
+  const siteLocked = !!(user as any)?.site_id && !["super_admin", "dg"].includes(user?.role_code || "") && !(user as any)?.is_transversal;
+  const [sites, setSites] = useState<any[]>([]);
+  const [depots, setDepots] = useState<any[]>([]);
+  const [siteFilter, setSiteFilter] = useState<string>(siteLocked ? (user as any).site_id : ALL);
+  const [depotFilter, setDepotFilter] = useState<string>(ALL);
+  useEffect(() => {
+    api.get("/stock/sites").then(({ data }) => setSites(Array.isArray(data) ? data : [])).catch(() => setSites([]));
+    api.get("/stock/depots").then(({ data }) => setDepots(Array.isArray(data) ? data : [])).catch(() => setDepots([]));
+  }, []);
+  useEffect(() => {
+    if (siteLocked) setSiteFilter((user as any).site_id);
+  }, [siteLocked, (user as any)?.site_id]);
+  const visibleSites = siteLocked ? sites.filter((x) => x.id === (user as any).site_id) : sites;
+  const visibleDepots = depots.filter((d) => siteFilter === ALL || d.site_id === siteFilter);
+
   const loadOrders = async () => {
     setLoading(true);
     try {
@@ -87,11 +104,18 @@ export default function OrdersPage() {
   };
 
   const pendingCount = useMemo(() => {
-    return orders.filter((o) => o.status === "pending_approval").length;
-  }, [orders]);
+    return orders.filter(
+      (o) =>
+        o.status === "pending_approval" &&
+        (siteFilter === ALL || o.site_id === siteFilter) &&
+        (depotFilter === ALL || o.warehouse_id === depotFilter)
+    ).length;
+  }, [orders, siteFilter, depotFilter]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((ord) => {
+      if (siteFilter !== ALL && ord.site_id !== siteFilter) return false;
+      if (depotFilter !== ALL && ord.warehouse_id !== depotFilter) return false;
       const matchStatus = statusFilter === "all" || ord.status === statusFilter;
       const q = search.trim().toLowerCase();
       const matchQ =
@@ -101,7 +125,7 @@ export default function OrdersPage() {
         (ord.marketer_name && ord.marketer_name.toLowerCase().includes(q));
       return matchStatus && matchQ;
     });
-  }, [orders, statusFilter, search]);
+  }, [orders, statusFilter, search, siteFilter, depotFilter]);
 
   const handleApprove = async (id: string, overrideCreditLimit = false) => {
     setBusyId(id);
@@ -151,14 +175,38 @@ export default function OrdersPage() {
         title="Gestion des Commandes"
         subtitle="Validation, suivi des ventes terrain et historique des expéditions"
         right={
-          <Button
-            size="sm"
-            onClick={loadOrders}
-            variant="outline"
-            className="rounded-xl border-slate-200"
-          >
-            Actualiser
-          </Button>
+          <div className="flex flex-wrap items-center gap-2" data-orders-scope>
+            <select
+              aria-label="Site"
+              value={siteFilter}
+              disabled={siteLocked}
+              onChange={(e) => {
+                setSiteFilter(e.target.value);
+                setDepotFilter(ALL);
+              }}
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 disabled:bg-slate-50 disabled:text-slate-500"
+            >
+              {!siteLocked && <option value={ALL}>Tous les sites</option>}
+              {visibleSites.map((x) => (
+                <option key={x.id} value={x.id} data-no-translate>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Dépôt"
+              value={depotFilter}
+              onChange={(e) => setDepotFilter(e.target.value)}
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
+            >
+              <option value={ALL}>Tous les dépôts</option>
+              {visibleDepots.map((d) => (
+                <option key={d.id} value={d.id} data-no-translate>
+                  {siteFilter === ALL ? d.label || d.name : d.name}
+                </option>
+              ))}
+            </select>
+          </div>
         }
       />
 

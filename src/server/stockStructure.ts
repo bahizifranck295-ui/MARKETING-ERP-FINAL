@@ -251,6 +251,34 @@ function parseCapacity(v: any): number | undefined | "invalid" {
 }
 
 /** Site d'affectation d'un utilisateur : site choisi dans Utilisateurs, sinon site de son dépôt, sinon site principal. */
+/**
+ * Site et dépôt d'une commande : dépôt d'où la marchandise est sortie (après approbation),
+ * sinon dépôt du marketeur, sinon dépôt du produit ; le site est celui de ce dépôt
+ * (ou le site d'affectation du marketeur, sinon le site principal) — même règle que /reports/site-map.
+ */
+export function orderLocation(o: any): { site_id: string | null; site_name: string; warehouse_id: string | null; warehouse_name: string } {
+  ensureStockStructure();
+  const wh = (id?: string) => (id ? db.warehouses.find((w) => w.id === id) : undefined);
+  const marketer = db.users.find((u) => u.id === o.marketer_id);
+  const prod = db.products.find((p) => p.id === o.items?.[0]?.product_id);
+  const ledgerDepot = (o.stock_ledger || []).find((e: any) => e.kind === "depot")?.warehouse_id;
+  const depot = wh(ledgerDepot) || wh(marketer?.warehouse_id) || wh(prod?.warehouse_id);
+  const all = sites();
+  const main = all.find((s) => s.is_active !== false) || all[0];
+  const siteId =
+    (ledgerDepot && wh(ledgerDepot)?.site_id) ||
+    (marketer?.site_id && all.some((s) => s.id === marketer.site_id) ? marketer.site_id : undefined) ||
+    depot?.site_id ||
+    main?.id ||
+    null;
+  return {
+    site_id: siteId,
+    site_name: all.find((s) => s.id === siteId)?.name || "Site principal",
+    warehouse_id: depot?.id || null,
+    warehouse_name: depot?.name || "",
+  };
+}
+
 export function userSite(u?: { site_id?: string; warehouse_id?: string } | null): { id: string | null; name: string } {
   ensureStockStructure();
   const all = sites();
