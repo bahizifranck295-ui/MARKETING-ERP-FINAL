@@ -1,13 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
-  Boxes,
   ChevronDown,
   Database,
   LineChart,
-  MapPin,
   PieChart,
-  Shapes,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
 import { fmtMoney } from "@/components/erp-ui";
@@ -23,7 +19,6 @@ import {
   computeEvolution,
   costOf,
   stockOf,
-  thresholdOf,
 } from "@/components/stock/stockCharts";
 
 /*
@@ -175,15 +170,10 @@ export default function StockReportDashboard({ products, orders, search, siteKey
   const inCategory = useMemo(() => scoped.filter((p) => category === ALL || categoryOf(p) === category), [scoped, category]);
 
   const totalValue = inCategory.reduce((s, p) => s + stockOf(p) * costOf(p), 0);
-  const totalUnits = inCategory.reduce((s, p) => s + stockOf(p), 0);
-  // La rupture (stock à zéro) fait partie du « Stock faible »
-  const lowCount = inCategory.filter((p) => stockOf(p) <= thresholdOf(p)).length;
   // Sites et dépôts qui détiennent du stock des produits affichés
   const inCatIds = useMemo(() => new Set(inCategory.map((p) => p.id)), [inCategory]);
   const heldEntries = useMemo(() => entries.filter((e) => inCatIds.has(e.p.id) && e.qty > 0), [entries, inCatIds]);
-  const siteCount = new Set(heldEntries.map((e) => e.w.site_id)).size;
   const depotCount = new Set(heldEntries.map((e) => e.w.id)).size;
-  const catCount = new Set(inCategory.map(categoryOf)).size;
 
   const bySite = useMemo(() => {
     const m = new Map<string, { value: number; depots: Set<string> }>();
@@ -246,13 +236,9 @@ export default function StockReportDashboard({ products, orders, search, siteKey
       </div>
 
       {/* Indicateurs */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-        <Kpi icon={Boxes} tone="bg-blue-600" label="Total produits" value={inCategory.length.toLocaleString("fr-FR")} hint={`${totalUnits.toLocaleString("fr-FR")} unités en stock`} />
-        <Kpi icon={Shapes} tone="bg-violet-600" label="Catégories" value={catCount} hint="Catégories différentes" />
-        <Kpi icon={MapPin} tone="bg-emerald-600" label="Sites" value={siteCount} hint="Sites actifs" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Kpi icon={WarehouseIcon} tone="bg-teal-600" label="Dépôts" value={depotCount} hint="Dépôts au total" />
         <Kpi icon={Database} tone="bg-[#0F3D68]" label="Valeur totale du stock" value={fmtMoney(totalValue)} hint="Au prix de revient" />
-        <Kpi icon={AlertTriangle} tone="bg-amber-500" label="Stock faible" value={lowCount} hint="Sous le seuil minimum" />
       </div>
 
       {/* Graphiques */}
