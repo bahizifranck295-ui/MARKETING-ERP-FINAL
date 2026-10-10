@@ -53,6 +53,8 @@ export default function ReportsPage() {
   const [receivables, setReceivables] = useState<any[]>([]);
   const [exportingReceivables, setExportingReceivables] = useState(false);
   const [exportingCash, setExportingCash] = useState(false);
+  // Journal des mouvements : tous, seulement les entrées ou seulement les sorties (affichage et export)
+  const [cashFlow, setCashFlow] = useState<"all" | "in" | "out">("all");
   // Barre de tri de l'état des stocks (site, dépôt, catégorie), appliquée aussi à l'historique des rapports
   const [stockFilters, setStockFilters] = useState<{ site: string; depot: string; category: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -179,6 +181,7 @@ export default function ReportsPage() {
       ),
     [cashSessions, period, selectedSite, siteMap]
   );
+  const journalOps = useMemo(() => (cashFlow === "all" ? filteredCashOps : filteredCashOps.filter((op) => op.type === cashFlow)), [filteredCashOps, cashFlow]);
   const periodCashInUSD = filteredCashOps.filter((c) => c.type === "in").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
   const periodCashOutUSD = filteredCashOps.filter((c) => c.type === "out").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
 
@@ -232,7 +235,7 @@ export default function ReportsPage() {
   // Export PDF du sous-module affiché du Livre de Caisse (mêmes lignes et colonnes que le tableau)
   const handleExportCash = async () => {
     const closings = cashSubTab === "closings";
-    const tab = openPendingTab(closings ? "Clôtures & Billetages" : "Journal des mouvements de caisse");
+    const tab = openPendingTab(closings ? "Clôtures & Billetages" : cashFlow === "in" ? "Entrées de caisse" : cashFlow === "out" ? "Sorties de caisse" : "Journal des mouvements de caisse");
     setExportingCash(true);
     const RED: [number, number, number] = [190, 18, 60];
     const GREEN: [number, number, number] = [4, 120, 87];
@@ -292,7 +295,7 @@ export default function ReportsPage() {
       } else {
         let inUsd = 0;
         let outUsd = 0;
-        const rows = filteredCashOps.map((op) => {
+        const rows = journalOps.map((op) => {
           const isIn = op.type === "in";
           const usd = Number(op.amount_usd || (op.currency === "USD" ? op.amount : op.amount / 2500)) || 0;
           const cdf = Number(op.amount_cdf || (op.currency === "CDF" ? op.amount : op.amount * 2500)) || 0;
@@ -310,8 +313,8 @@ export default function ReportsPage() {
           ];
         });
         ok = await exportTablePdf({
-          title: "JOURNAL DES MOUVEMENTS DE CAISSE",
-          fileName: `Journal_Mouvements_Caisse_PREMIDIS_${stamp}.pdf`,
+          title: cashFlow === "in" ? "JOURNAL DES ENTRÉES DE CAISSE" : cashFlow === "out" ? "JOURNAL DES SORTIES DE CAISSE" : "JOURNAL DES MOUVEMENTS DE CAISSE",
+          fileName: `Journal_${cashFlow === "in" ? "Entrees" : cashFlow === "out" ? "Sorties" : "Mouvements"}_Caisse_PREMIDIS_${stamp}.pdf`,
           columns: [
             { label: "Réf", weight: 1.1, bold: true },
             { label: "Date", weight: 1.1 },
@@ -325,13 +328,18 @@ export default function ReportsPage() {
           rows,
           editedBy: user?.full_name || "Utilisateur",
           filtersLabel,
-          countLabel: "Mouvements",
-          totals: [
-            { label: "TOTAL ENTRÉES :", value: fmtMoney(inUsd, "USD") },
-            { label: "TOTAL SORTIES :", value: fmtMoney(outUsd, "USD") },
-            { label: "SOLDE DE LA PÉRIODE :", value: fmtMoney(inUsd - outUsd, "USD") },
-          ],
-          emptyLabel: "Aucun mouvement de caisse pour ce filtre.",
+          countLabel: cashFlow === "in" ? "Entrées" : cashFlow === "out" ? "Sorties" : "Mouvements",
+          totals:
+            cashFlow === "in"
+              ? [{ label: "TOTAL ENTRÉES :", value: fmtMoney(inUsd, "USD") }]
+              : cashFlow === "out"
+              ? [{ label: "TOTAL SORTIES :", value: fmtMoney(outUsd, "USD") }]
+              : [
+                  { label: "TOTAL ENTRÉES :", value: fmtMoney(inUsd, "USD") },
+                  { label: "TOTAL SORTIES :", value: fmtMoney(outUsd, "USD") },
+                  { label: "SOLDE DE LA PÉRIODE :", value: fmtMoney(inUsd - outUsd, "USD") },
+                ],
+          emptyLabel: cashFlow === "in" ? "Aucune entrée de caisse pour ce filtre." : cashFlow === "out" ? "Aucune sortie de caisse pour ce filtre." : "Aucun mouvement de caisse pour ce filtre.",
           tab,
         });
       }
@@ -901,6 +909,33 @@ export default function ReportsPage() {
               </button>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-3">
+              {cashSubTab === "operations" && (
+                <div role="group" aria-label="Entrées / sorties" className="inline-flex rounded-xl bg-slate-100 p-1">
+                  {([
+                    ["all", "Tous"],
+                    ["in", "Entrées"],
+                    ["out", "Sorties"],
+                  ] as const).map(([v, l]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setCashFlow(v)}
+                      aria-pressed={cashFlow === v}
+                      className={`rounded-lg px-3 py-1 text-xs font-bold transition ${
+                        cashFlow === v
+                          ? v === "in"
+                            ? "bg-emerald-600 text-white shadow-xs"
+                            : v === "out"
+                            ? "bg-red-600 text-white shadow-xs"
+                            : "bg-[#0F3D68] text-white shadow-xs"
+                          : "text-slate-600 hover:bg-white"
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="text-xs text-slate-500 font-medium">
                 Solde Actuel : <strong className="text-emerald-700">{fmtMoney(currentCashUSD, "USD")}</strong> | <strong className="text-blue-700">{fmtMoney(currentCashCDF, "CDF")}</strong>
               </div>
@@ -988,7 +1023,7 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredCashOps.map((op) => {
+                    {journalOps.map((op) => {
                       const isIn = op.type === "in";
                       return (
                         <tr key={op.id} className="hover:bg-slate-50/80 transition-colors">
