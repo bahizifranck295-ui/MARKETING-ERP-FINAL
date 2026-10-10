@@ -18,6 +18,9 @@ import {
   Coins,
   AlertCircle,
   Eye,
+  Layers,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { PageHeader, fmtMoney, fmtDate } from "@/components/erp-ui";
@@ -130,14 +133,40 @@ export default function ReportsPage() {
     if (period === "month") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     return d.getFullYear() === now.getFullYear();
   };
+  // Période précédente de même nature (hier, semaine / mois / année précédents) pour les variations des indicateurs
+  const inPrevPeriod = (dateStr?: string) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+    if (period === "day") {
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      start = new Date(end);
+      start.setDate(start.getDate() - 1);
+    } else if (period === "week") {
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      end.setDate(end.getDate() - ((end.getDay() + 6) % 7));
+      start = new Date(end);
+      start.setDate(start.getDate() - 7);
+    } else if (period === "month") {
+      end = new Date(now.getFullYear(), now.getMonth(), 1);
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    } else {
+      end = new Date(now.getFullYear(), 0, 1);
+      start = new Date(now.getFullYear() - 1, 0, 1);
+    }
+    return d >= start && d < end;
+  };
+  const prevPeriodLabel = ({ day: "vs hier", week: "vs semaine précédente", month: "vs mois précédent", year: "vs année précédente" } as Record<string, string>)[period] || "vs période précédente";
   const periodLabel = ({ day: "Aujourd'hui", week: "Cette semaine", month: "Ce mois", year: "Cette année" } as Record<string, string>)[period] || period;
 
   const inSite = (kind: "orders" | "cash" | "credits", id: string) =>
     selectedSite === "all" || !siteMap || siteMap[kind]?.[id] === selectedSite;
   const siteName = selectedSite === "all" ? "Tous les sites" : siteMap?.sites?.find((x: any) => x.id === selectedSite)?.name || "Site";
 
-  const filteredOrders = useMemo(() => {
-    let list = orders.filter((o) => o.status !== "cancelled" && inPeriod(o.approved_at || o.created_at) && inSite("orders", o.id));
+  const selectOrders = (inRange: (d?: string) => boolean) => {
+    let list = orders.filter((o) => o.status !== "cancelled" && inRange(o.approved_at || o.created_at) && inSite("orders", o.id));
     if (selectedBU !== "all") {
       list = list.filter(
         (o) =>
@@ -155,10 +184,12 @@ export default function ReportsPage() {
       );
     }
     return list;
-  }, [orders, selectedBU, search, period, selectedSite, siteMap]);
+  };
+  const filteredOrders = useMemo(() => selectOrders(inPeriod), [orders, selectedBU, search, period, selectedSite, siteMap]);
+  const prevOrders = useMemo(() => selectOrders(inPrevPeriod), [orders, selectedBU, search, period, selectedSite, siteMap]);
 
-  const filteredCashOps = useMemo(() => {
-    let list = cashOps.filter((op) => inPeriod(op.created_at) && inSite("cash", op.id));
+  const selectCashOps = (inRange: (d?: string) => boolean) => {
+    let list = cashOps.filter((op) => inRange(op.created_at) && inSite("cash", op.id));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
@@ -170,7 +201,9 @@ export default function ReportsPage() {
       );
     }
     return list;
-  }, [cashOps, search, period, selectedSite, siteMap]);
+  };
+  const filteredCashOps = useMemo(() => selectCashOps(inPeriod), [cashOps, search, period, selectedSite, siteMap]);
+  const prevCashOps = useMemo(() => selectCashOps(inPrevPeriod), [cashOps, search, period, selectedSite, siteMap]);
   // Une clôture de caisse appartient au site d'affectation de la caissière
   const periodSessions = useMemo(
     () =>
@@ -182,6 +215,27 @@ export default function ReportsPage() {
   const journalOps = useMemo(() => (cashFlow === "all" ? filteredCashOps : filteredCashOps.filter((op) => op.type === cashFlow)), [filteredCashOps, cashFlow]);
   const periodCashInUSD = filteredCashOps.filter((c) => c.type === "in").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
   const periodCashOutUSD = filteredCashOps.filter((c) => c.type === "out").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
+  // Indicateurs de la vue d'ensemble : chiffre d'affaires, bénéfice brut (prix de vente − prix de revient),
+  // dépenses de caisse (sorties) et bénéfice net réel (bénéfice brut − dépenses de caisse)
+  const opUsd = (c: any) => c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500));
+  const costById = useMemo(() => new Map(products.map((p) => [p.id, Number(p.cost_price) || 0])), [products]);
+  const grossOf = (list: any[]) =>
+    list.reduce(
+      (s, o) => s + (o.items || []).reduce((t: number, it: any) => t + (Number(it.quantity) || 0) * ((Number(it.unit_price) || 0) - (costById.get(it.product_id) || 0)), 0),
+      0
+    );
+  const kpiCur = useMemo(() => {
+    const sales = filteredOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const gross = grossOf(filteredOrders);
+    const expenses = filteredCashOps.filter((c) => c.type === "out").reduce((s, c) => s + opUsd(c), 0);
+    return { sales, gross, expenses, net: gross - expenses };
+  }, [filteredOrders, filteredCashOps, costById]);
+  const kpiPrev = useMemo(() => {
+    const sales = prevOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const gross = grossOf(prevOrders);
+    const expenses = prevCashOps.filter((c) => c.type === "out").reduce((s, c) => s + opUsd(c), 0);
+    return { sales, gross, expenses, net: gross - expenses };
+  }, [prevOrders, prevCashOps, costById]);
 
   const filteredCredits = useMemo(() => {
     let list = [...credits];
@@ -619,75 +673,53 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* 4 MAIN METRIC CARDS */}
+      {/* 4 MAIN METRIC CARDS : chiffre d'affaires, bénéfice brut, dépenses de caisse, bénéfice net réel */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white p-4 shadow-xs space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-              <ShoppingCart className="h-4 w-4 text-emerald-600" /> VENTES
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-              {filteredOrders.length} Cmds
-            </span>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-emerald-700 tracking-tight">
-              {fmtMoney(totalSales)}
+        {([
+          { key: "sales", label: "Chiffre d'affaires (ventes)", icon: ShoppingCart, tone: "emerald", badge: `${filteredOrders.length} Cmds`, sub: null, goodUp: true },
+          { key: "gross", label: "Bénéfice brut", icon: Layers, tone: "blue", badge: null, sub: "Ventes − prix de revient", goodUp: true },
+          { key: "expenses", label: "Dépenses de caisse", icon: Wallet, tone: "amber", badge: null, sub: "Sorties de caisse de la période", goodUp: false },
+          { key: "net", label: "Bénéfice net réel", icon: TrendingUp, tone: "purple", badge: null, sub: "Bénéfice brut − dépenses de caisse", goodUp: true },
+        ] as const).map((k) => {
+          const Icon = k.icon;
+          const cur = kpiCur[k.key];
+          const prev = kpiPrev[k.key];
+          const pct = Math.abs(prev) > 0.004 ? ((cur - prev) / Math.abs(prev)) * 100 : null;
+          const up = pct !== null && pct >= 0;
+          const good = pct === null ? null : up === k.goodUp;
+          const tones = {
+            emerald: ["border-emerald-200 from-emerald-50/80", "text-emerald-800", "text-emerald-600", "text-emerald-700", "bg-emerald-100 text-emerald-800"],
+            blue: ["border-blue-200 from-blue-50/80", "text-blue-800", "text-blue-600", "text-blue-700", "bg-blue-100 text-blue-800"],
+            amber: ["border-amber-200 from-amber-50/80", "text-amber-800", "text-amber-600", "text-amber-700", "bg-amber-100 text-amber-800"],
+            purple: ["border-purple-200 from-purple-50/80", "text-purple-800", "text-purple-600", "text-purple-700", "bg-purple-100 text-purple-800"],
+          }[k.tone];
+          return (
+            <div key={k.key} data-kpi={k.key} className={`rounded-2xl border bg-gradient-to-br to-white p-4 shadow-xs space-y-3 ${tones[0]}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${tones[1]}`}>
+                  <Icon className={`h-4 w-4 ${tones[2]}`} /> {k.label}
+                </span>
+                {k.badge && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${tones[4]}`}>{k.badge}</span>}
+              </div>
+              <div>
+                <div className={`text-2xl font-black tracking-tight ${cur < 0 ? "text-red-600" : tones[3]}`}>{fmtMoney(cur)}</div>
+                {k.sub && <div className="text-[11px] text-slate-500 font-medium">{k.sub}</div>}
+                <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                  {pct === null ? (
+                    <span className="font-semibold text-slate-400">—</span>
+                  ) : (
+                    <span className={`inline-flex items-center gap-0.5 font-bold ${good ? "text-emerald-700" : "text-red-600"}`}>
+                      {up ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                      {up ? "+" : "−"}
+                      {Math.abs(pct).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%
+                    </span>
+                  )}
+                  <span>{prevPeriodLabel}</span>
+                </div>
+              </div>
             </div>
-            <div className="text-[11px] text-slate-500 font-medium">Chiffre d'affaires total</div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/80 to-white p-4 shadow-xs space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-blue-800 flex items-center gap-1.5">
-              <Wallet className="h-4 w-4 text-blue-600" /> CAISSE DISPONIBLE
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-              USD & CDF
-            </span>
-          </div>
-          <div>
-            <div className="text-xl font-black text-blue-700 tracking-tight">
-              {fmtMoney(currentCashUSD, "USD")}
-            </div>
-            <div className="text-sm font-bold text-slate-800 mt-0.5">
-              {fmtMoney(currentCashCDF, "CDF")}
-            </div>
-            <div className="text-[11px] text-slate-500 font-medium">
-              {periodLabel} : <span className="text-emerald-700 font-semibold">+{fmtMoney(periodCashInUSD)}</span> ·{" "}
-              <span className="text-red-600 font-semibold">−{fmtMoney(periodCashOutUSD)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/80 to-white p-4 shadow-xs space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
-              <Users className="h-4 w-4 text-amber-600" /> CRÉANCES
-            </span>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-amber-700 tracking-tight">
-              {fmtMoney(receivablesTotal)}
-            </div>
-            <div className="text-[11px] text-slate-500 font-medium">Créances clients dues · dettes {periodLabel.toLowerCase()}</div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50/80 to-white p-4 shadow-xs space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-purple-800 flex items-center gap-1.5">
-              <Package className="h-4 w-4 text-purple-600" /> STOCK
-            </span>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-purple-700 tracking-tight">
-              {fmtMoney(selectedSite === "all" || !siteMap ? totalStockValue : siteMap.stock_value?.[selectedSite] || 0)}
-            </div>
-            <div className="text-[11px] text-slate-500 font-medium">Valeur marchande du stock</div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* Tabs */}
