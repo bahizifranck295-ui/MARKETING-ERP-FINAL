@@ -53,6 +53,9 @@ export default function ObjectivesPage() {
   const [formBonusAmount, setFormBonusAmount] = useState(50);
   const [formBonusQty, setFormBonusQty] = useState(2);
   const [formBonusUnit, setFormBonusUnit] = useState("USD");
+  // Prime en nature : cartons d'un produit de la Business Unit (catégorie) choisie
+  const [products, setProducts] = useState<any[]>([]);
+  const [formBonusProductId, setFormBonusProductId] = useState("");
   const [selectedBeneficiaryIds, setSelectedBeneficiaryIds] = useState<string[]>([
     "usr_nathalie_m",
     "usr_patrick_k",
@@ -84,10 +87,24 @@ export default function ObjectivesPage() {
         setFormBU((cur) => (cur && names.includes(cur) ? cur : names[0] || ""));
       })
       .catch(() => setCategories([]));
+    api
+      .get("/products")
+      .then(({ data }) => setProducts(Array.isArray(data) ? data.filter((p: any) => p.is_active !== false) : []))
+      .catch(() => setProducts([]));
   }, []);
+
+  const buProducts = products.filter((p) => (p.category || "").trim().toLowerCase() === formBU.trim().toLowerCase());
+  useEffect(() => {
+    if (!buProducts.some((p) => p.id === formBonusProductId)) setFormBonusProductId(buProducts[0]?.id || "");
+  }, [formBU, products]);
+  const bonusProduct = buProducts.find((p) => p.id === formBonusProductId);
 
   const handleCreateObjective = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formBonusType === "nature" && (!bonusProduct || !(formBonusQty > 0))) {
+      toast.error("Choisissez le produit et le nombre de cartons de la prime en nature");
+      return;
+    }
     setSaving(true);
     try {
       const beneficiaries = availableUsers
@@ -99,7 +116,9 @@ export default function ObjectivesPage() {
           bonus_type: formBonusType,
           bonus_amount: formBonusType === "money" ? formBonusAmount : 0,
           bonus_qty: formBonusType === "nature" ? formBonusQty : 0,
-          bonus_unit: formBonusType === "money" ? "USD" : formBonusUnit,
+          bonus_unit: formBonusType === "money" ? "USD" : "cartons",
+          bonus_product_id: formBonusType === "nature" ? bonusProduct?.id : undefined,
+          bonus_product_name: formBonusType === "nature" ? bonusProduct?.name : undefined,
           status: "pending",
         }));
 
@@ -113,7 +132,9 @@ export default function ObjectivesPage() {
         bonus_type: formBonusType,
         bonus_amount: formBonusType === "money" ? formBonusAmount : 0,
         bonus_qty: formBonusType === "nature" ? formBonusQty : 0,
-        bonus_unit: formBonusType === "money" ? "USD" : formBonusUnit,
+        bonus_unit: formBonusType === "money" ? "USD" : "cartons",
+        bonus_product_id: formBonusType === "nature" ? bonusProduct?.id : undefined,
+        bonus_product_name: formBonusType === "nature" ? bonusProduct?.name : undefined,
         period_start: new Date().toISOString(),
         period_end: new Date(Date.now() + 86400000 * 30).toISOString(),
         beneficiaries,
@@ -161,13 +182,13 @@ export default function ObjectivesPage() {
     const beneficiaries = obj.beneficiaries || [];
     const totalBeneficiaries = beneficiaries.length;
     const paidBeneficiaries = beneficiaries.filter((b: any) => b.status === "paid").length;
-    const totalPrimePrevue = beneficiaries.reduce(
-      (sum: number, b: any) => sum + (b.bonus_amount || obj.bonus_amount || 0),
-      0
-    );
+    // Prime en argent : montants USD ; prime en nature : nombre de cartons
+    const primeOf = (b: any) =>
+      obj.bonus_type === "money" ? b.bonus_amount || obj.bonus_amount || 0 : b.bonus_qty || obj.bonus_qty || 0;
+    const totalPrimePrevue = beneficiaries.reduce((sum: number, b: any) => sum + primeOf(b), 0);
     const primePayee = beneficiaries
       .filter((b: any) => b.status === "paid")
-      .reduce((sum: number, b: any) => sum + (b.bonus_amount || obj.bonus_amount || 0), 0);
+      .reduce((sum: number, b: any) => sum + primeOf(b), 0);
     const primeRestante = totalPrimePrevue - primePayee;
 
     return (
@@ -214,6 +235,7 @@ export default function ObjectivesPage() {
           <StatCard
             label="Prime Totale Prévue"
             value={obj.bonus_type === "money" ? fmtMoney(totalPrimePrevue) : `${totalPrimePrevue} ${obj.bonus_unit}`}
+            sub={obj.bonus_type === "nature" && obj.bonus_product_name ? obj.bonus_product_name : undefined}
             tone="blue"
           />
           <StatCard
@@ -256,7 +278,7 @@ export default function ObjectivesPage() {
                       <td className="p-3.5 text-right font-black">
                         {b.bonus_type === "money"
                           ? fmtMoney(b.bonus_amount || obj.bonus_amount || 0)
-                          : `${b.bonus_qty || obj.bonus_qty} ${b.bonus_unit || obj.bonus_unit}`}
+                          : `${b.bonus_qty || obj.bonus_qty} ${b.bonus_unit || obj.bonus_unit}${(b.bonus_product_name || obj.bonus_product_name) ? ` · ${b.bonus_product_name || obj.bonus_product_name}` : ""}`}
                       </td>
                       <td className="p-3.5 text-center">
                         <span
@@ -464,6 +486,73 @@ export default function ObjectivesPage() {
                     className="mt-1 h-9 rounded-lg"
                   />
                 </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3" data-bonus-section>
+                <Label className="text-xs font-semibold">Prime des bénéficiaires *</Label>
+                <div role="group" aria-label="Type de prime" className="grid grid-cols-2 gap-2">
+                  {([
+                    ["money", "Prime en argent (USD)"],
+                    ["nature", "Prime en nature (cartons)"],
+                  ] as const).map(([v, l]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={formBonusType === v}
+                      onClick={() => setFormBonusType(v)}
+                      className={`h-9 rounded-lg border text-xs font-bold transition ${
+                        formBonusType === v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                {formBonusType === "money" ? (
+                  <div>
+                    <Label className="text-xs font-semibold">Montant par bénéficiaire (USD) *</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={formBonusAmount}
+                      onChange={(e) => setFormBonusAmount(Number(e.target.value))}
+                      required
+                      className="mt-1 h-9 rounded-lg font-bold"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-semibold">Produit offert ({formBU || "Business Unit"}) *</Label>
+                      <select
+                        value={formBonusProductId}
+                        onChange={(e) => setFormBonusProductId(e.target.value)}
+                        required
+                        data-no-translate
+                        className="w-full mt-1 h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold"
+                      >
+                        {!buProducts.length && <option value="">Aucun produit dans cette catégorie</option>}
+                        {buProducts.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">Cartons par bénéficiaire *</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={formBonusQty}
+                        onChange={(e) => setFormBonusQty(Number(e.target.value))}
+                        required
+                        className="mt-1 h-9 rounded-lg font-bold"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               <DialogFooter className="gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>

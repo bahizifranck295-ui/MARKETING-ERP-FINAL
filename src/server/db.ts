@@ -407,6 +407,9 @@ export interface ObjectiveBeneficiary {
   bonus_amount: number;
   bonus_qty: number;
   bonus_unit: string;
+  /** Prime en nature : produit offert (cartons) de la Business Unit */
+  bonus_product_id?: string;
+  bonus_product_name?: string;
   status: "pending" | "paid";
   paid_at?: string;
   paid_by?: string;
@@ -430,6 +433,8 @@ export interface Objective {
   bonus_amount?: number;
   bonus_qty?: number;
   bonus_unit?: string;
+  bonus_product_id?: string;
+  bonus_product_name?: string;
   beneficiaries?: ObjectiveBeneficiary[];
   period?: string;
   period_start?: string;
