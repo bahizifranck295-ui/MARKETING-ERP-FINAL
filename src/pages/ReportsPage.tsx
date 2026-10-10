@@ -1061,7 +1061,7 @@ export default function ReportsPage() {
           )}
         </div>
       ) : activeTab === "stock" ? (
-        <StockReportDashboard products={products} orders={orders} search={search} />
+        <StockReportDashboard products={products} orders={orders} search={search} siteKey={selectedSite} />
       ) : activeTab === "sales" ? (
         <SalesSheets search={search} period={period} includeOrder={(o: any) => inSite("orders", o.id)} siteKey={selectedSite} siteLabel={siteName} />
       ) : activeTab === "credits" ? (

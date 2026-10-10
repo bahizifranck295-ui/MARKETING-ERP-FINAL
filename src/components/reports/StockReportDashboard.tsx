@@ -45,6 +45,8 @@ type Props = {
   products: any[];
   orders: any[];
   search: string;
+  /** Site choisi dans l'en-tête des Rapports ("all" = tous) */
+  siteKey?: string;
 };
 
 // Ordre fixe des couleurs de catégories (validé daltonisme, voir legend)
@@ -126,39 +128,65 @@ function ProductThumb({ product }: { product: any }) {
 
 /* ---------- Tableau de bord ---------- */
 
-export default function StockReportDashboard({ products, orders, search }: Props) {
+export default function StockReportDashboard({ products, orders, search, siteKey }: Props) {
   const navigate = useNavigate();
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  // Structure réelle du stock : sites, dépôts et quantités par dépôt
+  const [sites, setSites] = useState<any[]>([]);
+  const [depots, setDepots] = useState<any[]>([]);
+  const [levels, setLevels] = useState<any[]>([]);
   useEffect(() => {
-    api
-      .get("/warehouses")
-      .then(({ data }) => setWarehouses(Array.isArray(data) ? data : []))
-      .catch(() => setWarehouses([]));
-  }, []);
-  const [site, setSite] = useState(ALL);
+    Promise.all([api.get("/stock/sites"), api.get("/stock/depots"), api.get("/stock/levels")])
+      .then(([s, d, l]) => {
+        setSites(Array.isArray(s.data) ? s.data : []);
+        setDepots(Array.isArray(d.data) ? d.data : []);
+        setLevels(Array.isArray(l.data) ? l.data : []);
+      })
+      .catch(() => {
+        setSites([]);
+        setDepots([]);
+        setLevels([]);
+      });
+  }, [products]);
+  const [site, setSite] = useState(siteKey && siteKey !== ALL ? siteKey : ALL);
   const [depot, setDepot] = useState(ALL);
+  // Le filtre « Site » de l'en-tête des Rapports s'applique aussi à l'état des stocks
+  useEffect(() => {
+    if (siteKey === undefined) return;
+    setSite(siteKey || ALL);
+    setDepot(ALL);
+  }, [siteKey]);
   const [category, setCategory] = useState(ALL);
   const [tableSearch, setTableSearch] = useState("");
   const [catSearch, setCatSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  const whById = useMemo(() => {
-    const m = new Map<string, any>();
-    warehouses.forEach((w) => m.set(w.id, w));
-    return m;
-  }, [warehouses]);
-
-  const siteOf = (p: any) => {
-    const w = whById.get(p.warehouse_id);
-    return ((w?.city || "").split(",")[0] || "").trim() || "Non affecté";
-  };
-  const depotOf = (p: any) => whById.get(p.warehouse_id)?.name || "Non affecté";
-
-  const allSites = useMemo(() => Array.from(new Set(products.map(siteOf))).sort(), [products, whById]);
+  const siteName = (id?: string) => sites.find((x) => x.id === id)?.name || "Sans site";
+  const allSites = useMemo(() => sites.map((x) => ({ value: x.id, label: x.name })), [sites]);
   const allDepots = useMemo(
-    () => Array.from(new Set(products.filter((p) => site === ALL || siteOf(p) === site).map(depotOf))).sort(),
-    [products, whById, site]
+    () => depots.filter((w) => site === ALL || w.site_id === site).map((w) => ({ value: w.id, label: w.name })),
+    [depots, site]
   );
+  const isGlobal = site === ALL && depot === ALL;
+  // Dépôts concernés par les filtres Site / Dépôt
+  const scopeDepots = useMemo(
+    () => depots.filter((w) => (site === ALL || w.site_id === site) && (depot === ALL || w.id === depot)),
+    [depots, site, depot]
+  );
+  // Lignes (produit, dépôt, quantité) dans le périmètre
+  const entries = useMemo(() => {
+    const ids = new Set(scopeDepots.map((w) => w.id));
+    const byId = new Map(products.map((p) => [p.id, p]));
+    return levels
+      .filter((l) => ids.has(l.warehouse_id) && byId.has(l.product_id))
+      .map((l) => ({ p: byId.get(l.product_id), w: scopeDepots.find((w) => w.id === l.warehouse_id), qty: Number(l.quantity) || 0 }));
+  }, [levels, scopeDepots, products]);
+  // Produits du périmètre, avec la quantité du site / dépôt choisi (vue globale : stock total, camions compris)
+  const scopedProducts = useMemo(() => {
+    if (isGlobal || !depots.length) return products;
+    const qty = new Map<string, number>();
+    entries.forEach((e) => qty.set(e.p.id, (qty.get(e.p.id) || 0) + e.qty));
+    return products.filter((p) => qty.has(p.id)).map((p) => ({ ...p, stock: qty.get(p.id) || 0 }));
+  }, [products, entries, isGlobal, depots.length]);
   const allCategories = useMemo(() => Array.from(new Set(products.map(categoryOf))).sort(), [products]);
 
   // Couleur fixée par catégorie (ne change pas quand on filtre)
@@ -182,13 +210,10 @@ export default function StockReportDashboard({ products, orders, search }: Props
 
   const scoped = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return products.filter(
-      (p) =>
-        (site === ALL || siteOf(p) === site) &&
-        (depot === ALL || depotOf(p) === depot) &&
-        (!q || p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q) || categoryOf(p).toLowerCase().includes(q))
+    return scopedProducts.filter(
+      (p) => !q || p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q) || categoryOf(p).toLowerCase().includes(q)
     );
-  }, [products, site, depot, search, whById]);
+  }, [scopedProducts, search]);
 
   const inCategory = useMemo(() => scoped.filter((p) => category === ALL || categoryOf(p) === category), [scoped, category]);
 
@@ -196,23 +221,32 @@ export default function StockReportDashboard({ products, orders, search }: Props
   const totalUnits = inCategory.reduce((s, p) => s + stockOf(p), 0);
   // La rupture (stock à zéro) fait partie du « Stock faible »
   const lowCount = inCategory.filter((p) => stockOf(p) <= thresholdOf(p)).length;
-  const siteCount = new Set(inCategory.map(siteOf)).size;
-  const depotCount = new Set(inCategory.map(depotOf)).size;
+  // Sites et dépôts qui détiennent du stock des produits affichés
+  const inCatIds = useMemo(() => new Set(inCategory.map((p) => p.id)), [inCategory]);
+  const heldEntries = useMemo(() => entries.filter((e) => inCatIds.has(e.p.id) && e.qty > 0), [entries, inCatIds]);
+  const siteCount = new Set(heldEntries.map((e) => e.w.site_id)).size;
+  const depotCount = new Set(heldEntries.map((e) => e.w.id)).size;
   const catCount = new Set(inCategory.map(categoryOf)).size;
 
   const bySite = useMemo(() => {
     const m = new Map<string, { value: number; depots: Set<string> }>();
-    inCategory.forEach((p) => {
-      const k = siteOf(p);
-      const e = m.get(k) || { value: 0, depots: new Set<string>() };
-      e.value += stockOf(p) * costOf(p);
-      e.depots.add(depotOf(p));
-      m.set(k, e);
+    heldEntries.forEach((e) => {
+      const k = e.w.site_name || siteName(e.w.site_id);
+      const x = m.get(k) || { value: 0, depots: new Set<string>() };
+      x.value += e.qty * costOf(e.p);
+      x.depots.add(e.w.id);
+      m.set(k, x);
     });
-    return Array.from(m.entries())
-      .map(([site, e]) => ({ site, value: e.value, depots: e.depots.size }))
+    const rows = Array.from(m.entries())
+      .map(([site, x]) => ({ site, value: x.value, depots: x.depots.size }))
       .sort((a, b) => b.value - a.value);
-  }, [inCategory, whById]);
+    // Vue globale : le stock embarqué dans les camions fait partie du total
+    if (isGlobal) {
+      const embarked = inCategory.reduce((s, p) => s + stockOf(p) * costOf(p), 0) - rows.reduce((s, r) => s + r.value, 0);
+      if (embarked > 0.5) rows.push({ site: "Stock embarqué (camions)", value: embarked, depots: 0 });
+    }
+    return rows;
+  }, [heldEntries, sites, isGlobal, inCategory]);
 
   const byCategory = useMemo(() => {
     const m = new Map<string, number>();
@@ -261,13 +295,13 @@ export default function StockReportDashboard({ products, orders, search }: Props
             setDepot(ALL);
             setPage(1);
           }}
-          options={[{ value: ALL, label: "Tous les sites" }, ...allSites.map((s) => ({ value: s, label: s }))]}
+          options={[{ value: ALL, label: "Tous les sites" }, ...allSites]}
         />
         <Select
           label="Dépôt"
           value={depot}
           onChange={reset(setDepot)}
-          options={[{ value: ALL, label: "Tous les dépôts" }, ...allDepots.map((d) => ({ value: d, label: d }))]}
+          options={[{ value: ALL, label: "Tous les dépôts" }, ...allDepots]}
         />
         <Select
           label="Catégorie"
@@ -471,33 +505,6 @@ export default function StockReportDashboard({ products, orders, search }: Props
         </Card>
       </div>
 
-      {/* Stock par site */}
-      <Card title="Stock par site" icon={MapPin}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {bySite.map((s) => {
-            const pct = totalValue > 0 ? Math.round((s.value / totalValue) * 100) : 0;
-            return (
-              <div key={s.site} className="rounded-xl border border-slate-200 p-3">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-[#0F3D68]" />
-                  <span className="font-bold text-slate-900">{s.site}</span>
-                </div>
-                <div className="mt-0.5 text-[11px] text-slate-500">{s.depots} dépôt(s)</div>
-                <div className="mt-1 text-xs text-slate-700">
-                  Valeur : <strong className="tabular-nums">{fmtMoney(s.value)}</strong>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: BAR_COLOR }} />
-                  </div>
-                  <span className="w-9 text-right text-[11px] font-semibold tabular-nums text-slate-700">{pct} %</span>
-                </div>
-              </div>
-            );
-          })}
-          {!bySite.length && <p className="text-xs text-slate-500">Aucun site pour ces filtres.</p>}
-        </div>
-      </Card>
     </div>
   );
 }
