@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   Database,
+  MapPin,
+  Truck,
   LineChart,
   PieChart,
 } from "lucide-react";
 import { fmtMoney } from "@/components/erp-ui";
 import { api } from "@/lib/api";
 import {
-  BarsBySite,
   CATEGORY_COLORS,
   Donut,
   EVOLUTION_DAYS,
@@ -50,21 +51,6 @@ function Card({ title, icon: Icon, children, className = "" }: any) {
       )}
       {children}
     </section>
-  );
-}
-
-function Kpi({ icon: Icon, tone, label, value, hint }: any) {
-  return (
-    <div className="flex min-w-0 gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white ${tone}`}>
-        <Icon className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <div className="text-[11px] font-semibold text-slate-500">{label}</div>
-        <div className="text-xl font-black tracking-tight text-slate-900 tabular-nums">{value}</div>
-        <div className="truncate text-[11px] text-slate-500">{hint}</div>
-      </div>
-    </div>
   );
 }
 
@@ -238,16 +224,45 @@ export default function StockReportDashboard({ products, orders, search, siteKey
         />
       </div>
 
-      {/* Indicateurs */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Kpi icon={Database} tone="bg-[#0F3D68]" label="Valeur totale du stock" value={fmtMoney(totalValue)} hint="Au prix de revient" />
+      {/* Valeur totale du stock, avec la valeur par site en dessous (même présentation, en plus petit) */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="flex min-w-0 gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#0F3D68] text-white">
+            <Database className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold text-slate-500">Valeur totale du stock</div>
+            <div className="text-xl font-black tracking-tight text-slate-900 tabular-nums">{fmtMoney(totalValue)}</div>
+            <div className="truncate text-[11px] text-slate-500">Au prix de revient</div>
+          </div>
+        </div>
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          <div className="mb-2 text-[11px] font-semibold text-slate-500">Valeur du stock par site</div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {bySite.map((x) => {
+              const pct = totalValue > 0 ? Math.round((x.value / totalValue) * 100) : 0;
+              return (
+                <div key={x.site} className="flex min-w-0 gap-2.5 rounded-xl border border-slate-200 bg-white p-2.5">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#0F3D68]/90 text-white">
+                    {x.depots ? <MapPin className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate text-[10px] font-semibold text-slate-500" data-no-translate={x.depots ? "" : undefined}>{x.site}</div>
+                    <div className="text-sm font-black tracking-tight text-slate-900 tabular-nums">{fmtMoney(x.value)}</div>
+                    <div className="truncate text-[10px] text-slate-500">
+                      {x.depots ? `${x.depots} dépôt(s) · ${pct} %` : `${pct} %`}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {!bySite.length && <p className="text-xs text-slate-500">Aucun stock pour ces filtres.</p>}
+          </div>
+        </div>
       </div>
 
       {/* Graphiques */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card title="Valeur du stock par site" icon={Database}>
-          <BarsBySite rows={bySite} />
-        </Card>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card title="Répartition du stock par catégorie" icon={PieChart}>
           <Donut slices={byCategory} total={donutTotal} />
         </Card>
