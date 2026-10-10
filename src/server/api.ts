@@ -1837,11 +1837,28 @@ apiRouter.get("/credits", authenticate, (req, res) => {
   res.json(db.credits);
 });
 
+// Site d'une dette : site de la vente à crédit d'origine, sinon de la dernière vente du client, sinon site principal
+function creditSite(c: any): { site_id: string | null; site_name: string } {
+  const ord = (c.order_id && db.orders.find((o) => o.id === c.order_id)) || db.orders.find((o) => o.client_id === c.client_id || (c.client_name && o.client_name === c.client_name));
+  if (ord) {
+    const loc = orderLocation(ord);
+    return { site_id: loc.site_id, site_name: loc.site_name };
+  }
+  const main = userSite(null);
+  return { site_id: main.id, site_name: main.name };
+}
+
 apiRouter.get("/credits/debts", authenticate, (req, res) => {
+  const user = (req as any).user as User;
   // Ventes à crédit validées qui n'auraient pas encore leur créance
   db.orders.forEach(ensureCreditForOrder);
+  // Une personne rattachée à un site ne voit que les dettes de son site
+  const mine = cashSiteLocked(user) ? userSite(user).id : null;
   res.json(
-    db.credits.map((c: any) => {
+    db.credits
+      .map((c: any) => ({ c, site: creditSite(c) }))
+      .filter(({ site }) => !mine || site.site_id === mine)
+      .map(({ c, site }) => {
       const remaining = c.remaining !== undefined ? c.remaining : c.balance ?? c.initial_amount ?? c.amount ?? 0;
       // Taux de la catégorie de produits de la vente à crédit (Caisse › Taux), appliqué à l'encaissement
       const ord = c.order_id ? db.orders.find((o) => o.id === c.order_id) : null;
@@ -1859,16 +1876,20 @@ apiRouter.get("/credits/debts", authenticate, (req, res) => {
         : c.order_code
         ? { order_code: c.order_code, date: c.created_at, items: [] }
         : null;
-      return { ...c, remaining, balance: remaining, fx_category, fx_rate: categoryRate(fx_category), source };
+      return { ...c, remaining, balance: remaining, fx_category, fx_rate: categoryRate(fx_category), source, ...site };
     })
   );
 });
 
 apiRouter.get("/credits/marketers", authenticate, (req, res) => {
+  const user = (req as any).user as User;
   db.orders.forEach(ensureCreditForOrder);
+  const mine = cashSiteLocked(user) ? userSite(user).id : null;
   const marketerMap: Record<string, any> = {};
   db.credits.forEach((c) => {
     if (((c as any).remaining ?? (c as any).balance ?? 0) <= 0) return;
+    const site = creditSite(c);
+    if (mine && site.site_id !== mine) return;
     const marketerName = c.marketer_name || "Non assigné";
     if (!marketerMap[marketerName]) {
       marketerMap[marketerName] = {
@@ -1880,7 +1901,7 @@ apiRouter.get("/credits/marketers", authenticate, (req, res) => {
     }
     const rem = c.remaining !== undefined ? c.remaining : (c.initial_amount || c.amount || 0);
     marketerMap[marketerName].total_remaining += rem;
-    marketerMap[marketerName].clients.push({ ...c, remaining: rem });
+    marketerMap[marketerName].clients.push({ ...c, remaining: rem, ...site });
   });
   res.json(Object.values(marketerMap).map((m: any) => ({ ...m, clients_count: m.clients.length })));
 });

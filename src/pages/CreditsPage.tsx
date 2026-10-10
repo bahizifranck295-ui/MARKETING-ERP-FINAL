@@ -25,10 +25,15 @@ import {
 import CompteClientView from "@/components/CompteClientView";
 
 export default function CreditsPage() {
-  const { has } = useAuth();
+  const { has, user } = useAuth();
   const [activeTab, setActiveTab] = useState<"clients" | "marketers">("clients");
   const [debts, setDebts] = useState<any[]>([]);
-  const [marketers, setMarketers] = useState<any[]>([]);
+  const [allMarketers, setMarketers] = useState<any[]>([]);
+  // Tri des dettes : tous les sites ou un site ; une personne rattachée à un site ne voit que le sien
+  const ALL_SITES = "all";
+  const siteLocked = !!(user as any)?.site_id && !["super_admin", "dg"].includes(user?.role_code || "") && !(user as any)?.is_transversal;
+  const [debtSites, setDebtSites] = useState<Array<{ id: string; name: string }>>([]);
+  const [debtSite, setDebtSite] = useState<string>(siteLocked ? (user as any).site_id : ALL_SITES);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedMarketer, setSelectedMarketer] = useState<string>("all");
@@ -73,6 +78,28 @@ export default function CreditsPage() {
   };
 
   useEffect(() => {
+    api
+      .get("/stock/sites")
+      .then(({ data }) => setDebtSites((Array.isArray(data) ? data : []).filter((x: any) => x.is_active !== false).map((x: any) => ({ id: x.id, name: x.name }))))
+      .catch(() => setDebtSites([]));
+  }, []);
+  useEffect(() => {
+    if (siteLocked) setDebtSite((user as any).site_id);
+  }, [siteLocked, (user as any)?.site_id]);
+  const inDebtSite = (d: any) => debtSite === ALL_SITES || d.site_id === debtSite;
+  const marketers = useMemo(
+    () =>
+      allMarketers
+        .map((m) => {
+          const clients = (m.clients || []).filter(inDebtSite);
+          return { ...m, clients, clients_count: clients.length, total_remaining: clients.reduce((t: number, c: any) => t + (Number(c.remaining) || 0), 0) };
+        })
+        .filter((m) => m.clients.length > 0),
+    [allMarketers, debtSite]
+  );
+  const siteDebts = useMemo(() => debts.filter(inDebtSite), [debts, debtSite]);
+
+  useEffect(() => {
     loadData();
     // Temps réel : nouvelles ventes à crédit et encaissements visibles sans recharger la page
     const t = window.setInterval(() => {
@@ -84,8 +111,8 @@ export default function CreditsPage() {
   const remainingOf = (d: any) => Number(d.remaining ?? d.balance ?? 0) || 0;
 
   const totalDebt = useMemo(() => {
-    return debts.reduce((sum, d) => sum + remainingOf(d), 0);
-  }, [debts]);
+    return siteDebts.reduce((sum, d) => sum + remainingOf(d), 0);
+  }, [siteDebts]);
 
   const totalMarketersDebt = useMemo(() => {
     return marketers.reduce((sum, m) => sum + (m.total_remaining || 0), 0);
@@ -93,7 +120,7 @@ export default function CreditsPage() {
 
   const filteredDebts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return debts.filter((d) => {
+    return siteDebts.filter((d) => {
       const matchQ =
         !q ||
         d.client_name?.toLowerCase().includes(q) ||
@@ -108,7 +135,7 @@ export default function CreditsPage() {
       const matchS = statusView === "all" || (statusView === "open" ? open : !open && d.status !== "cancelled");
       return matchQ && matchM && matchS;
     });
-  }, [debts, search, selectedMarketer, statusView]);
+  }, [siteDebts, search, selectedMarketer, statusView]);
 
   const totalBilletUSD = useMemo(() => {
     return Object.entries(billetUSD).reduce((acc, [denom, qty]) => {
@@ -198,27 +225,24 @@ export default function CreditsPage() {
         title="Gestion des Crédits & Créances"
         subtitle="Suivi des impayés clients, dettes à charge des marketeurs et encaissements"
         right={
-          <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
-            <button
-              onClick={() => setActiveTab("clients")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeTab === "clients"
-                  ? "bg-white text-[#0F3D68] shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Créances Clients
-            </button>
-            <button
-              onClick={() => setActiveTab("marketers")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeTab === "marketers"
-                  ? "bg-white text-[#0F3D68] shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Dettes des Marketeurs
-            </button>
+          <div role="group" aria-label="Tri des dettes par site" className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-xl">
+            {(siteLocked
+              ? debtSites.filter((x) => x.id === debtSite)
+              : [{ id: ALL_SITES, name: "Tous les sites" }, ...debtSites]
+            ).map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                aria-pressed={debtSite === x.id}
+                onClick={() => setDebtSite(x.id)}
+                data-no-translate={x.id === ALL_SITES ? undefined : true}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  debtSite === x.id ? "bg-white text-[#0F3D68] shadow-xs" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {x.name}
+              </button>
+            ))}
           </div>
         }
       />
@@ -233,12 +257,13 @@ export default function CreditsPage() {
         <StatCard
           label="Dettes sous Marketeurs"
           value={fmtMoney(totalMarketersDebt)}
-          sub={`${marketers.length} marketeurs responsables`}
+          sub={activeTab === "marketers" ? "Cliquer pour revenir aux créances clients" : `${marketers.length} marketeurs responsables · cliquer pour le détail`}
           tone="amber"
+          onClick={() => setActiveTab(activeTab === "marketers" ? "clients" : "marketers")}
         />
         <StatCard
           label="Clients Débiteurs"
-          value={String(new Set(debts.filter((d) => remainingOf(d) > 0).map((d) => d.client_id)).size)}
+          value={String(new Set(siteDebts.filter((d) => remainingOf(d) > 0).map((d) => d.client_id)).size)}
           sub="Comptes avec solde débiteur"
           tone="blue"
         />
