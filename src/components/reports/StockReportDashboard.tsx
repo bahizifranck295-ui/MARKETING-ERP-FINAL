@@ -4,7 +4,6 @@ import {
   Database,
   LineChart,
   PieChart,
-  Warehouse as WarehouseIcon,
 } from "lucide-react";
 import { fmtMoney } from "@/components/erp-ui";
 import { api } from "@/lib/api";
@@ -173,7 +172,6 @@ export default function StockReportDashboard({ products, orders, search, siteKey
   // Sites et dépôts qui détiennent du stock des produits affichés
   const inCatIds = useMemo(() => new Set(inCategory.map((p) => p.id)), [inCategory]);
   const heldEntries = useMemo(() => entries.filter((e) => inCatIds.has(e.p.id) && e.qty > 0), [entries, inCatIds]);
-  const depotCount = new Set(heldEntries.map((e) => e.w.id)).size;
 
   const bySite = useMemo(() => {
     const m = new Map<string, { value: number; depots: Set<string> }>();
@@ -236,8 +234,7 @@ export default function StockReportDashboard({ products, orders, search, siteKey
       </div>
 
       {/* Indicateurs */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Kpi icon={WarehouseIcon} tone="bg-teal-600" label="Dépôts" value={depotCount} hint="Dépôts au total" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Kpi icon={Database} tone="bg-[#0F3D68]" label="Valeur totale du stock" value={fmtMoney(totalValue)} hint="Au prix de revient" />
       </div>
 
