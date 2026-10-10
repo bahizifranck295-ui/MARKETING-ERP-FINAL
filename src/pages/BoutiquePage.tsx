@@ -348,13 +348,14 @@ export default function BoutiquePage() {
                           qtyInCart > 0 ? "border-purple-500 ring-2 ring-purple-200" : "border-slate-200"
                         }`}
                       >
-                        <div className="relative h-36 bg-slate-100 overflow-hidden group">
+                        <div className="relative h-36 bg-white overflow-hidden group">
                           {product.image_url ? (
+                            /* Photo affichée en entier (sans être coupée par le bord du cadre) */
                             <img
                               src={product.image_url}
                               alt={product.name}
                               referrerPolicy="no-referrer"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                               onError={(e) => {
                                 (e.target as any).src =
                                   "https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=600&auto=format&fit=crop&q=80";
