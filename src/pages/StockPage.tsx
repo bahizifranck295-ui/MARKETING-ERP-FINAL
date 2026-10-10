@@ -113,6 +113,9 @@ export default function StockPage() {
   const [category, setCategory] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
+  // Onglet Produits : tri par site et par dépôt (inventaire d'un site, d'un dépôt ou général)
+  const [prodSite, setProdSite] = useState(ALL);
+  const [prodDepot, setProdDepot] = useState(ALL);
   // Tableau de bord : filtres « Stock par dépôt » et ouverture directe d'un site
   const [dashSite, setDashSite] = useState(ALL);
   const [dashDepot, setDashDepot] = useState(ALL);
@@ -181,9 +184,27 @@ export default function StockPage() {
       .catch(() => setOrders([]));
   }, []);
 
+  const prodScoped = prodSite !== ALL || prodDepot !== ALL;
+  const prodQtyMap = useMemo(() => {
+    const ids = new Set(
+      warehouses.filter((w: any) => (prodSite === ALL || w.site_id === prodSite) && (prodDepot === ALL || w.id === prodDepot)).map((w: any) => w.id)
+    );
+    const m = new Map<string, { qty: number; depots: number }>();
+    levels.forEach((l) => {
+      if (!ids.has(l.warehouse_id)) return;
+      const cur = m.get(l.product_id) || { qty: 0, depots: 0 };
+      const q = Number(l.quantity) || 0;
+      m.set(l.product_id, { qty: cur.qty + q, depots: cur.depots + (q > 0 ? 1 : 0) });
+    });
+    return m;
+  }, [levels, warehouses, prodSite, prodDepot]);
+  const prodQty = (p: any) => (prodScoped ? prodQtyMap.get(p.id)?.qty || 0 : stockOf(p));
+  const prodStatusKey = (p: any) => stockStatus(prodQty(p), thresholdOf(p)).key;
+
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter((p) => {
+      if (prodScoped && prodQty(p) <= 0) return false;
       const matchQ =
         !q ||
         p.name.toLowerCase().includes(q) ||
@@ -192,7 +213,7 @@ export default function StockPage() {
         (p.category && p.category.toLowerCase().includes(q));
       return matchQ;
     });
-  }, [products, search]);
+  }, [products, search, prodScoped, prodQtyMap]);
 
   const allCategories = useMemo(() => Array.from(new Set(products.map(categoryOf))).sort(), [products]);
 
@@ -342,7 +363,7 @@ export default function StockPage() {
 
   /* ----- Produits ----- */
   const scoped = useMemo(() => filteredProducts.filter((p) => category === ALL || categoryOf(p) === category), [filteredProducts, category]);
-  const scopedLow = scoped.filter((p) => statusKey(p) === "low").length;
+  const scopedLow = scoped.filter((p) => prodStatusKey(p) === "low").length;
   const statusCounts: Record<StatusFilter, number> = { all: scoped.length, ok: scoped.length - scopedLow, low: scopedLow };
 
   const categoryTree = useMemo(() => {
@@ -352,8 +373,8 @@ export default function StockPage() {
   }, [filteredProducts]);
 
   const rows = useMemo(
-    () => scoped.filter((p) => statusFilter === "all" || statusKey(p) === statusFilter).sort((a, b) => a.name.localeCompare(b.name, "fr")),
-    [scoped, statusFilter]
+    () => scoped.filter((p) => statusFilter === "all" || prodStatusKey(p) === statusFilter).sort((a, b) => a.name.localeCompare(b.name, "fr")),
+    [scoped, statusFilter, prodQtyMap, prodScoped]
   );
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const curPage = Math.min(page, pages);
@@ -955,6 +976,39 @@ export default function StockPage() {
               </div>
             }
           >
+            <div className="mb-3 flex flex-wrap items-end gap-2" data-prod-scope>
+              <label className="text-[11px] font-semibold text-slate-600">
+                Site
+                <select
+                  value={prodSite}
+                  onChange={(e) => { setProdSite(e.target.value); setProdDepot(ALL); setCategory(ALL); setPage(1); }}
+                  className="mt-1 block h-9 min-w-[150px] rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                >
+                  <option value={ALL}>Tous les sites</option>
+                  {sites.map((x: any) => (
+                    <option key={x.id} value={x.id} data-no-translate>{x.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[11px] font-semibold text-slate-600">
+                Dépôt
+                <select
+                  value={prodDepot}
+                  onChange={(e) => { setProdDepot(e.target.value); setCategory(ALL); setPage(1); }}
+                  className="mt-1 block h-9 min-w-[190px] rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                >
+                  <option value={ALL}>Tous les dépôts</option>
+                  {warehouses
+                    .filter((w: any) => prodSite === ALL || w.site_id === prodSite)
+                    .map((w: any) => (
+                      <option key={w.id} value={w.id} data-no-translate>{prodSite === ALL ? w.label || w.name : w.name}</option>
+                    ))}
+                </select>
+              </label>
+              <span className="pb-2 text-[11px] text-slate-500">
+                {prodScoped ? "Inventaire du site / dépôt choisi" : "Inventaire général (tous les sites)"}
+              </span>
+            </div>
             <div className="mb-3 flex flex-wrap items-center gap-1.5">
               {STATUS_FILTERS.map((f) => (
                 <button
@@ -981,7 +1035,7 @@ export default function StockPage() {
                     <th className="px-2.5 py-3 font-semibold">Produit</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Prix achat</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Prix vente</th>
-                    <th className="px-2.5 py-3 font-semibold">Stock global</th>
+                    <th className="px-2.5 py-3 font-semibold">{prodScoped ? "Stock (site / dépôt)" : "Stock global"}</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Valeur</th>
                     <th className="px-2.5 py-3 text-center font-semibold">Statut</th>
                     {has("stock.write") && <th className="px-2.5 py-3 text-center font-semibold">Actions</th>}
@@ -989,11 +1043,11 @@ export default function StockPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {visible.map((prod) => {
-                    const stock = stockOf(prod);
+                    const stock = prodQty(prod);
                     const threshold = thresholdOf(prod);
                     const st = stockStatus(stock, threshold);
                     const gauge = Math.min(100, threshold > 0 ? (stock / (threshold * 4)) * 100 : stock > 0 ? 100 : 0);
-                    const nbDepots = depotsByProduct.get(prod.id) || 0;
+                    const nbDepots = prodScoped ? prodQtyMap.get(prod.id)?.depots || 0 : depotsByProduct.get(prod.id) || 0;
                     return (
                       <tr key={prod.id} className="group transition-colors hover:bg-cyan-50/40">
                         <td className="px-2.5 py-3">

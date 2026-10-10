@@ -247,19 +247,12 @@ export default function CreditsPage() {
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <StatCard
           label="Total Créances Clients"
           value={fmtMoney(totalDebt)}
           sub="Montant total dû par les clients"
           tone="red"
-        />
-        <StatCard
-          label="Dettes sous Marketeurs"
-          value={fmtMoney(totalMarketersDebt)}
-          sub={activeTab === "marketers" ? "Cliquer pour revenir aux créances clients" : `${marketers.length} marketeurs responsables · cliquer pour le détail`}
-          tone="amber"
-          onClick={() => setActiveTab(activeTab === "marketers" ? "clients" : "marketers")}
         />
         <StatCard
           label="Clients Débiteurs"
