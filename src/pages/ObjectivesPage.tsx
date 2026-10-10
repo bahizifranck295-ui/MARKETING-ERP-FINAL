@@ -45,7 +45,10 @@ export default function ObjectivesPage() {
   const [formBU, setFormBU] = useState("");
   // Business Units = catégories de produits du module Stock › Catégories
   const [categories, setCategories] = useState<string[]>([]);
-  const [formSite, setFormSite] = useState("Goma");
+  // Site : un site précis, ou « Tous les sites » pour un objectif commun
+  const ALL_SITES = "Tous les sites";
+  const [sites, setSites] = useState<string[]>([]);
+  const [formSite, setFormSite] = useState(ALL_SITES);
   const [formLabel, setFormLabel] = useState("");
   const [formTargetQty, setFormTargetQty] = useState(4000);
   const [formUnit, setFormUnit] = useState("sacs");
@@ -87,6 +90,10 @@ export default function ObjectivesPage() {
         setFormBU((cur) => (cur && names.includes(cur) ? cur : names[0] || ""));
       })
       .catch(() => setCategories([]));
+    api
+      .get("/stock/sites")
+      .then(({ data }) => setSites((Array.isArray(data) ? data : []).map((x: any) => x.name).filter(Boolean)))
+      .catch(() => setSites([]));
     api
       .get("/products")
       .then(({ data }) => setProducts(Array.isArray(data) ? data.filter((p: any) => p.is_active !== false) : []))
@@ -452,8 +459,12 @@ export default function ObjectivesPage() {
                     onChange={(e) => setFormSite(e.target.value)}
                     className="w-full mt-1 h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold"
                   >
-                    <option value="Goma">Goma</option>
-                    <option value="Bukavu">Bukavu</option>
+                    <option value={ALL_SITES}>Tous les sites (objectif commun)</option>
+                    {sites.map((x) => (
+                      <option key={x} value={x} data-no-translate>
+                        {x}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

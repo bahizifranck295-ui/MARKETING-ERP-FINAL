@@ -1397,6 +1397,7 @@ export const EXACT: Record<string, string> = {
   "Tous les marketeurs": "All marketers",
   "Tous les modules": "All modules",
   "Tous les sites": "All sites",
+  "Tous les sites (objectif commun)": "All sites (shared objective)",
   "Tous les sites (vue d'ensemble)": "All sites (overview)",
   "Tous les statuts": "All statuses",
   "Tous vos clients sont à jour de paiement pour ce filtre.": "All your clients are up to date with payments for this filter.",
