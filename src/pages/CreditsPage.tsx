@@ -497,6 +497,46 @@ export default function CreditsPage() {
                 </div>
               </div>
 
+              {/* Source de la dette : la vente à crédit d'origine */}
+              <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-slate-800">Source de la dette</span>
+                  {selectedDebt.source?.order_code && (
+                    <span className="font-mono text-[11px] font-bold text-amber-800">{selectedDebt.source.order_code}</span>
+                  )}
+                </div>
+                {selectedDebt.source ? (
+                  <>
+                    <div className="text-[11px] text-slate-600">
+                      Vente à crédit du {selectedDebt.source.date ? new Date(selectedDebt.source.date).toLocaleDateString("fr-FR") : "-"}
+                      {selectedDebt.fx_category ? ` · catégorie ${selectedDebt.fx_category}` : ""}
+                      {selectedDebt.source.marketer_name ? ` · marketeur ${selectedDebt.source.marketer_name}` : ""}
+                    </div>
+                    {selectedDebt.source.items?.length > 0 && (
+                      <ul className="divide-y divide-amber-100 rounded-lg bg-white/70">
+                        {selectedDebt.source.items.map((it: any, i: number) => (
+                          <li key={i} className="flex justify-between gap-2 px-2 py-1 text-[11px]">
+                            <span data-no-translate>
+                              {it.product} × {it.quantity}
+                              {it.unit ? ` ${it.unit}` : ""}
+                            </span>
+                            <span className="font-semibold tabular-nums">{fmtMoney(it.line_total)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {selectedDebt.source.total != null && (
+                      <div className="flex justify-between text-[11px] font-bold text-slate-800">
+                        <span>Montant de la vente</span>
+                        <span>{fmtMoney(selectedDebt.source.total)}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-[11px] text-slate-600">{selectedDebt.description || selectedDebt.notes || "Créance enregistrée sans vente associée."}</div>
+                )}
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-800 text-xs">

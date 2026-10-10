@@ -1700,7 +1700,20 @@ apiRouter.get("/credits/debts", authenticate, (req, res) => {
       // Taux de la catégorie de produits de la vente à crédit (Caisse › Taux), appliqué à l'encaissement
       const ord = c.order_id ? db.orders.find((o) => o.id === c.order_id) : null;
       const fx_category = ord ? orderCategory(ord) : undefined;
-      return { ...c, remaining, balance: remaining, fx_category, fx_rate: categoryRate(fx_category) };
+      // Source de la dette : la vente à crédit d'origine (commande, date, articles)
+      const source = ord
+        ? {
+            order_code: ord.code,
+            date: ord.approved_at || ord.created_at,
+            marketer_name: ord.marketer_name,
+            total: ord.total,
+            currency: ord.currency || "USD",
+            items: (ord.items || []).map((it: any) => ({ product: it.product_name, quantity: it.quantity, unit: it.unit, line_total: it.line_total })),
+          }
+        : c.order_code
+        ? { order_code: c.order_code, date: c.created_at, items: [] }
+        : null;
+      return { ...c, remaining, balance: remaining, fx_category, fx_rate: categoryRate(fx_category), source };
     })
   );
 });
