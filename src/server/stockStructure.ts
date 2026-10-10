@@ -162,8 +162,10 @@ export function ensureStockStructure() {
     w.site_id = site.id;
   }
 
-  // 2. Liste des catégories : on conserve toutes celles déjà utilisées
+  // 2. Liste des catégories : on conserve toutes celles déjà utilisées par des produits actifs
+  // (un produit supprimé/archivé ne recrée pas une catégorie supprimée)
   for (const p of db.products) {
+    if (p.is_active === false) continue;
     const c = (p.category || "").trim();
     if (c && !db.product_categories.some((x) => norm(x) === norm(c))) db.product_categories.push(c);
   }

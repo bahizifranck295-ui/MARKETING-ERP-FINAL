@@ -362,6 +362,24 @@ apiRouter.put("/products/:id", authenticate, (req, res) => {
   res.json(prod);
 });
 
+// Suppression d'un produit : archivé (is_active = false) pour conserver l'historique des commandes et mouvements.
+// Refusée tant qu'il reste du stock, pour ne pas faire disparaître de la valeur du stock.
+apiRouter.delete("/products/:id", authenticate, (req, res) => {
+  const user = (req as any).user as User;
+  const prod = db.products.find((p) => p.id === req.params.id && p.is_active !== false);
+  if (!prod) return res.status(404).json({ detail: "Produit introuvable" });
+  const qty = Number(prod.stock ?? prod.current_stock ?? 0) || 0;
+  if (qty > 0)
+    return res.status(409).json({
+      detail: `Impossible de supprimer « ${prod.name} » : il reste ${qty} ${prod.unit || "unité(s)"} en stock. Videz d'abord son stock (ajustement ou transfert).`,
+    });
+  prod.is_active = false;
+  (prod as any).deleted_at = new Date().toISOString();
+  (prod as any).deleted_by = user?.full_name;
+  prod.updated_at = new Date().toISOString();
+  res.json({ ok: true });
+});
+
 apiRouter.post("/products/:id/adjust", authenticate, (req, res) => {
   const delta = Number(req.body.quantity) || 0;
   const reason = req.body.reason || "Ajustement";
