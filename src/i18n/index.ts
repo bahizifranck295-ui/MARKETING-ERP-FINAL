@@ -76,6 +76,12 @@ function lookup(core: string, depth = 0): string | null {
       return lookup(v.trim(), 1) ?? v;
     });
   }
+  // Libellés composés « A · B » (filtres, sous-titres) : chaque partie connue est traduite
+  if (core.includes(" · ")) {
+    const parts = core.split(" · ");
+    const out = parts.map((x) => lookup(x.trim(), 0) ?? x);
+    if (out.some((x, i) => x !== parts[i])) return out.join(" · ");
+  }
   return null;
 }
 

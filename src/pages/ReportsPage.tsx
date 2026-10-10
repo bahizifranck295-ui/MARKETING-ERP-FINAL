@@ -33,6 +33,7 @@ import {
 } from "@/lib/generateCashReceiptPdf";
 import { openDocumentUrl, openDocumentInNativeViewer, saveFile, openPendingTab, closeTab, presentDocument } from "@/lib/documentViewer";
 import { exportReceivablesPdf } from "@/lib/exportReceivablesPdf";
+import { exportTablePdf } from "@/lib/exportTablePdf";
 import { useAuth } from "@/contexts/AuthContext";
 import StockReportDashboard from "@/components/reports/StockReportDashboard";
 import SalesSheets from "@/components/reports/SalesSheets";
@@ -50,6 +51,7 @@ export default function ReportsPage() {
   // Rapport des créances clients (une ligne par dette restante)
   const [receivables, setReceivables] = useState<any[]>([]);
   const [exportingReceivables, setExportingReceivables] = useState(false);
+  const [exportingCash, setExportingCash] = useState(false);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("month");
   const [activeTab, setActiveTab] = useState<
@@ -213,6 +215,123 @@ export default function ReportsPage() {
       toast.error(extractErrorMessage(err, "Export PDF impossible"));
     } finally {
       setExportingReceivables(false);
+    }
+  };
+
+  // Export PDF du sous-module affiché du Livre de Caisse (mêmes lignes et colonnes que le tableau)
+  const handleExportCash = async () => {
+    const closings = cashSubTab === "closings";
+    const tab = openPendingTab(closings ? "Clôtures & Billetages" : "Journal des mouvements de caisse");
+    setExportingCash(true);
+    const RED: [number, number, number] = [190, 18, 60];
+    const GREEN: [number, number, number] = [4, 120, 87];
+    const filtersLabel = `${siteName} · ${periodLabel}${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`;
+    const stamp = new Date().toISOString().slice(0, 10);
+    try {
+      let ok: boolean;
+      if (closings) {
+        let expUsd = 0;
+        let realUsd = 0;
+        let realCdf = 0;
+        const rows = periodSessions.map((sess) => {
+          const expected = Number(sess.theoretical_balance_usd || sess.actual_balance_usd || 0);
+          const real = Number(sess.actual_balance_usd || 0);
+          const gap = real - expected;
+          expUsd += expected;
+          realUsd += real;
+          realCdf += Number(sess.actual_balance_cdf || 0);
+          return [
+            `CLOT-${String(sess.id).slice(0, 8).toUpperCase()}`,
+            fmtDate(sess.opened_at, true),
+            sess.closed_at ? fmtDate(sess.closed_at, true) : "-",
+            sess.closed_by || sess.opened_by_name || "-",
+            sess.department || "Maize Mill",
+            fmtMoney(expected, "USD"),
+            fmtMoney(real, "USD"),
+            fmtMoney(sess.actual_balance_cdf || 0, "CDF"),
+            Math.abs(gap) < 0.005 ? "Équilibrée" : `${gap > 0 ? "+" : ""}${fmtMoney(gap, "USD")}`,
+            sess.discrepancy_reason || "-",
+          ];
+        });
+        ok = await exportTablePdf({
+          title: "CLÔTURES & BILLETAGES DE CAISSE",
+          fileName: `Clotures_Billetages_PREMIDIS_${stamp}.pdf`,
+          columns: [
+            { label: "Session", weight: 1.1, bold: true },
+            { label: "Ouverture", weight: 1.1 },
+            { label: "Clôture", weight: 1.1 },
+            { label: "Caissier", weight: 1.2, bold: true },
+            { label: "Département", weight: 1 },
+            { label: "Solde attendu", weight: 1, right: true },
+            { label: "Billetage réel USD", weight: 1.1, right: true, color: () => GREEN },
+            { label: "Billetage réel CDF", weight: 1.2, right: true },
+            { label: "Écart", weight: 0.9, color: (r) => (r[8] === "Équilibrée" ? GREEN : RED) },
+            { label: "Motif", weight: 1.5 },
+          ],
+          rows,
+          editedBy: user?.full_name || "Utilisateur",
+          filtersLabel,
+          countLabel: "Clôtures",
+          totals: [
+            { label: "TOTAL SOLDE ATTENDU :", value: fmtMoney(expUsd, "USD") },
+            { label: "TOTAL BILLETAGE RÉEL :", value: fmtMoney(realUsd, "USD") },
+            { label: "TOTAL BILLETAGE RÉEL CDF :", value: fmtMoney(realCdf, "CDF") },
+          ],
+          emptyLabel: "Aucune clôture de caisse pour ce filtre.",
+          tab,
+        });
+      } else {
+        let inUsd = 0;
+        let outUsd = 0;
+        const rows = filteredCashOps.map((op) => {
+          const isIn = op.type === "in";
+          const usd = Number(op.amount_usd || (op.currency === "USD" ? op.amount : op.amount / 2500)) || 0;
+          const cdf = Number(op.amount_cdf || (op.currency === "CDF" ? op.amount : op.amount * 2500)) || 0;
+          if (isIn) inUsd += usd;
+          else outUsd += usd;
+          return [
+            op.reference || "CSH",
+            fmtDate(op.created_at, true),
+            isIn ? "Entrée" : "Sortie",
+            op.reason || op.category || "-",
+            `${isIn ? "+" : "-"} ${fmtMoney(usd, "USD")}`,
+            fmtMoney(cdf, "CDF"),
+            op.created_by || "Caisse Principale",
+            isIn ? "Bordereau d'entrée" : "Bordereau de sortie",
+          ];
+        });
+        ok = await exportTablePdf({
+          title: "JOURNAL DES MOUVEMENTS DE CAISSE",
+          fileName: `Journal_Mouvements_Caisse_PREMIDIS_${stamp}.pdf`,
+          columns: [
+            { label: "Réf", weight: 1.1, bold: true },
+            { label: "Date", weight: 1.1 },
+            { label: "Type", weight: 0.7, bold: true, color: (r) => (r[2] === "Entrée" ? GREEN : RED) },
+            { label: "Motif / Libellé", weight: 2.2 },
+            { label: "Montant USD", weight: 1.1, right: true, bold: true, color: (r) => (r[2] === "Entrée" ? GREEN : RED) },
+            { label: "Montant CDF", weight: 1.3, right: true },
+            { label: "Caissier", weight: 1.2 },
+            { label: "Bordereau", weight: 1.1 },
+          ],
+          rows,
+          editedBy: user?.full_name || "Utilisateur",
+          filtersLabel,
+          countLabel: "Mouvements",
+          totals: [
+            { label: "TOTAL ENTRÉES :", value: fmtMoney(inUsd, "USD") },
+            { label: "TOTAL SORTIES :", value: fmtMoney(outUsd, "USD") },
+            { label: "SOLDE DE LA PÉRIODE :", value: fmtMoney(inUsd - outUsd, "USD") },
+          ],
+          emptyLabel: "Aucun mouvement de caisse pour ce filtre.",
+          tab,
+        });
+      }
+      if (!ok) closeTab(tab);
+    } catch (err) {
+      closeTab(tab);
+      toast.error(extractErrorMessage(err, "Export PDF impossible"));
+    } finally {
+      setExportingCash(false);
     }
   };
 
@@ -772,8 +891,19 @@ export default function ReportsPage() {
                 <Wallet className="h-3.5 w-3.5" /> Journal des Mouvements ({filteredCashOps.length})
               </button>
             </div>
-            <div className="text-xs text-slate-500 font-medium">
-              Solde Actuel : <strong className="text-emerald-700">{fmtMoney(currentCashUSD, "USD")}</strong> | <strong className="text-blue-700">{fmtMoney(currentCashCDF, "CDF")}</strong>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="text-xs text-slate-500 font-medium">
+                Solde Actuel : <strong className="text-emerald-700">{fmtMoney(currentCashUSD, "USD")}</strong> | <strong className="text-blue-700">{fmtMoney(currentCashCDF, "CDF")}</strong>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleExportCash}
+                disabled={exportingCash}
+                className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs"
+              >
+                {exportingCash ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+                Exporter en PDF
+              </Button>
             </div>
           </div>
 
