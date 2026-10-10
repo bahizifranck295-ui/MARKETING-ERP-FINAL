@@ -413,6 +413,7 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     reception: "Réception fournisseur",
     inventory_correction: "Correction d'inventaire",
     damage: "Perte / Avarie",
+    gift: "Cadeau / Don",
     return: "Retour client",
   };
   router.post("/stock/depots/:id/adjust", authenticate, withStructure, (req: any, res: any) => {
@@ -439,6 +440,8 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
       quantity: delta,
       reason: `Ajustement : ${ADJUST_REASONS[code] || code}${note ? ` (${note})` : ""}`,
       user_name: userName(req),
+      // Motif et commentaire conservés pour les justificatifs du rapport d'état de stock
+      extra: { adjust_reason: code, adjust_note: note },
     });
     res.json({ ...lvl, product_name: p.name, global_stock: p.stock });
   });

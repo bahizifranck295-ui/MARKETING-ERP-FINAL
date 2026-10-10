@@ -483,6 +483,8 @@ export const db = {
   sites: [] as any[],
   stock_levels: [] as any[],
   stock_transfers: [] as any[],
+  // Rapports › État de stock : rapports générés (instantané conservé)
+  stock_reports: [] as any[],
   product_categories: [] as string[],
   // Module Livraison : camions, stock embarqué des marketeurs, modes par département (voir delivery.ts)
   vehicles: [] as any[],

@@ -26,6 +26,7 @@ const MOVEMENT_REASONS: Record<string, string> = {
   reception: "Réception fournisseur",
   inventory_correction: "Correction d'inventaire",
   damage: "Perte / Avarie",
+  gift: "Cadeau / Don",
   return: "Retour client",
 };
 

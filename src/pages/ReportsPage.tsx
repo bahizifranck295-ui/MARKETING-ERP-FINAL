@@ -36,6 +36,7 @@ import { exportReceivablesPdf } from "@/lib/exportReceivablesPdf";
 import { exportTablePdf } from "@/lib/exportTablePdf";
 import { useAuth } from "@/contexts/AuthContext";
 import StockReportDashboard from "@/components/reports/StockReportDashboard";
+import StockStateReport from "@/components/reports/StockStateReport";
 import SalesSheets from "@/components/reports/SalesSheets";
 import {
   Dialog,
@@ -1061,7 +1062,10 @@ export default function ReportsPage() {
           )}
         </div>
       ) : activeTab === "stock" ? (
-        <StockReportDashboard products={products} orders={orders} search={search} siteKey={selectedSite} />
+        <div className="space-y-4">
+          <StockStateReport siteKey={selectedSite} />
+          <StockReportDashboard products={products} orders={orders} search={search} siteKey={selectedSite} />
+        </div>
       ) : activeTab === "sales" ? (
         <SalesSheets search={search} period={period} includeOrder={(o: any) => inSite("orders", o.id)} siteKey={selectedSite} siteLabel={siteName} />
       ) : activeTab === "credits" ? (

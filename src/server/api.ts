@@ -20,6 +20,7 @@ import {
   ALL_PERMISSION_CODES,
 } from "./db";
 import { mountStockStructureRoutes, userSite } from "./stockStructure";
+import { mountStockReportRoutes } from "./stockReport";
 import { applyOrderStockOut, embarkedAvailability, mountDeliveryRoutes, productStockMode, restoreOrderStock, tagOrderStockSource } from "./delivery";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "erp_secret_jwt_key_2026";
@@ -283,6 +284,7 @@ apiRouter.delete("/users/:id", authenticate, (req, res) => {
 mountStockStructureRoutes(apiRouter, authenticate);
 // LIVRAISON : stock embarqué, livraisons sur commande, modes par département
 mountDeliveryRoutes(apiRouter, authenticate);
+mountStockReportRoutes(apiRouter, authenticate);
 
 // WAREHOUSES
 apiRouter.get("/warehouses", authenticate, (req, res) => {

@@ -531,6 +531,7 @@ export function AdjustInDepotDialog({ depot, product, onClose, onSaved }: { depo
               <option value="reception">Réception fournisseur</option>
               <option value="inventory_correction">Correction d'inventaire</option>
               <option value="damage">Perte / Avarie</option>
+              <option value="gift">Cadeau / Don</option>
               <option value="return">Retour client</option>
             </select>
           </div>
