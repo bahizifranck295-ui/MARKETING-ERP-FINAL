@@ -1321,6 +1321,7 @@ export const EXACT: Record<string, string> = {
   "Taux du jour": "Today's rate",
   "Taux enregistrés avec succès ! Appliqués immédiatement à toutes les opérations futures.": "Rates saved successfully! Applied immediately to all future operations.",
   "Taux général": "General rate",
+  "Taux par défaut": "Default rate",
   "Taux spécifique": "Specific rate",
   "Termes de crédit : À terme (crédit) • Classement : par département": "Credit terms: Deferred (credit) • Sorted by: department",
   "Terminer la session sur cet appareil": "End the session on this device",

@@ -386,16 +386,6 @@ export default function CashPage() {
     }
   };
 
-  const handleApplyGeneralRateToAll = () => {
-    const updated: Record<string, string> = {};
-    const categoriesList = ratesConfig?.categories || Object.keys(categoryRatesInput);
-    categoriesList.forEach((cat: string) => {
-      updated[cat] = generalRateInput;
-    });
-    setCategoryRatesInput(updated);
-    toast.info("Le taux général a été pré-rempli pour toutes les catégories");
-  };
-
   // Open Cash Session handler
   const handleConfirmOpenSession = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1349,44 +1339,8 @@ export default function CashPage() {
             </div>
           </div>
 
-          {/* Section 1: Taux Général et Taux de Sortie */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* 1. Taux Général USD / CDF */}
-            <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-[#0F3D68] dark:text-blue-400" />
-                  <Label className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Taux Général de Conversion (USD / CDF)
-                  </Label>
-                </div>
-                <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 text-[10px] font-bold">
-                  Référence globale
-                </Badge>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-600 dark:text-slate-400">1 $ =</span>
-                <div className="relative flex-1">
-                  <Input
-                    type="number"
-                    step="1"
-                    min="1"
-                    value={generalRateInput}
-                    onChange={(e) => setGeneralRateInput(e.target.value)}
-                    className="h-10 text-base font-black text-slate-900 dark:text-slate-100 pr-12 bg-white dark:bg-slate-800"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                    CDF
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Taux de base de l'entreprise utilisé pour les équivalences générales, la valorisation globale et par défaut.
-              </p>
-            </div>
-
+          {/* Section 1: Taux de Sortie (le taux est géré par catégorie, section 2) */}
+          <div className="grid grid-cols-1 gap-4">
             {/* 2. Taux de Sortie de Caisse */}
             <div className="p-4 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 space-y-3">
               <div className="flex items-center justify-between">
@@ -1437,15 +1391,6 @@ export default function CashPage() {
                 </p>
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleApplyGeneralRateToAll}
-                className="text-xs text-blue-700 border-blue-200 bg-blue-50/50 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300"
-              >
-                Appliquer le taux général ({generalRateInput} FC) à toutes les catégories
-              </Button>
             </div>
 
             {/* Grid of category entry rates */}
@@ -1485,7 +1430,7 @@ export default function CashPage() {
                         </span>
                       ) : (
                         <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-600 dark:bg-slate-700 dark:text-slate-400">
-                          Taux général
+                          Taux par défaut
                         </span>
                       )}
                     </div>
