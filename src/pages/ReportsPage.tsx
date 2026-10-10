@@ -673,7 +673,8 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* 4 MAIN METRIC CARDS : chiffre d'affaires, bénéfice brut, dépenses de caisse, bénéfice net réel */}
+      {/* 4 MAIN METRIC CARDS : chiffre d'affaires, bénéfice brut, dépenses de caisse, bénéfice net réel (en-tête de la Vue d'ensemble) */}
+      {activeTab === "overview" ? (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {([
           { key: "sales", label: "Chiffre d'affaires (ventes)", icon: ShoppingCart, tone: "emerald", badge: `${filteredOrders.length} Cmds`, sub: null, goodUp: true },
@@ -721,6 +722,78 @@ export default function ReportsPage() {
           );
         })}
       </div>
+      ) : (
+        /* En-tête des autres sous-modules : ventes, caisse disponible, créances, stock */
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white p-4 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+              <ShoppingCart className="h-4 w-4 text-emerald-600" /> VENTES
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+              {filteredOrders.length} Cmds
+            </span>
+          </div>
+          <div>
+            <div className="text-2xl font-black text-emerald-700 tracking-tight">
+              {fmtMoney(totalSales)}
+            </div>
+            <div className="text-[11px] text-slate-500 font-medium">Chiffre d'affaires total</div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/80 to-white p-4 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-wider text-blue-800 flex items-center gap-1.5">
+              <Wallet className="h-4 w-4 text-blue-600" /> CAISSE DISPONIBLE
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+              USD & CDF
+            </span>
+          </div>
+          <div>
+            <div className="text-xl font-black text-blue-700 tracking-tight">
+              {fmtMoney(currentCashUSD, "USD")}
+            </div>
+            <div className="text-sm font-bold text-slate-800 mt-0.5">
+              {fmtMoney(currentCashCDF, "CDF")}
+            </div>
+            <div className="text-[11px] text-slate-500 font-medium">
+              {periodLabel} : <span className="text-emerald-700 font-semibold">+{fmtMoney(periodCashInUSD)}</span> ·{" "}
+              <span className="text-red-600 font-semibold">−{fmtMoney(periodCashOutUSD)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/80 to-white p-4 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-amber-600" /> CRÉANCES
+            </span>
+          </div>
+          <div>
+            <div className="text-2xl font-black text-amber-700 tracking-tight">
+              {fmtMoney(receivablesTotal)}
+            </div>
+            <div className="text-[11px] text-slate-500 font-medium">Créances clients dues · dettes {periodLabel.toLowerCase()}</div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50/80 to-white p-4 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-wider text-purple-800 flex items-center gap-1.5">
+              <Package className="h-4 w-4 text-purple-600" /> STOCK
+            </span>
+          </div>
+          <div>
+            <div className="text-2xl font-black text-purple-700 tracking-tight">
+              {fmtMoney(selectedSite === "all" || !siteMap ? totalStockValue : siteMap.stock_value?.[selectedSite] || 0)}
+            </div>
+            <div className="text-[11px] text-slate-500 font-medium">Valeur marchande du stock</div>
+          </div>
+        </div>
+      </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
