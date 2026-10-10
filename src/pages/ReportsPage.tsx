@@ -39,6 +39,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import StockReportDashboard from "@/components/reports/StockReportDashboard";
 import StockStateReport from "@/components/reports/StockStateReport";
 import SalesSheets from "@/components/reports/SalesSheets";
+import OverviewDashboard from "@/components/reports/OverviewDashboard";
 import {
   Dialog,
   DialogContent,
@@ -187,6 +188,8 @@ export default function ReportsPage() {
   };
   const filteredOrders = useMemo(() => selectOrders(inPeriod), [orders, selectedBU, search, period, selectedSite, siteMap]);
   const prevOrders = useMemo(() => selectOrders(inPrevPeriod), [orders, selectedBU, search, period, selectedSite, siteMap]);
+  const anyDate = (d?: string) => !!d;
+  const allTimeOrders = useMemo(() => selectOrders(anyDate), [orders, selectedBU, search, selectedSite, siteMap]);
 
   const selectCashOps = (inRange: (d?: string) => boolean) => {
     let list = cashOps.filter((op) => inRange(op.created_at) && inSite("cash", op.id));
@@ -204,6 +207,11 @@ export default function ReportsPage() {
   };
   const filteredCashOps = useMemo(() => selectCashOps(inPeriod), [cashOps, search, period, selectedSite, siteMap]);
   const prevCashOps = useMemo(() => selectCashOps(inPrevPeriod), [cashOps, search, period, selectedSite, siteMap]);
+  const allTimeCashOps = useMemo(() => selectCashOps(anyDate), [cashOps, search, selectedSite, siteMap]);
+  const siteNameOfOrder = (o: any) => {
+    const id = siteMap?.orders?.[o.id] || siteMap?.main_site;
+    return siteMap?.sites?.find((x: any) => x.id === id)?.name || "Site principal";
+  };
   // Une clôture de caisse appartient au site d'affectation de la caissière
   const periodSessions = useMemo(
     () =>
@@ -1120,6 +1128,18 @@ export default function ReportsPage() {
             </table>
           </div>
         </div>
+      ) : activeTab === "overview" ? (
+        <OverviewDashboard
+          orders={allTimeOrders}
+          periodOrders={filteredOrders}
+          cashOps={allTimeCashOps}
+          products={products}
+          siteOfOrder={siteNameOfOrder}
+          kpiCur={kpiCur}
+          kpiPrev={kpiPrev}
+          stockValue={selectedSite === "all" || !siteMap ? totalStockValue : siteMap.stock_value?.[selectedSite] || 0}
+          prevLabel={prevPeriodLabel}
+        />
       ) : null}
 
       {/* DIALOG: DETAIL DU BILLETAGE DE CLÔTURE */}
