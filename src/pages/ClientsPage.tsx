@@ -52,6 +52,8 @@ export default function ClientsPage() {
   const { has } = useAuth();
   const [clients, setClients] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  // Sites du module Stock › Sites (liste déroulante du formulaire client)
+  const [stockSites, setStockSites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -105,6 +107,10 @@ export default function ClientsPage() {
 
   useEffect(() => {
     loadClientsAndProducts();
+    api
+      .get("/stock/sites")
+      .then(({ data }) => setStockSites((Array.isArray(data) ? data : []).filter((x: any) => x.is_active !== false).map((x: any) => x.name).filter(Boolean)))
+      .catch(() => setStockSites([]));
   }, []);
 
   const fetchEnrichedClientsForExport = async () => {
@@ -576,12 +582,29 @@ export default function ClientsPage() {
                 <Label className="text-xs font-semibold text-slate-800">
                   Site géographique / Ville *
                 </Label>
-                <Input
-                  name="city"
-                  defaultValue={editingClient?.city || "Goma, RDC"}
-                  placeholder="Ex: Goma, Bukavu, Kinshasa..."
-                  className="mt-1 h-9 rounded-lg text-xs font-medium"
-                />
+                {(() => {
+                  // Liste des sites existants ; la valeur d'un ancien client hors liste est conservée telle quelle
+                  const current = editingClient?.city || "";
+                  const match = stockSites.find((x) => x.toLowerCase() === current.toLowerCase());
+                  const options = current && !stockSites.some((x) => x.toLowerCase() === current.toLowerCase()) && !match ? [current, ...stockSites] : stockSites;
+                  return (
+                    <select
+                      key={`${editingClient?.id || "new"}-${stockSites.length}`}
+                      name="city"
+                      required
+                      defaultValue={match || current || stockSites[0] || ""}
+                      data-no-translate
+                      className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium"
+                    >
+                      {!options.length && <option value="">Aucun site (Stock › Sites)</option>}
+                      {options.map((x) => (
+                        <option key={x} value={x}>
+                          {x}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
               </div>
               <div>
                 <Label className="text-xs font-semibold text-slate-800">
