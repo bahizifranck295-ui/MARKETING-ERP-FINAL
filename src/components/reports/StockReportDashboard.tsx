@@ -1,19 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   Boxes,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Database,
-  FolderTree,
   LineChart,
   MapPin,
-  MoreHorizontal,
-  Package,
   PieChart,
-  Search,
   Shapes,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
@@ -26,11 +19,9 @@ import {
   EVOLUTION_DAYS,
   Evolution,
   OTHER_COLOR,
-  BAR_COLOR,
   categoryOf,
   computeEvolution,
   costOf,
-  statusOf,
   stockOf,
   thresholdOf,
 } from "@/components/stock/stockCharts";
@@ -50,7 +41,6 @@ type Props = {
 };
 
 // Ordre fixe des couleurs de catégories (validé daltonisme, voir legend)
-const PAGE_SIZE = 7;
 const ALL = "all";
 
 function Card({ title, icon: Icon, children, className = "" }: any) {
@@ -104,32 +94,11 @@ function Select({ label, value, onChange, options }: any) {
   );
 }
 
-function ProductThumb({ product }: { product: any }) {
-  const [failed, setFailed] = useState(false);
-  if (product.image_url && !failed) {
-    return (
-      <img
-        src={product.image_url}
-        alt=""
-        loading="lazy"
-        onError={() => setFailed(true)}
-        className="h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white object-cover"
-      />
-    );
-  }
-  return (
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400">
-      <Package className="h-4 w-4" />
-    </span>
-  );
-}
-
 /* ---------- Graphiques (SVG, sans dépendance) ---------- */
 
 /* ---------- Tableau de bord ---------- */
 
 export default function StockReportDashboard({ products, orders, search, siteKey }: Props) {
-  const navigate = useNavigate();
   // Structure réelle du stock : sites, dépôts et quantités par dépôt
   const [sites, setSites] = useState<any[]>([]);
   const [depots, setDepots] = useState<any[]>([]);
@@ -156,9 +125,6 @@ export default function StockReportDashboard({ products, orders, search, siteKey
     setDepot(ALL);
   }, [siteKey]);
   const [category, setCategory] = useState(ALL);
-  const [tableSearch, setTableSearch] = useState("");
-  const [catSearch, setCatSearch] = useState("");
-  const [page, setPage] = useState(1);
 
   const siteName = (id?: string) => sites.find((x) => x.id === id)?.name || "Sans site";
   const allSites = useMemo(() => sites.map((x) => ({ value: x.id, label: x.name })), [sites]);
@@ -198,15 +164,6 @@ export default function StockReportDashboard({ products, orders, search, siteKey
     ranked.forEach((c, i) => m.set(c, CATEGORY_COLORS[i] || OTHER_COLOR));
     return m;
   }, [products]);
-
-  // Quantités réservées : commandes en attente d'approbation (stock pas encore déduit)
-  const reservedByProduct = useMemo(() => {
-    const m = new Map<string, number>();
-    orders
-      .filter((o) => o.status === "pending_approval")
-      .forEach((o) => (o.items || []).forEach((it: any) => m.set(it.product_id, (m.get(it.product_id) || 0) + (Number(it.quantity) || 0))));
-    return m;
-  }, [orders]);
 
   const scoped = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -259,29 +216,7 @@ export default function StockReportDashboard({ products, orders, search, siteKey
 
   const evolution = useMemo(() => computeEvolution(inCategory, orders, totalValue), [inCategory, orders, totalValue]);
 
-  const tableRows = useMemo(() => {
-    const q = tableSearch.trim().toLowerCase();
-    return inCategory
-      .filter((p) => !q || p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q))
-      .sort((a, b) => a.name.localeCompare(b.name, "fr"));
-  }, [inCategory, tableSearch]);
-  const pages = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
-  const curPage = Math.min(page, pages);
-  const visible = tableRows.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
-
-  const categoryTree = useMemo(() => {
-    const q = catSearch.trim().toLowerCase();
-    const m = new Map<string, any[]>();
-    scoped.forEach((p) => m.set(categoryOf(p), [...(m.get(categoryOf(p)) || []), p]));
-    return Array.from(m.entries())
-      .filter(([c]) => !q || c.toLowerCase().includes(q))
-      .sort((a, b) => a[0].localeCompare(b[0], "fr"));
-  }, [scoped, catSearch]);
-
-  const reset = (fn: (v: string) => void) => (v: string) => {
-    fn(v);
-    setPage(1);
-  };
+  const reset = (fn: (v: string) => void) => (v: string) => fn(v);
 
   return (
     <div className="space-y-4">
@@ -293,7 +228,6 @@ export default function StockReportDashboard({ products, orders, search, siteKey
           onChange={(v: string) => {
             setSite(v);
             setDepot(ALL);
-            setPage(1);
           }}
           options={[{ value: ALL, label: "Tous les sites" }, ...allSites]}
         />
@@ -332,176 +266,6 @@ export default function StockReportDashboard({ products, orders, search, siteKey
         <Card title={`Évolution du stock (valeur, ${EVOLUTION_DAYS} jours)`} icon={LineChart}>
           <Evolution points={evolution} />
           <p className="mt-2 text-[11px] text-slate-500">Reconstituée à partir des commandes validées.</p>
-        </Card>
-      </div>
-
-      {/* Catégories + tableau */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <Card title="Catégories de produits" icon={FolderTree}>
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-            <input
-              value={catSearch}
-              onChange={(e) => setCatSearch(e.target.value)}
-              placeholder="Rechercher une catégorie…"
-              className="h-9 w-full rounded-xl border border-slate-200 pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/30"
-            />
-          </div>
-          <ul className="space-y-0.5 text-xs">
-            <li>
-              <button
-                type="button"
-                onClick={() => reset(setCategory)(ALL)}
-                className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left font-semibold ${category === ALL ? "bg-blue-50 text-[#0F3D68]" : "text-slate-700 hover:bg-slate-50"}`}
-              >
-                <FolderTree className="h-3.5 w-3.5" /> Toutes ({scoped.length})
-              </button>
-            </li>
-            {categoryTree.map(([c, items]) => (
-              <li key={c}>
-                <button
-                  type="button"
-                  onClick={() => reset(setCategory)(c)}
-                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left ${category === c ? "bg-blue-50 font-semibold text-[#0F3D68]" : "text-slate-700 hover:bg-slate-50"}`}
-                >
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorByCategory.get(c) || OTHER_COLOR }} />
-                  <span className="min-w-0 flex-1 truncate">{c}</span>
-                  <span className="tabular-nums text-slate-500">({items.length})</span>
-                </button>
-                {category === c && (
-                  <ul className="ml-6 border-l border-slate-200 py-1 pl-2">
-                    {items.map((p: any) => (
-                      <li key={p.id} className="truncate py-0.5 text-[11px] text-slate-500">
-                        {p.name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <Card title="Stock par dépôt" icon={Boxes}>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] text-slate-500">
-              {depot === ALL ? "Tous les dépôts" : depot}
-              {category !== ALL ? ` · ${category}` : ""}
-            </p>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <input
-                value={tableSearch}
-                onChange={(e) => {
-                  setTableSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Rechercher un produit…"
-                className="h-9 w-full rounded-xl border border-slate-200 pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/30"
-              />
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] border-collapse text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 font-semibold text-slate-600">
-                  <th className="p-3">Produit</th>
-                  <th className="p-3">Catégorie</th>
-                  <th className="p-3 text-right">Stock</th>
-                  <th className="p-3 text-right">Réservé</th>
-                  <th className="p-3 text-right">Disponible</th>
-                  <th className="p-3 text-right">Seuil mini</th>
-                  <th className="p-3 text-right">Valeur</th>
-                  <th className="p-3 text-center">Statut</th>
-                  <th className="p-3 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {visible.map((p) => {
-                  const stock = stockOf(p);
-                  const reserved = reservedByProduct.get(p.id) || 0;
-                  const st = statusOf(p);
-                  return (
-                    <tr key={p.id} className="hover:bg-slate-50/80">
-                      <td className="p-3">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <ProductThumb product={p} />
-                          <div className="min-w-0">
-                            <div className="truncate font-semibold text-slate-900">{p.name}</div>
-                            <div className="font-mono text-[10px] text-slate-500">{p.code}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-3 text-slate-600">{categoryOf(p)}</td>
-                      <td className="p-3 text-right font-semibold tabular-nums">{stock.toLocaleString("fr-FR")}</td>
-                      <td className="p-3 text-right tabular-nums text-slate-600">{reserved.toLocaleString("fr-FR")}</td>
-                      <td className="p-3 text-right font-semibold tabular-nums">{Math.max(0, stock - reserved).toLocaleString("fr-FR")}</td>
-                      <td className="p-3 text-right tabular-nums text-slate-600">{thresholdOf(p).toLocaleString("fr-FR")}</td>
-                      <td className="p-3 text-right font-semibold tabular-nums">{fmtMoney(stock * costOf(p))}</td>
-                      <td className="p-3 text-center">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold ${st.cls}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
-                          {st.label}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <button
-                          type="button"
-                          title="Ouvrir dans Stock & Dépôts"
-                          onClick={() => navigate("/stock")}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!visible.length && (
-                  <tr>
-                    <td colSpan={9} className="p-8 text-center text-slate-500">
-                      Aucun produit ne correspond à ces filtres.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
-            <span>
-              Affichage de {visible.length} sur {tableRows.length} produit(s)
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={curPage <= 1}
-                onClick={() => setPage(curPage - 1)}
-                className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 disabled:opacity-40"
-                aria-label="Page précédente"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </button>
-              {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
-                <button
-                  type="button"
-                  key={n}
-                  onClick={() => setPage(n)}
-                  className={`h-7 min-w-7 rounded-lg px-2 font-semibold ${n === curPage ? "bg-[#0F3D68] text-white" : "border border-slate-200 text-slate-700"}`}
-                >
-                  {n}
-                </button>
-              ))}
-              <button
-                type="button"
-                disabled={curPage >= pages}
-                onClick={() => setPage(curPage + 1)}
-                className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 disabled:opacity-40"
-                aria-label="Page suivante"
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
         </Card>
       </div>
 
