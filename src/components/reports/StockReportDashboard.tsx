@@ -32,6 +32,8 @@ type Props = {
   search: string;
   /** Site choisi dans l'en-tête des Rapports ("all" = tous) */
   siteKey?: string;
+  /** Barre de tri (site, dépôt, catégorie) partagée avec l'historique des rapports */
+  onFiltersChange?: (f: { site: string; depot: string; category: string }) => void;
 };
 
 // Ordre fixe des couleurs de catégories (validé daltonisme, voir legend)
@@ -92,7 +94,7 @@ function Select({ label, value, onChange, options }: any) {
 
 /* ---------- Tableau de bord ---------- */
 
-export default function StockReportDashboard({ products, orders, search, siteKey }: Props) {
+export default function StockReportDashboard({ products, orders, search, siteKey, onFiltersChange }: Props) {
   // Structure réelle du stock : sites, dépôts et quantités par dépôt
   const [sites, setSites] = useState<any[]>([]);
   const [depots, setDepots] = useState<any[]>([]);
@@ -119,6 +121,9 @@ export default function StockReportDashboard({ products, orders, search, siteKey
     setDepot(ALL);
   }, [siteKey]);
   const [category, setCategory] = useState(ALL);
+  useEffect(() => {
+    onFiltersChange?.({ site, depot, category });
+  }, [site, depot, category]);
 
   const siteName = (id?: string) => sites.find((x) => x.id === id)?.name || "Sans site";
   const allSites = useMemo(() => sites.map((x) => ({ value: x.id, label: x.name })), [sites]);

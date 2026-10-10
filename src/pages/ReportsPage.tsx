@@ -53,6 +53,8 @@ export default function ReportsPage() {
   const [receivables, setReceivables] = useState<any[]>([]);
   const [exportingReceivables, setExportingReceivables] = useState(false);
   const [exportingCash, setExportingCash] = useState(false);
+  // Barre de tri de l'état des stocks (site, dépôt, catégorie), appliquée aussi à l'historique des rapports
+  const [stockFilters, setStockFilters] = useState<{ site: string; depot: string; category: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("month");
   const [activeTab, setActiveTab] = useState<
@@ -1063,8 +1065,8 @@ export default function ReportsPage() {
         </div>
       ) : activeTab === "stock" ? (
         <div className="space-y-4">
-          <StockStateReport siteKey={selectedSite} />
-          <StockReportDashboard products={products} orders={orders} search={search} siteKey={selectedSite} />
+          <StockStateReport siteKey={selectedSite} historyFilter={stockFilters} />
+          <StockReportDashboard products={products} orders={orders} search={search} siteKey={selectedSite} onFiltersChange={setStockFilters} />
         </div>
       ) : activeTab === "sales" ? (
         <SalesSheets search={search} period={period} includeOrder={(o: any) => inSite("orders", o.id)} siteKey={selectedSite} siteLabel={siteName} />

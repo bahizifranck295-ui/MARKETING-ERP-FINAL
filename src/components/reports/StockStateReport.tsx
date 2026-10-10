@@ -215,7 +215,13 @@ function ReportDocument({ report, periodLabel, preparedBy }: { report: any; peri
   );
 }
 
-export default function StockStateReport({ siteKey }: { siteKey?: string }) {
+export default function StockStateReport({
+  siteKey,
+  historyFilter,
+}: {
+  siteKey?: string;
+  historyFilter?: { site: string; depot: string; category: string } | null;
+}) {
   const { user } = useAuth() as any;
   const restrictedSite = user && !ADMIN_ROLES.includes(user.role_code) && !user.is_transversal && user.site_id ? user.site_id : null;
 
@@ -268,6 +274,17 @@ export default function StockStateReport({ siteKey }: { siteKey?: string }) {
     setSiteId(pick);
     setDepotId("all");
   }, [sites, siteKey]);
+
+  const shownHistory = useMemo(() => {
+    const f = historyFilter;
+    if (!f) return history;
+    return history.filter(
+      (h) =>
+        (f.site === "all" || h.site_id === f.site) &&
+        (f.depot === "all" || h.warehouse_id === f.depot) &&
+        (f.category === "all" || String(h.category).toLowerCase() === f.category.toLowerCase())
+    );
+  }, [history, historyFilter]);
 
   const siteDepots = useMemo(() => depots.filter((w) => w.site_id === siteId), [depots, siteId]);
   const periodLabel = mode === "day" ? dayLabel(day) : `Du ${dayLabel(fromDay)} au ${dayLabel(toDay)}`;
@@ -481,10 +498,15 @@ export default function StockStateReport({ siteKey }: { siteKey?: string }) {
         </div>
       )}
 
-      {/* Historique des rapports */}
+      {/* Historique des rapports (trié par la barre Site / Dépôt / Catégorie de l'état des stocks) */}
       <div>
         <h4 className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-900">
-          <History className="h-4 w-4 text-[#0F3D68]" /> Historique des rapports ({history.length})
+          <History className="h-4 w-4 text-[#0F3D68]" /> Historique des rapports ({shownHistory.length})
+          {shownHistory.length !== history.length && (
+            <span className="text-[11px] font-normal text-slate-500">
+              · filtré par la barre de tri (site, dépôt, catégorie) : {shownHistory.length} sur {history.length}
+            </span>
+          )}
         </h4>
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full min-w-[760px] text-left text-[11px]">
@@ -500,7 +522,7 @@ export default function StockStateReport({ siteKey }: { siteKey?: string }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {history.map((h) => (
+              {shownHistory.map((h) => (
                 <tr key={h.id} className={current?.id === h.id ? "bg-blue-50/60" : ""}>
                   <td className="p-2.5 font-semibold" data-no-translate>{h.site_name}</td>
                   <td className="p-2.5" data-no-translate>{h.category}</td>
@@ -526,9 +548,11 @@ export default function StockStateReport({ siteKey }: { siteKey?: string }) {
                   </td>
                 </tr>
               ))}
-              {!history.length && (
+              {!shownHistory.length && (
                 <tr>
-                  <td colSpan={7} className="p-4 text-center text-slate-500">Aucun rapport généré pour le moment.</td>
+                  <td colSpan={7} className="p-4 text-center text-slate-500">
+                    {history.length ? "Aucun rapport pour ce tri." : "Aucun rapport généré pour le moment."}
+                  </td>
                 </tr>
               )}
             </tbody>
