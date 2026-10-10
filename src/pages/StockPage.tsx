@@ -571,6 +571,62 @@ export default function StockPage() {
           <EmptyState icon={Package} title="Aucun produit en stock" subtitle="Ajoutez votre premier article avec « Nouveau produit »." />
         ) : (
           <>
+            {/* Tri du tableau de bord (site, dépôt, catégorie, recherche) : en haut de la page */}
+            <div data-dash-filters className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-2 xl:grid-cols-4">
+              <label className="text-[11px] font-semibold text-slate-600">
+                Site
+                <select
+                  value={dashSite}
+                  onChange={(e) => { setDashSite(e.target.value); setDashDepot(ALL); setDashPage(1); }}
+                  className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                >
+                  <option value={ALL}>Tous les sites</option>
+                  {sites.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[11px] font-semibold text-slate-600">
+                Dépôt
+                <select
+                  value={dashDepot}
+                  onChange={(e) => { setDashDepot(e.target.value); setDashPage(1); }}
+                  className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                >
+                  <option value={ALL}>Tous les dépôts</option>
+                  {warehouses
+                    .filter((w) => dashSite === ALL || w.site_id === dashSite)
+                    .map((w) => (
+                      <option key={w.id} value={w.id}>{dashSite === ALL ? w.label : w.name}</option>
+                    ))}
+                </select>
+              </label>
+              <label className="text-[11px] font-semibold text-slate-600">
+                Catégorie
+                <select
+                  value={dashCat}
+                  onChange={(e) => { setDashCat(e.target.value); setDashPage(1); }}
+                  className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                >
+                  <option value={ALL}>Toutes les catégories</option>
+                  {allCategories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[11px] font-semibold text-slate-600">
+                Recherche
+                <span className="relative mt-1 block">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={dashSearch}
+                    onChange={(e) => { setDashSearch(e.target.value); setDashPage(1); }}
+                    placeholder="Rechercher un produit…"
+                    className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                  />
+                </span>
+              </label>
+            </div>
             {/* Indicateurs globaux (la rupture est comptée dans « Stock faible ») */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
               <KpiTile icon={Boxes} glow="from-blue-500 to-indigo-600" label="Total produits" value={fmtNum(dashRows.length)} hint={`${fmtNum(totalUnits)} unités`} />
@@ -657,61 +713,6 @@ export default function StockPage() {
               </GlassCard>
 
               <GlassCard title="Stock par dépôt" icon={Boxes}>
-                <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                  <label className="text-[11px] font-semibold text-slate-600">
-                    Site
-                    <select
-                      value={dashSite}
-                      onChange={(e) => { setDashSite(e.target.value); setDashDepot(ALL); setDashPage(1); }}
-                      className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
-                    >
-                      <option value={ALL}>Tous les sites</option>
-                      {sites.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-[11px] font-semibold text-slate-600">
-                    Dépôt
-                    <select
-                      value={dashDepot}
-                      onChange={(e) => { setDashDepot(e.target.value); setDashPage(1); }}
-                      className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
-                    >
-                      <option value={ALL}>Tous les dépôts</option>
-                      {warehouses
-                        .filter((w) => dashSite === ALL || w.site_id === dashSite)
-                        .map((w) => (
-                          <option key={w.id} value={w.id}>{dashSite === ALL ? w.label : w.name}</option>
-                        ))}
-                    </select>
-                  </label>
-                  <label className="text-[11px] font-semibold text-slate-600">
-                    Catégorie
-                    <select
-                      value={dashCat}
-                      onChange={(e) => { setDashCat(e.target.value); setDashPage(1); }}
-                      className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
-                    >
-                      <option value={ALL}>Toutes les catégories</option>
-                      {allCategories.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-[11px] font-semibold text-slate-600">
-                    Recherche
-                    <span className="relative mt-1 block">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                      <input
-                        value={dashSearch}
-                        onChange={(e) => { setDashSearch(e.target.value); setDashPage(1); }}
-                        placeholder="Rechercher un produit…"
-                        className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
-                      />
-                    </span>
-                  </label>
-                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[720px] border-collapse text-left text-xs">
                     <thead>
