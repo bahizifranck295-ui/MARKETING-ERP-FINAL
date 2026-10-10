@@ -5,7 +5,6 @@ import {
   Plus,
   Search,
   Upload,
-  Camera,
   FileText,
   Eye,
   Trash2,
@@ -75,15 +74,6 @@ export default function OutflowModal({
   const [submitting, setSubmitting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-
-  const [showBilletage, setShowBilletage] = useState(false);
-  const [billetUSD, setBilletUSD] = useState<Record<string, number>>({
-    "100": 0, "50": 0, "20": 0, "10": 0, "5": 0, "1": 0,
-  });
-  const [billetCDF, setBilletCDF] = useState<Record<string, number>>({
-    "20000": 0, "10000": 0, "5000": 0, "1000": 0, "500": 0,
-  });
 
   const [form, setForm] = useState({
     category: "Dépense d'exploitation",
@@ -94,18 +84,6 @@ export default function OutflowModal({
     authorized_by: "",
     reason: "",
   });
-
-  const totalBilletUSD = useMemo(() => {
-    return Object.entries(billetUSD).reduce((sum, [d, c]) => sum + (Number(d) || 0) * (Number(c) || 0), 0);
-  }, [billetUSD]);
-
-  const totalBilletCDF = useMemo(() => {
-    return Object.entries(billetCDF).reduce((sum, [d, c]) => sum + (Number(d) || 0) * (Number(c) || 0), 0);
-  }, [billetCDF]);
-
-  const totalBilletActive = useMemo(() => {
-    return form.currency === "USD" ? totalBilletUSD : totalBilletCDF;
-  }, [form.currency, totalBilletUSD, totalBilletCDF]);
 
   useEffect(() => {
     if (isOpen) {
@@ -237,15 +215,6 @@ export default function OutflowModal({
         reference: ref,
         document_url: docUrl,
         document_name: fileName,
-        billetage: showBilletage
-          ? {
-              usd: billetUSD,
-              cdf: billetCDF,
-              total_usd: totalBilletUSD,
-              total_cdf: totalBilletCDF,
-              exchange_rate: form.exchange_rate,
-            }
-          : undefined,
       });
 
       toast.success(`Sortie de ${fmtMoney(numAmount, form.currency as any)} enregistrée avec succès !`);
@@ -361,90 +330,6 @@ export default function OutflowModal({
                 </span>
               </div>
             )}
-
-            {/* Billetage monétaire optionnel */}
-            <div className="pt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-slate-600">
-                  Billetage monétaire de la sortie
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowBilletage(!showBilletage)}
-                  className="text-[11px] font-bold text-blue-600 hover:underline"
-                >
-                  {showBilletage ? "Masquer le billetage" : "+ Remplir le billetage"}
-                </button>
-              </div>
-
-              {showBilletage && (
-                <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                  <div className="flex justify-between items-center text-[11px]">
-                    <span className="text-slate-500">Coupures en {form.currency} :</span>
-                    <span className="font-bold text-slate-800">
-                      Total billetage : {fmtMoney(totalBilletActive, form.currency as any)}
-                    </span>
-                  </div>
-
-                  {form.currency === "USD" ? (
-                    <div className="grid grid-cols-6 gap-1.5">
-                      {[100, 50, 20, 10, 5, 1].map((val) => (
-                        <div key={val} className="text-center">
-                          <label className="text-[10px] font-bold text-slate-600 block">${val}</label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={billetUSD[String(val)] || ""}
-                            onChange={(e) =>
-                              setBilletUSD({
-                                ...billetUSD,
-                                [String(val)]: Math.max(0, parseInt(e.target.value) || 0),
-                              })
-                            }
-                            className="h-7 text-center text-xs px-1"
-                            placeholder="0"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {[20000, 10000, 5000, 1000, 500].map((val) => (
-                        <div key={val} className="text-center">
-                          <label className="text-[10px] font-bold text-slate-600 block">{val} FC</label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={billetCDF[String(val)] || ""}
-                            onChange={(e) =>
-                              setBilletCDF({
-                                ...billetCDF,
-                                [String(val)]: Math.max(0, parseInt(e.target.value) || 0),
-                              })
-                            }
-                            className="h-7 text-center text-xs px-1"
-                            placeholder="0"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {totalBilletActive > 0 && parseFloat(form.amount) !== totalBilletActive && (
-                    <div className="flex items-center justify-between text-[11px] pt-1 text-amber-700">
-                      <span>Écart : {fmtMoney(Math.abs(parseFloat(form.amount || "0") - totalBilletActive), form.currency as any)}</span>
-                      <button
-                        type="button"
-                        onClick={() => setForm({ ...form, amount: totalBilletActive.toString() })}
-                        className="font-bold underline text-blue-600 hover:text-blue-700"
-                      >
-                        Appliquer au montant ({totalBilletActive})
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
 
             {/* C. Bénéficiaire */}
             <div>
@@ -600,18 +485,6 @@ export default function OutflowModal({
                 }}
                 className="hidden"
               />
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) processFile(f);
-                  e.target.value = "";
-                }}
-                className="hidden"
-              />
 
               {docLoading ? (
                 <div className="p-6 bg-white rounded-xl border border-slate-200 flex items-center justify-center gap-2 text-xs text-slate-600">
@@ -682,7 +555,7 @@ export default function OutflowModal({
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -695,19 +568,6 @@ export default function OutflowModal({
                       Importer un fichier
                     </span>
                     <span className="text-[10px] text-slate-400">PDF, JPG, JPEG, PNG (max 25 Mo)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="p-4 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 bg-white hover:bg-blue-50/30 flex flex-col items-center justify-center text-center gap-1.5 transition-all group"
-                  >
-                    <div className="h-8 w-8 rounded-full bg-slate-100 group-hover:bg-blue-100 text-slate-500 group-hover:text-blue-600 flex items-center justify-center transition-colors">
-                      <Camera className="h-4 w-4" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-700 group-hover:text-blue-700">
-                      Scanner / Prendre photo
-                    </span>
-                    <span className="text-[10px] text-slate-400">Appareil photo ou scanner</span>
                   </button>
                 </div>
               )}

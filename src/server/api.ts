@@ -19,7 +19,7 @@ import {
   PERMISSION_CATALOG,
   ALL_PERMISSION_CODES,
 } from "./db";
-import { mountStockStructureRoutes, userSite } from "./stockStructure";
+import { ensureStockStructure, mountStockStructureRoutes, userSite } from "./stockStructure";
 import { mountStockReportRoutes } from "./stockReport";
 import { applyOrderStockOut, embarkedAvailability, mountDeliveryRoutes, productStockMode, restoreOrderStock, tagOrderStockSource } from "./delivery";
 
@@ -406,6 +406,24 @@ export function recordAccountingMovement(params: {
   return mov;
 }
 
+/*
+ * Taux de change par catégorie de produits (Caisse › Taux) : il fixe le taux de
+ * toutes les transactions de la catégorie (vente en boutique, encaissement).
+ */
+export function categoryRate(category?: string | null) {
+  const r = category ? Number(db.rates_config?.category_rates?.[category]) : 0;
+  return r > 0 ? r : Number(db.rates_config?.general_rate) || 2500;
+}
+/** Catégorie de produits d'une commande (celle de ses articles). */
+export function orderCategory(order: any): string | undefined {
+  for (const it of order?.items || []) {
+    const cat = db.products.find((p) => p.id === it.product_id)?.category;
+    if (cat) return cat;
+  }
+  return undefined;
+}
+export const orderRate = (order: any) => categoryRate(orderCategory(order));
+
 export function recordCashInflow(params: {
   amount: number;
   category: string;
@@ -784,7 +802,9 @@ apiRouter.post("/clients/:id/payments", authenticate, (req, res) => {
   const reference = req.body.reference || `ENC-${Date.now().toString().slice(-6)}`;
   const department = req.body.department || client.department || "Maize Mill";
   const currency = req.body.currency === "CDF" ? "CDF" : "USD";
-  const exchange_rate = Number(req.body.exchange_rate) || 2500;
+  // Créance liée à une vente : taux de la catégorie de cette vente ; sinon taux choisi / taux de la catégorie
+  const creditOrder = targetCredit?.order_id ? db.orders.find((o) => o.id === targetCredit.order_id) : null;
+  const exchange_rate = creditOrder ? orderRate(creditOrder) : Number(req.body.exchange_rate) || categoryRate(department);
   const billetage = req.body.billetage;
   const document_url = req.body.document_url;
   const document_name = req.body.document_name;
@@ -917,7 +937,8 @@ apiRouter.post("/orders", authenticate, (req, res) => {
     const prod = db.products.find((p) => p.id === it.product_id);
     const qty = Number(it.quantity) || 1;
     const priceUSD = it.unit_price !== undefined ? Number(it.unit_price) : prod?.sell_price || 0;
-    const priceFC = it.unit_price_fc !== undefined ? Number(it.unit_price_fc) : prod?.price_fc || Math.round(priceUSD * 2500);
+    // Prix en FC au taux de la catégorie du produit (Caisse › Taux)
+    const priceFC = it.unit_price_fc !== undefined ? Number(it.unit_price_fc) : Math.round(priceUSD * categoryRate(prod?.category));
     const lineTotalUSD = qty * priceUSD;
     const lineTotalFC = qty * priceFC;
     subtotalUSD += lineTotalUSD;
@@ -1305,10 +1326,10 @@ apiRouter.get("/cash/rates", authenticate, (req, res) => {
     };
   }
 
-  // Collect all unique product categories and departments
-  const productCats = Array.from(new Set(db.products.map((p) => p.category).filter((c): c is string => Boolean(c))));
-  const defaultDepts = ["Maize Mill", "Boissons (Premidis)", "Produits Alimentaires", "Direction Générale"];
-  const allCategories: string[] = Array.from(new Set([...productCats, ...defaultDepts]));
+  // Catégories de produits réellement présentes dans le logiciel (Stock › Catégories + produits actifs)
+  ensureStockStructure();
+  const productCats = db.products.filter((p) => p.is_active !== false).map((p) => p.category).filter((c): c is string => Boolean(c));
+  const allCategories: string[] = Array.from(new Set([...(db.product_categories || []), ...productCats])).sort((a, b) => a.localeCompare(b, "fr"));
 
   for (const cat of allCategories) {
     if (typeof db.rates_config.category_rates[cat] !== "number") {
@@ -1474,7 +1495,9 @@ apiRouter.post("/cash/operations", authenticate, (req, res) => {
   } else if (db.rates_config?.general_rate) {
     defaultRate = db.rates_config.general_rate;
   }
-  const rate = Number(exchange_rate) || defaultRate;
+  // Encaissement d'une vente : taux de la catégorie de cette vente (Caisse › Taux)
+  const linkedOrder = opType === "in" && (order_id || order_code) ? db.orders.find((o) => o.id === order_id || o.code === order_id || o.code === order_code) : null;
+  const rate = linkedOrder ? orderRate(linkedOrder) : Number(exchange_rate) || defaultRate;
   const amountUSD = opCurrency === "USD" ? numAmount : Math.round((numAmount / rate) * 100) / 100;
   const amountCDF = opCurrency === "CDF" ? numAmount : Math.round(numAmount * rate);
 
@@ -1576,11 +1599,12 @@ apiRouter.get("/cash/marketer-deposits", authenticate, (req, res) => {
       });
     }
     const group = marketerMap.get(mName)!;
-    group.orders.push(ord);
+    // Taux de la catégorie de la commande (Caisse › Taux), utilisé pour l'encaissement
+    group.orders.push({ ...ord, fx_category: orderCategory(ord), fx_rate: orderRate(ord) });
     if ((ord.cash_deposit_status || "pending_deposit") === "pending_deposit") {
       group.pending_orders_count += 1;
       group.pending_total_usd += ord.total;
-      group.pending_total_fc += ord.total_fc || Math.round(ord.total * 2500);
+      group.pending_total_fc += ord.total_fc || Math.round(ord.total * orderRate(ord));
     }
   }
 
@@ -1617,7 +1641,11 @@ apiRouter.post("/cash/marketer-deposits/approve", authenticate, (req, res) => {
   const user = (req as any).user as User;
   const { order_ids, amount, billetUSD, billetCDF, exchangeRate, notes, department, document_url, document_name } = req.body;
 
-  const ordersToApprove = db.orders.filter((o) => (order_ids || []).includes(o.id));
+  const ids: string[] = Array.isArray(order_ids) ? order_ids : req.body.order_id ? [req.body.order_id] : [];
+  const ordersToApprove = db.orders.filter((o) => ids.includes(o.id));
+  // Taux de la catégorie des commandes encaissées (Caisse › Taux)
+  const fxCategory = orderCategory(ordersToApprove[0]);
+  const fxRate = ordersToApprove.length ? orderRate(ordersToApprove[0]) : Number(exchangeRate) || 2500;
   const totalExpectedUSD = ordersToApprove.reduce((sum, o) => sum + o.total, 0);
   const finalAmount = Number(amount) > 0 ? Number(amount) : totalExpectedUSD;
 
@@ -1636,8 +1664,9 @@ apiRouter.post("/cash/marketer-deposits/approve", authenticate, (req, res) => {
     userName: user.full_name,
     document_url,
     document_name,
-    billetage: { usd: billetUSD, cdf: billetCDF, exchange_rate: exchangeRate || 2500 },
-    department: department || "Maize Mill",
+    billetage: req.body.billetage || { usd: billetUSD, cdf: billetCDF, exchange_rate: fxRate },
+    department: fxCategory || department || "Maize Mill",
+    exchange_rate: fxRate,
   });
 
   for (const ord of ordersToApprove) {
@@ -1668,7 +1697,10 @@ apiRouter.get("/credits/debts", authenticate, (req, res) => {
   res.json(
     db.credits.map((c: any) => {
       const remaining = c.remaining !== undefined ? c.remaining : c.balance ?? c.initial_amount ?? c.amount ?? 0;
-      return { ...c, remaining, balance: remaining };
+      // Taux de la catégorie de produits de la vente à crédit (Caisse › Taux), appliqué à l'encaissement
+      const ord = c.order_id ? db.orders.find((o) => o.id === c.order_id) : null;
+      const fx_category = ord ? orderCategory(ord) : undefined;
+      return { ...c, remaining, balance: remaining, fx_category, fx_rate: categoryRate(fx_category) };
     })
   );
 });

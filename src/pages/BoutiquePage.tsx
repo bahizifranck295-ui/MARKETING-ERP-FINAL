@@ -140,7 +140,8 @@ export default function BoutiquePage() {
       if (!p) return;
       const categoryRate = ratesConfig?.category_rates?.[p.category] || ratesConfig?.general_rate || 2500;
       const priceUSD = p.sell_price || 0;
-      const priceCDF = p.price_fc || Math.round(priceUSD * categoryRate);
+      // Prix en FC au taux de la catégorie (Caisse › Taux), comme sur la fiche produit
+      const priceCDF = Math.round(priceUSD * categoryRate);
       const lineUSD = priceUSD * qty;
       const lineCDF = priceCDF * qty;
       totalUSD += lineUSD;

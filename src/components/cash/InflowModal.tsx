@@ -65,21 +65,10 @@ export default function InflowModal({
   onRefresh,
 }: InflowModalProps) {
   const [nature, setNature] = useState("Versement journalier de marketeur dans les différents comptes clients");
-  const [department, setDepartment] = useState("Maize Mill");
+  // Catégorie de produits de l'encaissement : son taux (Caisse › Taux) s'applique à la transaction
+  const [department, setDepartment] = useState("");
   const [rate, setRate] = useState(exchangeRate || 2500);
-  const [availableDepartments, setAvailableDepartments] = useState<string[]>([
-    "Maize Mill",
-    "Boissons (Premidis)",
-    "Produits Alimentaires",
-    "Direction Générale",
-    "Eau",
-    "Jus",
-    "Bière",
-    "Boisson",
-    "Whisky",
-    "Vin",
-    "Produits",
-  ]);
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
   const [ratesConfig, setRatesConfig] = useState<any>(null);
 
   React.useEffect(() => {
@@ -88,10 +77,11 @@ export default function InflowModal({
         .then((res) => {
           if (res.data) {
             setRatesConfig(res.data);
-            if (Array.isArray(res.data.categories) && res.data.categories.length > 0) {
-              setAvailableDepartments(res.data.categories);
-            }
-            const catRate = res.data.category_rates?.[department] || res.data.general_rate || exchangeRate || 2500;
+            const cats: string[] = Array.isArray(res.data.categories) ? res.data.categories : [];
+            setAvailableDepartments(cats);
+            const dept = cats.includes(department) ? department : cats[0] || "";
+            setDepartment(dept);
+            const catRate = res.data.category_rates?.[dept] || res.data.general_rate || exchangeRate || 2500;
             setRate(catRate);
           }
         })
@@ -384,7 +374,8 @@ export default function InflowModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Le taux est celui de la catégorie (Caisse › Taux) : il n'est pas modifiable ici */}
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold text-slate-700">Département / Catégorie</Label>
@@ -403,17 +394,6 @@ export default function InflowModal({
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-slate-700">
-                Taux de Change Appliqué (CDF pour 1 USD)
-              </Label>
-              <Input
-                type="number"
-                value={rate}
-                onChange={(e) => setRate(Number(e.target.value) || 2500)}
-                className="mt-1 h-9 text-xs font-bold text-slate-900"
-              />
             </div>
           </div>
 

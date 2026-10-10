@@ -132,6 +132,8 @@ export default function CreditsPage() {
 
   const openPaymentModal = (debt: any) => {
     setSelectedDebt(debt);
+    // Taux fixe de la catégorie de produits de la vente (Caisse › Taux)
+    if (Number(debt?.fx_rate) > 0) setExchangeRate(Number(debt.fx_rate));
     setBilletUSD({ "100": 0, "50": 0, "20": 0, "10": 0, "5": 0, "1": 0 });
     setBilletCDF({ "20000": 0, "10000": 0, "5000": 0, "1000": 0, "500": 0 });
   };
@@ -500,16 +502,9 @@ export default function CreditsPage() {
                   <span className="font-bold text-slate-800 text-xs">
                     Billetage multidevise (Coupures physiques)
                   </span>
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                    <span>Taux 1$ =</span>
-                    <input
-                      type="number"
-                      value={exchangeRate}
-                      onChange={(e) => setExchangeRate(Number(e.target.value) || 2500)}
-                      className="w-16 h-6 px-1.5 rounded border border-slate-200 font-bold text-slate-900"
-                    />
-                    <span>FC</span>
-                  </div>
+                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                    Taux fixe{selectedDebt.fx_category ? ` ${selectedDebt.fx_category}` : ""} : 1$ = {exchangeRate.toLocaleString("fr-FR")} FC
+                  </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="border border-slate-200 rounded-xl p-3 bg-emerald-50/30 space-y-2">

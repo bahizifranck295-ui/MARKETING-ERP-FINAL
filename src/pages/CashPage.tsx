@@ -326,9 +326,11 @@ export default function CashPage() {
   }, [orderBilletCDF]);
 
   const orderBilletCalculatedTotalUSD = useMemo(() => {
-    const cdfUSD = orderBilletTotalCDF > 0 ? Math.round((orderBilletTotalCDF / exchangeRate) * 100) / 100 : 0;
+    // Taux de la catégorie de la commande encaissée (Caisse › Taux)
+    const fx = Number((selectedOrderForBilletage as any)?.fx_rate) || exchangeRate;
+    const cdfUSD = orderBilletTotalCDF > 0 ? Math.round((orderBilletTotalCDF / fx) * 100) / 100 : 0;
     return Math.round((orderBilletTotalUSD + cdfUSD) * 100) / 100;
-  }, [orderBilletTotalUSD, orderBilletTotalCDF, exchangeRate]);
+  }, [orderBilletTotalUSD, orderBilletTotalCDF, exchangeRate, selectedOrderForBilletage]);
 
   // Closing Physical Count Calculations
   const closingPhysicalUSD = useMemo(() => {
@@ -492,13 +494,16 @@ export default function CashPage() {
     setApprovingOrder(true);
     try {
       const ord = selectedOrderForBilletage;
+      // Taux de la catégorie de produits de la commande (Caisse › Taux)
+      const orderFx = Number((ord as any).fx_rate) || exchangeRate;
+      const orderDept = (ord as any).fx_category || "Maize Mill";
       const ref = `ENC-${Date.now().toString().slice(-6)}`;
       const billetData: CashReceiptBilletage = {
         usd: orderBilletUSD,
         cdf: orderBilletCDF,
         total_usd: orderBilletTotalUSD,
         total_cdf: orderBilletTotalCDF,
-        exchange_rate: exchangeRate,
+        exchange_rate: orderFx,
       };
 
       const receiptData: CashReceiptData = {
@@ -508,11 +513,11 @@ export default function CashPage() {
         amount: ord.total,
         currency: "USD",
         amountUSD: ord.total,
-        amountCDF: Math.round(ord.total * exchangeRate),
-        exchangeRate: exchangeRate,
+        amountCDF: Math.round(ord.total * orderFx),
+        exchangeRate: orderFx,
         date: new Date(),
         agentName: user?.full_name || "Caissier",
-        department: "Maize Mill",
+        department: orderDept,
         marketerName: ord.marketer_name,
         clientName: ord.client_name,
         orderCode: ord.code,
@@ -526,7 +531,7 @@ export default function CashPage() {
         order_id: ord.id,
         amount: ord.total,
         currency: "USD",
-        exchange_rate: exchangeRate,
+        exchange_rate: orderFx,
         reference: ref,
         document_url: dataUrl,
         document_name: fileName,
