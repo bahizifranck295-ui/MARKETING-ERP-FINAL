@@ -12,10 +12,12 @@ import { IS_COMMERCIAL } from "@/app/edition";
 /**
  * Formulaire « Nouveau produit » (module Stock), partagé avec la Boutique :
  * même photo, mêmes champs et même catégorie (liste déroulante avec création / suppression).
+ * Avec `product`, le même formulaire s'ouvre en correction pour modifier les informations du produit.
  */
-export default function NewProductDialog({ onClose, onCreated }: { onClose: () => void; onCreated?: () => void }) {
+export default function NewProductDialog({ onClose, onCreated, product }: { onClose: () => void; onCreated?: () => void; product?: any }) {
+  const editing = !!product;
   const [saving, setSaving] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string>("");
+  const [imagePreview, setImagePreview] = useState<string>(product?.image_url || "");
   const [imageUrlInput, setImageUrlInput] = useState<string>("");
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +41,32 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
     const form = e.target as any;
     const sellPrice = Number(form.elements.sell_price.value) || 0;
     const priceFC = form.elements.price_fc?.value ? Number(form.elements.price_fc.value) : Math.round(sellPrice * 2500);
+    if (editing) {
+      // Correction : uniquement les informations du produit (le stock se gère par ajustements)
+      const update = {
+        name: form.elements.name.value.trim(),
+        size: form.elements.size.value.trim(),
+        category: form.elements.category.value.trim(),
+        unit: form.elements.unit.value.trim() || product.unit || "Carton",
+        sell_price: sellPrice,
+        price_fc: priceFC,
+        cost_price: Number(form.elements.cost_price.value) || 0,
+        badge: form.elements.badge?.value?.trim() || "",
+        image_url: imagePreview || imageUrlInput.trim() || "",
+        ...(!IS_COMMERCIAL && form.elements.alert_threshold ? { alert_threshold: Number(form.elements.alert_threshold.value) || 10 } : {}),
+      };
+      try {
+        await api.put(`/products/${product.id}`, update);
+        toast.success(`Produit « ${update.name} » modifié`);
+        onCreated?.();
+        onClose();
+      } catch (err) {
+        toast.error(extractErrorMessage(err, "Échec de la modification"));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     const payload = {
       name: form.elements.name.value.trim(),
       // Le code produit est généré automatiquement par le serveur
@@ -72,7 +100,7 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
         <DialogHeader>
           <DialogTitle className="text-base flex items-center gap-2">
             <Package className="w-5 h-5 text-brand" />
-            Nouveau Produit
+            {editing ? "Modifier le produit" : "Nouveau Produit"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleCreate} className="space-y-3.5 pt-2 text-xs">
@@ -135,12 +163,12 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
           </div>
           <div>
             <Label className="text-xs font-semibold">Désignation du produit *</Label>
-            <Input name="name" required placeholder="Ex: Jus Naturel Mangue 1L" className="mt-1 h-9 rounded-lg" />
+            <Input name="name" required defaultValue={product?.name || ""} placeholder="Ex: Jus Naturel Mangue 1L" className="mt-1 h-9 rounded-lg" />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
               <Label htmlFor="new_product_size" className="text-xs font-semibold">Taille du produit</Label>
-              <Input id="new_product_size" name="size" list="product-size-suggestions" placeholder="33 cl, 1 L, 5 L…" className="mt-1 h-9 rounded-lg" />
+              <Input id="new_product_size" name="size" defaultValue={product?.size || ""} list="product-size-suggestions" placeholder="33 cl, 1 L, 5 L…" className="mt-1 h-9 rounded-lg" />
               <datalist id="product-size-suggestions">
                 {["25 cl", "33 cl", "50 cl", "65 cl", "75 cl", "1 L", "1,5 L", "2 L", "5 L", "25 kg"].map((v) => (
                   <option key={v} value={v} />
@@ -149,41 +177,43 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
             </div>
             <div>
               <Label className="text-xs font-semibold">Catégorie</Label>
-              <CategoryPicker name="category" />
+              <CategoryPicker name="category" defaultValue={product?.category || ""} />
             </div>
             <div>
               <Label className="text-xs font-semibold">Badge (Optionnel)</Label>
-              <Input name="badge" placeholder="Nouveau, Populaire..." className="mt-1 h-9 rounded-lg" />
+              <Input name="badge" defaultValue={product?.badge || ""} placeholder="Nouveau, Populaire..." className="mt-1 h-9 rounded-lg" />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
               <Label className="text-xs font-semibold">Prix Vente ($) *</Label>
-              <Input name="sell_price" type="number" step="0.01" required defaultValue="1.50" className="mt-1 h-9 rounded-lg font-bold" />
+              <Input name="sell_price" type="number" step="0.01" required defaultValue={product ? String(product.sell_price ?? "") : "1.50"} className="mt-1 h-9 rounded-lg font-bold" />
             </div>
             <div>
               <Label className="text-xs font-semibold">Prix Vente (FC)</Label>
-              <Input name="price_fc" type="number" placeholder="Ex: 3750" className="mt-1 h-9 rounded-lg font-mono" />
+              <Input name="price_fc" type="number" defaultValue={product?.price_fc ?? ""} placeholder="Ex: 3750" className="mt-1 h-9 rounded-lg font-mono" />
             </div>
             <div>
               <Label className="text-xs font-semibold">Prix Achat ($)</Label>
-              <Input name="cost_price" type="number" step="0.01" defaultValue="1.00" className="mt-1 h-9 rounded-lg" />
+              <Input name="cost_price" type="number" step="0.01" defaultValue={product ? String(product.cost_price ?? "") : "1.00"} className="mt-1 h-9 rounded-lg" />
             </div>
           </div>
-          <div className={`grid gap-2 ${IS_COMMERCIAL ? "grid-cols-1" : "grid-cols-3"}`}>
+          <div className={`grid gap-2 ${IS_COMMERCIAL ? "grid-cols-1" : editing ? "grid-cols-2" : "grid-cols-3"}`}>
             <div>
               <Label className="text-xs font-semibold">Unité</Label>
-              <Input name="unit" defaultValue="Bouteille" className="mt-1 h-9 rounded-lg" />
+              <Input name="unit" defaultValue={product?.unit || "Bouteille"} className="mt-1 h-9 rounded-lg" />
             </div>
             {!IS_COMMERCIAL && (
             <>
+            {!editing && (
             <div>
               <Label className="text-xs font-semibold">Stock Initial</Label>
               <Input name="stock" type="number" defaultValue="100" className="mt-1 h-9 rounded-lg" />
             </div>
+            )}
             <div>
               <Label className="text-xs font-semibold">Seuil d'Alerte</Label>
-              <Input name="alert_threshold" type="number" defaultValue="15" className="mt-1 h-9 rounded-lg" />
+              <Input name="alert_threshold" type="number" defaultValue={product ? String(product.alert_threshold ?? product.low_stock_threshold ?? 15) : "15"} className="mt-1 h-9 rounded-lg" />
             </div>
             </>
             )}
@@ -194,7 +224,7 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
             </Button>
             <Button type="submit" disabled={saving} className="bg-brand hover:bg-brand-strong text-white">
               {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
-              Enregistrer Produit
+              {editing ? "Enregistrer les modifications" : "Enregistrer Produit"}
             </Button>
           </DialogFooter>
         </form>

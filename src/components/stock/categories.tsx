@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Check, ChevronDown, ChevronRight, Loader2, Package, Plus, Shapes, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Loader2, Package, Pencil, Plus, Shapes, Trash2, X } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney, fmtNum } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/stock/ui";
 import { IS_COMMERCIAL } from "@/app/edition";
+
+// Formulaire produit chargé à la demande (il importe lui-même CategoryPicker depuis ce fichier)
+const ProductFormDialog = React.lazy(() => import("@/components/stock/NewProductDialog"));
 
 // Gestion commerciale : catégories via l'intégration (sans données de stock) ; Stock & Livraison : module Stock
 const CATEGORIES_API = IS_COMMERCIAL ? "/integration/categories" : "/stock/categories";
@@ -104,10 +107,15 @@ function AvailabilityToggle({ product, canEdit, onChanged }: { product: any; can
 
 /* Produits d'une catégorie (photo, code, stock ou prix) avec suppression confirmée de chaque produit */
 function CategoryProducts({ items, canEdit, canAvailability, onDeleted }: { items: any[]; canEdit: boolean; canAvailability: boolean; onDeleted: () => void }) {
+  const { has } = useAuth();
+  // Correction des informations d'un produit : rouvre le formulaire de création, pré-rempli
+  const canUpdate = has("products.update");
+  const [editing, setEditing] = useState<any>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (!items.length) return <p className="px-1 py-2 text-[11px] text-slate-500">Aucun produit dans cette catégorie : elle peut être supprimée.</p>;
   return (
+    <>
     <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Produits de la catégorie">
       {items.map((p) => {
         const qty = Number(p.stock ?? p.current_stock ?? 0) || 0;
@@ -147,7 +155,19 @@ function CategoryProducts({ items, canEdit, canAvailability, onDeleted }: { item
             </div>
             {IS_COMMERCIAL && (
               <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
-                <span className="text-[10px] font-semibold text-slate-500">Vente</span>
+                {canUpdate ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(p)}
+                    data-edit-product={p.id}
+                    title={`Modifier les informations du produit ${p.name}`}
+                    className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-[11px] font-bold text-slate-800 hover:border-brand hover:text-brand"
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Modifier
+                  </button>
+                ) : (
+                  <span className="text-[10px] font-semibold text-slate-500">Vente</span>
+                )}
                 <AvailabilityToggle product={p} canEdit={canAvailability} onChanged={onDeleted} />
               </div>
             )}
@@ -175,6 +195,12 @@ function CategoryProducts({ items, canEdit, canAvailability, onDeleted }: { item
         );
       })}
     </ul>
+    {editing && (
+      <React.Suspense fallback={null}>
+        <ProductFormDialog product={editing} onClose={() => setEditing(null)} onCreated={onDeleted} />
+      </React.Suspense>
+    )}
+    </>
   );
 }
 
