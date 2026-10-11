@@ -76,7 +76,7 @@
   --gradient-primary: linear-gradient(135deg, #7c4dff 0%, #8b5cf6 55%, #59cbe8 100%);
   --sidebar-bg: #faf8ff;
   --sidebar-border: #ded6f3;
-  --sidebar-text: #303548;
+  --sidebar-text: #14121f;
   --sidebar-muted: #717787;
   --sidebar-hover: #efe8ff;
   --chart-grid: #e4ddf5;
@@ -87,7 +87,7 @@
   --ctl-hover-bg: #ece4ff;
   --ctl-hover-border: #9f86ef;
   --ctl-active-bg: #e2d6ff;
-  --ctl-text: #303548;
+  --ctl-text: #14121f;
   --ctl-disabled-bg: #f1eff6;
   --ctl-disabled-border: #dcd8e6;
   --ctl-disabled-text: #8c90a0;
