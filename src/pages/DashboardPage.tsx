@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ShoppingCart,
+  ShoppingBag,
+  TrendingUp,
+  Banknote,
   Users,
   Wallet,
   Calculator,
@@ -17,6 +20,7 @@ import {
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney, KpiCard } from "@/components/erp-ui";
+import { OutOfStockPanel, SalesDonut, SalesLineChart, StatCard, type Overview } from "@/components/dashboard/DashboardOverview";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Bell } from "lucide-react";
@@ -80,30 +84,25 @@ export default function DashboardPage() {
   const [k, setK] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);
+  const [days, setDays] = useState(7);
 
   useEffect(() => {
     let ok = true;
-    Promise.all([
-      // Indicateurs : uniquement avec la permission « Voir les indicateurs »
-      (has("dashboard.read") ? api.get("/dashboard") : Promise.resolve({ data: null }))
-        .then((r) => r.data)
-        .catch((e) => {
-          toast.error(extractErrorMessage(e, "KPI indisponibles"));
-          return null;
-        }),
-      api
-        .get("/notifications", { params: { unread_only: true, limit: 50 } })
-        .then((r) => r.data.length)
-        .catch(() => 0),
-    ]).then(([d, n]) => {
-      if (!ok) return;
-      setK(d);
-      setUnread(n);
-      setLoading(false);
-    });
+    // Indicateurs : uniquement avec la permission « Voir les indicateurs »
+    (has("dashboard.read") ? api.get("/dashboard", { params: { days } }) : Promise.resolve({ data: null }))
+      .then((r) => ok && setK(r.data))
+      .catch((e) => toast.error(extractErrorMessage(e, "KPI indisponibles")))
+      .finally(() => ok && setLoading(false));
     return () => {
       ok = false;
     };
+  }, [days]);
+
+  useEffect(() => {
+    api
+      .get("/notifications", { params: { unread_only: true, limit: 50 } })
+      .then((r) => setUnread(r.data.length))
+      .catch(() => setUnread(0));
   }, []);
 
   const today = new Date().toLocaleDateString("fr-FR", {
@@ -111,64 +110,74 @@ export default function DashboardPage() {
     day: "numeric",
     month: "long",
   });
+  const initials = (user?.full_name || "")
+    .split(" ")
+    .map((s: string) => s[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  const o: Overview | undefined = k?.overview;
 
   return (
     <div className="space-y-5">
-      {/* Hero */}
-      <div className="rounded-2xl hero-surface p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div className="text-white/80 text-sm">Bienvenue,</div>
-          <div className="flex items-center gap-2 shrink-0">
-            <LanguageSwitcher variant="dark" />
-            <ThemeToggle variant="hero" />
-            <Link
-              to="/notifications"
-              title="Notifications"
-              className="relative h-9 w-9 rounded-full bg-white/15 hover:bg-white/25 ring-1 ring-white/25 flex items-center justify-center text-white"
-            >
-              <Bell className="h-4 w-4" />
-              {unread > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              )}
-            </Link>
-          </div>
+      {/* En-tête : titre, langue, thème, notifications et utilisateur */}
+      <div className="flex flex-wrap items-center justify-between gap-3" data-dash-header>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tableau de bord</h1>
+          <p className="text-xs capitalize text-slate-500">{today}</p>
         </div>
-        <div className="text-2xl font-bold tracking-tight mt-0.5" data-no-translate>{user?.full_name}</div>
-        <div className="text-white/70 text-xs mt-1 capitalize">{today}</div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 text-white text-[11px] font-medium px-2.5 py-1">
-            <ShieldCheck className="h-3 w-3" /> {role?.name || user?.role_code}
-          </span>
-          {user?.department && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 text-white/90 text-[11px] px-2.5 py-1 capitalize">
-              {user.department}
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <ThemeToggle />
+          <Link
+            to="/notifications"
+            title="Notifications"
+            className="relative grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          >
+            <Bell className="h-4 w-4" />
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
+          </Link>
+          <Link to="/profile" className="ml-1 flex items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2 hover:bg-slate-100" title={role?.name || user?.role_code}>
+            {user?.photo_url ? (
+              <img src={user.photo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+            ) : (
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-brand text-xs font-bold text-white">{initials}</span>
+            )}
+            <span className="hidden text-left leading-tight sm:block">
+              <span className="block text-[11px] text-slate-500">Bonjour,</span>
+              <span className="block max-w-[160px] truncate text-[13px] font-bold text-slate-900" data-no-translate>
+                {user?.full_name}
+              </span>
             </span>
-          )}
+          </Link>
         </div>
       </div>
 
-      {/* Real KPI */}
+      {/* Indicateurs réels */}
       {loading ? (
         <div className="flex justify-center py-6">
           <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
         </div>
-      ) : k ? (
+      ) : o ? (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            <KpiCard
-              label="Ventes aujourd'hui"
-              value={fmtMoney(k.sales?.today_total)}
-              sub={`${k.sales?.today_count ?? 0} transaction(s)`}
-              tone="blue"
-            />
-            <KpiCard
-              label="Encaissé aujourd'hui"
-              value={fmtMoney(k.cash?.today_in)}
-              sub={`Sorties ${fmtMoney(k.cash?.today_out)}`}
-              tone="green"
-            />
+          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <StatCard label="Chiffre d'affaires du jour" value={fmtMoney(o.revenue.today)} k={o.revenue} icon={Wallet} tone="blue" />
+            <StatCard label="Bénéfice estimé" value={fmtMoney(o.profit.today)} k={o.profit} icon={TrendingUp} tone="green" />
+            <StatCard label="Recettes" value={fmtMoney(o.receipts.today)} k={o.receipts} icon={Banknote} tone="teal" />
+            <StatCard label="Nombre de ventes" value={o.sales_count.today.toLocaleString("fr-FR")} k={o.sales_count} icon={ShoppingBag} tone="orange" />
+            <StatCard label="Nombre de clients" value={o.clients.today.toLocaleString("fr-FR")} k={o.clients} icon={Users} tone="violet" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <SalesLineChart data={o.series} days={o.days} onDays={setDays} />
+            <OutOfStockPanel items={o.out_of_stock} />
+            <SalesDonut byCategory={o.by_category} total={o.period_total} days={o.days} />
+          </div>
+          {/* Suivi : indicateurs du tableau de bord précédent, conservés */}
+          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3" data-dash-follow>
             <KpiCard
               label="Créances"
               value={fmtMoney(k.debts?.total)}
@@ -181,8 +190,8 @@ export default function DashboardPage() {
               sub={`${k.objectives?.active ?? 0} objectif(s) en cours`}
               tone="slate"
             />
+            <KpiCard label="Sorties de caisse" value={fmtMoney(k.cash?.today_out)} sub="Aujourd'hui" tone="slate" />
           </div>
-
         </>
       ) : null}
 

@@ -2230,8 +2230,80 @@ apiRouter.get("/dashboard", authenticate, (req, res) => {
     },
     orders: { pending_approval: live.filter((o) => o.status === "pending_approval").length },
     objectives: { active: db.objectives.filter((o: any) => o.status !== "completed").length },
+    ...dashboardOverview(me, live, usd, sessionSite, Number(req.query.days) || 7),
   });
 });
+
+/*
+ * Tableau de bord : indicateurs du jour comparés à la veille, ventes des N derniers jours,
+ * répartition des ventes par catégorie et produits en rupture. Données réelles, dans le périmètre.
+ */
+function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessionSite: Map<string, string | null>, daysIn: number) {
+  const days = [7, 14, 30].includes(daysIn) ? daysIn : 7;
+  const dayKey = (d: Date | string) => {
+    const x = new Date(d);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  };
+  const now = new Date();
+  const todayKey = dayKey(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayKey = dayKey(yesterday);
+  const saleDay = (o: any) => dayKey(o.approved_at || o.created_at);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const productById = new Map(db.products.map((p) => [p.id, p]));
+  // Bénéfice estimé = prix de vente des lignes − coût d'achat des quantités sorties (bonus compris)
+  const profitOf = (o: any) =>
+    (o.items || []).reduce((t: number, it: any) => {
+      const cost = Number((productById.get(it.product_id) as any)?.cost_price) || 0;
+      const qty = Number(it.total_qty ?? it.quantity) || 0;
+      return t + (Number(it.line_total) || 0) - cost * qty;
+    }, 0);
+  const salesOn = (k: string) => live.filter((o) => saleDay(o) === k);
+  const sum = (list: any[], f: (o: any) => number) => r2(list.reduce((t, o) => t + f(o), 0));
+  const cashInOn = (k: string) =>
+    sum(
+      db.cash_operations.filter((o: any) => o.type === "in" && dayKey(o.created_at) === k && inSiteScope(me, sessionSite.get(o.session_id) || null, "indicators")),
+      usd
+    );
+  const clients = db.clients.filter((c: any) => c.is_active !== false && clientInScope(me, c));
+  const endOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const kpi = (t: number, y: number) => ({ today: t, yesterday: y });
+
+  const series = Array.from({ length: days }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1 - i));
+    const list = salesOn(dayKey(d));
+    return { date: dayKey(d), total: sum(list, (o) => Number(o.total) || 0), count: list.length };
+  });
+  const firstKey = series[0].date;
+  const inPeriod = live.filter((o) => saleDay(o) >= firstKey);
+  const byCat = new Map<string, number>();
+  for (const o of inPeriod)
+    for (const it of o.items || []) {
+      const p: any = productById.get(it.product_id);
+      const cat = (p?.category && String(p.category).trim()) || "Sans catégorie";
+      if (!inCategoryScope(me, p?.category, "indicators")) continue;
+      byCat.set(cat, (byCat.get(cat) || 0) + (Number(it.line_total) || 0));
+    }
+  const out_of_stock = db.products
+    .filter((p: any) => p.is_active !== false && (Number(p.stock ?? p.current_stock ?? 0) || 0) <= 0 && inCategoryScope(me, p.category, "indicators"))
+    .map((p: any) => ({ id: p.id, name: p.name, category: p.category || "", image_url: p.image_url || "" }));
+
+  return {
+    overview: {
+      revenue: kpi(sum(salesOn(todayKey), (o) => Number(o.total) || 0), sum(salesOn(yesterdayKey), (o) => Number(o.total) || 0)),
+      profit: kpi(sum(salesOn(todayKey), profitOf), sum(salesOn(yesterdayKey), profitOf)),
+      receipts: kpi(cashInOn(todayKey), cashInOn(yesterdayKey)),
+      sales_count: kpi(salesOn(todayKey).length, salesOn(yesterdayKey).length),
+      clients: kpi(clients.length, clients.filter((c: any) => !c.created_at || new Date(c.created_at).getTime() < endOfYesterday).length),
+      days,
+      series,
+      period_total: sum(inPeriod, (o) => Number(o.total) || 0),
+      by_category: [...byCat.entries()].map(([category, total]) => ({ category, total: r2(total) })).sort((a, b) => b.total - a.total),
+      out_of_stock,
+    },
+  };
+}
 
 apiRouter.get("/reports/summary", authenticate, (req, res) => {
   const me = (req as any).user as User;
