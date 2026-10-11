@@ -237,13 +237,13 @@ export default function UsersPage() {
       {/* USER MODAL */}
       {userModal && (
         <Dialog open onOpenChange={() => setUserModal(false)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md md:max-w-3xl max-h-[92vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-base">
                 {editingUser ? "Modifier l'utilisateur" : "Nouvel Utilisateur"}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSaveUser} className="space-y-3 pt-2 text-xs">
+            <form onSubmit={handleSaveUser} className="form-landscape space-y-3 pt-2 text-xs">
               <div className="flex items-center gap-3" data-user-photo>
                 {photo ? (
                   <img src={photo} alt="" className="h-14 w-14 rounded-full object-cover" />
@@ -271,7 +271,7 @@ export default function UsersPage() {
                   className="mt-1 h-9 rounded-lg"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-3">
                 <div>
                   <Label className="text-xs font-semibold">Email *</Label>
                   <Input
@@ -282,7 +282,7 @@ export default function UsersPage() {
                     className="mt-1 h-9 rounded-lg"
                   />
                 </div>
-                <div className="col-span-2">
+                <div>
                   <Label className="text-xs font-semibold">Fonction / poste</Label>
                   <Input name="position" defaultValue={editingUser?.position} placeholder="Ex. Caissière principale" className="mt-1 h-9 rounded-lg" />
                 </div>
@@ -408,7 +408,7 @@ export default function UsersPage() {
                 </label>
               </div>
               )}
-              <DialogFooter className="gap-2 pt-2">
+              <DialogFooter className="form-full gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setUserModal(false)}>
                   Annuler
                 </Button>

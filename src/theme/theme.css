@@ -434,3 +434,20 @@ html.theme-transition *::after {
 .logo-tile {
   background-color: #ffffff !important;
 }
+
+/*
+ * Formulaire en format paysage (fenêtres de création) : sur ordinateur et tablette, les champs se
+ * répartissent sur deux colonnes pour que le formulaire tienne en entier à l'écran ; sur mobile, une colonne.
+ */
+@media (min-width: 768px) {
+  .form-landscape {
+    column-count: 2;
+    column-gap: 1.5rem;
+  }
+  .form-landscape > * {
+    break-inside: avoid;
+  }
+  .form-landscape > .form-full {
+    column-span: all;
+  }
+}

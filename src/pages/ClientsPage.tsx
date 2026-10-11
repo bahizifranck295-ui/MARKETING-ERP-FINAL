@@ -411,7 +411,7 @@ export default function ClientsPage() {
   const renderClientFormModal = () =>
     isNewModalOpen && (
       <Dialog open onOpenChange={() => !saving && setIsNewModalOpen(false)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
+        <DialogContent className="max-w-lg md:max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
               {editingClient ? "Modifier la fiche Client" : "Créer un Nouveau Client"}
@@ -420,7 +420,7 @@ export default function ClientsPage() {
               Rattachement à une Business Unit, coordonnées et validation de crédit.
             </p>
           </DialogHeader>
-          <form onSubmit={handleSaveClient} className="space-y-3.5 pt-2 text-xs">
+          <form onSubmit={handleSaveClient} className="form-landscape space-y-3.5 pt-2 text-xs">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-4">
               <div className="relative shrink-0">
                 {formPhoto ? (
@@ -777,7 +777,7 @@ export default function ClientsPage() {
               )}
             </div>
 
-            <DialogFooter className="gap-2 pt-3 border-t border-slate-100">
+            <DialogFooter className="form-full gap-2 pt-3 border-t border-slate-100">
               <Button
                 type="button"
                 variant="outline"

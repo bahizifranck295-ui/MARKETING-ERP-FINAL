@@ -234,7 +234,7 @@ export default function OutflowModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto">
+        <DialogContent className="max-w-xl md:max-w-4xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -247,7 +247,7 @@ export default function OutflowModal({
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4 py-1 text-xs">
+          <form onSubmit={handleSubmit} className="form-landscape space-y-4 py-1 text-xs">
             {/* A. Catégorie de Dépense */}
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -577,7 +577,7 @@ export default function OutflowModal({
               )}
             </div>
 
-            <DialogFooter className="pt-2 gap-2 sm:gap-0">
+            <DialogFooter className="form-full pt-2 gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={onClose}>
                 Annuler
               </Button>
