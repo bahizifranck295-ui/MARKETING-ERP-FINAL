@@ -243,7 +243,7 @@ export function OutOfStockPanel({ items }: { items: Overview["out_of_stock"] }) 
                 </div>
               </div>
               <div className="shrink-0 text-[11px] text-slate-600">
-                Stock : <span className="font-bold text-red-600">0</span>
+                <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-600">Indisponible</span>
               </div>
             </li>
           ))}

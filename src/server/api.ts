@@ -2321,8 +2321,10 @@ function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessi
       if (!inCategoryScope(me, p?.category, "indicators")) continue;
       byCat.set(cat, (byCat.get(cat) || 0) + (Number(it.line_total) || 0));
     }
+  // Produits signalés « Indisponible » dans Boutique › Catégories : ils quittent la liste dès qu'ils
+  // redeviennent disponibles
   const out_of_stock = db.products
-    .filter((p: any) => p.is_active !== false && (Number(p.stock ?? p.current_stock ?? 0) || 0) <= 0 && inCategoryScope(me, p.category, "indicators"))
+    .filter((p: any) => p.is_active !== false && p.available === false && inCategoryScope(me, p.category, "indicators"))
     .map((p: any) => ({ id: p.id, name: p.name, category: p.category || "", image_url: p.image_url || "" }));
 
   // Solde actuel en caisse : caisses ouvertes des sites du périmètre (même calcul que Caisse › Vue des caisses)
