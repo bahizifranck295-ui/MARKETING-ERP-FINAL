@@ -29,6 +29,11 @@ import {
   TrendingUp,
   Receipt,
   X,
+  Mail,
+  Phone,
+  MapPin,
+  Warehouse as WarehouseIcon,
+  Tags,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -111,6 +116,7 @@ export default function CashPage() {
   const [allSessions, setAllSessions] = useState<CashSession[]>([]);
   const [operations, setOperations] = useState<CashOperation[]>([]);
   const [marketerDeposits, setMarketerDeposits] = useState<any[]>([]);
+  const [depositHistoryPage, setDepositHistoryPage] = useState(1);
   const [marketerOrders, setMarketerOrders] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [debts, setDebts] = useState<any[]>([]);
@@ -1198,42 +1204,92 @@ export default function CashPage() {
       {/* ========================================================================= */}
       {activeTab === "marketers" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Versements attendus : une carte par marketeur du site (informations de sa fiche utilisateur) */}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3" data-deposits-total>
+            <div className="text-xs text-amber-900">
+              <span className="font-bold uppercase tracking-wider">Versement attendu de tous les marketeurs</span>
+              <span className="ml-2 text-slate-600">
+                {marketerDeposits.filter((m: any) => m.pending_orders_count > 0).length} marketeur(s) sur {marketerDeposits.length} doivent verser
+              </span>
+            </div>
+            <div className="text-right">
+              <div className="text-xl font-black text-amber-800 tabular-nums">
+                {fmtMoney(marketerDeposits.reduce((t: number, m: any) => t + (Number(m.pending_total_usd) || 0), 0), "USD")}
+              </div>
+              <div className="text-[11px] text-slate-500 tabular-nums">
+                {fmtNum(marketerDeposits.reduce((t: number, m: any) => t + (Number(m.pending_total_fc) || 0), 0))} FC
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {marketerDeposits.map((m: any) => (
               <div
-                key={m.marketer_name}
-                className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 shadow-xs"
+                key={m.marketer_id || m.marketer_name}
+                data-deposit-card
+                className={`bg-white dark:bg-slate-900 rounded-xl border p-4 space-y-3 shadow-xs ${
+                  m.pending_orders_count > 0 ? "border-amber-200" : "border-slate-200 dark:border-slate-800"
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-9 w-9 rounded-lg bg-[#0F3D68]/10 text-[#0F3D68] flex items-center justify-center font-bold text-xs">
-                      {m.marketer_name.slice(0, 2).toUpperCase()}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="h-11 w-11 shrink-0 rounded-full bg-[#0F3D68] text-white flex items-center justify-center font-bold text-sm">
+                      {String(m.marketer_name || "?")
+                        .split(" ")
+                        .map((w: string) => w[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()}
                     </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-900">{m.marketer_name}</h4>
-                      <p className="text-[11px] text-slate-400">Agent Ventes / Marketeur</p>
+                    <div className="min-w-0">
+                      <h4 className="truncate font-bold text-sm text-slate-900" data-no-translate>{m.marketer_name}</h4>
+                      <p className="text-[11px] text-slate-500">{m.role_name || "Agent Ventes / Marketeur"}</p>
                     </div>
                   </div>
                   <span
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      m.pending_orders_count > 0
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-emerald-100 text-emerald-800"
+                    className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                      m.pending_orders_count > 0 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
                     }`}
                   >
-                    {m.pending_orders_count} en attente
+                    {m.pending_orders_count > 0 ? `${m.pending_orders_count} en attente` : "À jour"}
                   </span>
                 </div>
 
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Montant en attente :</span>
-                  <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                    {fmtMoney(m.pending_total_usd, "USD")}
-                  </span>
+                {/* Informations de la fiche utilisateur */}
+                <dl className="grid grid-cols-1 gap-1.5 text-[11px]" data-no-translate>
+                  {[
+                    [Phone, m.phone || "—"],
+                    [Mail, m.email || "—"],
+                    [MapPin, m.site_name || "—"],
+                    [WarehouseIcon, m.warehouse_name || "—"],
+                    [Tags, m.departments || "—"],
+                  ].map(([Icon, v]: any, i: number) => (
+                    <div key={i} className="flex items-center gap-1.5 text-slate-600">
+                      <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      <span className="truncate" title={String(v)}>{v}</span>
+                    </div>
+                  ))}
+                </dl>
+
+                <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2.5 space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Versement attendu</span>
+                    <span className={`font-black text-base tabular-nums ${m.pending_total_usd > 0 ? "text-amber-700" : "text-emerald-700"}`}>
+                      {fmtMoney(m.pending_total_usd || 0, "USD")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Équivalent</span>
+                    <span className="tabular-nums">{fmtNum(m.pending_total_fc || 0)} FC</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Dernier versement</span>
+                    <span>{m.last_deposit_at ? fmtDate(m.last_deposit_at, true) : "—"}</span>
+                  </div>
                 </div>
 
                 <Button
                   size="sm"
+                  disabled={!m.pending_orders_count}
                   onClick={() => setIsInflowOpen(true)}
                   className="w-full h-8 text-xs bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-medium"
                 >
@@ -1242,63 +1298,85 @@ export default function CashPage() {
                 </Button>
               </div>
             ))}
-          </div>
-
-          {/* Pending cash orders table */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
-              Toutes les Commandes Espèces en Attente de Versement en Caisse
-            </h3>
-            {marketerOrders.filter((o) => (o.cash_deposit_status || "pending_deposit") === "pending_deposit").length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400">
-                Toutes les ventes en espèces ont été déposées en caisse.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b text-slate-500 uppercase font-semibold">
-                    <tr>
-                      <th className="py-2.5 px-3">Code</th>
-                      <th className="py-2.5 px-3">Client</th>
-                      <th className="py-2.5 px-3">Marketeur</th>
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3 text-right">Total USD</th>
-                      <th className="py-2.5 px-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {marketerOrders
-                      .filter((o) => (o.cash_deposit_status || "pending_deposit") === "pending_deposit")
-                      .map((ord: any) => (
-                        <tr key={ord.id} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3 font-bold">{ord.code}</td>
-                          <td className="py-2.5 px-3 font-medium">{ord.client_name}</td>
-                          <td className="py-2.5 px-3 text-slate-500">{ord.marketer_name}</td>
-                          <td className="py-2.5 px-3 text-slate-400">{fmtDate(ord.created_at)}</td>
-                          <td className="py-2.5 px-3 text-right font-bold text-slate-900">
-                            {fmtMoney(ord.total, "USD")}
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedOrderForBilletage(ord);
-                                setOrderBilletUSD({ "100": 0, "50": 0, "20": 0, "10": 0, "5": 0, "1": 0 });
-                                setOrderBilletCDF({ "20000": 0, "10000": 0, "5000": 0, "1000": 0, "500": 0 });
-                              }}
-                              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                            >
-                              <Coins className="w-3.5 h-3.5 mr-1" />
-                              Encaisser
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+            {!marketerDeposits.length && (
+              <div className="col-span-full rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500">
+                Aucun marketeur rattaché à ce site.
               </div>
             )}
           </div>
+
+          {/* Historique des versements déjà encaissés (l'encaissement se fait depuis les cartes ci-dessus) */}
+          {(() => {
+            const done = marketerOrders
+              .filter((o) => (o.cash_deposit_status || "pending_deposit") !== "pending_deposit")
+              .sort((x, y) => String(y.cash_deposited_at || y.updated_at || "").localeCompare(String(x.cash_deposited_at || x.updated_at || "")));
+            const pages = Math.max(1, Math.ceil(done.length / 10));
+            const page = Math.min(depositHistoryPage, pages);
+            const rows = done.slice((page - 1) * 10, page * 10);
+            return (
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs" data-deposit-history>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Historique des versements encaissés</h3>
+                  <span className="text-[11px] text-slate-500">
+                    {done.length} versement(s) · {fmtMoney(done.reduce((t, o) => t + (Number(o.total) || 0), 0), "USD")}
+                  </span>
+                </div>
+                {done.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">Aucun versement encaissé pour cette caisse.</div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 border-b text-slate-500 uppercase font-semibold">
+                          <tr>
+                            <th className="py-2.5 px-3">Code</th>
+                            <th className="py-2.5 px-3">Client</th>
+                            <th className="py-2.5 px-3">Marketeur</th>
+                            <th className="py-2.5 px-3">Vente du</th>
+                            <th className="py-2.5 px-3">Encaissé le</th>
+                            <th className="py-2.5 px-3 text-right">Montant USD</th>
+                            <th className="py-2.5 px-3 text-center">Statut</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {rows.map((ord: any) => (
+                            <tr key={ord.id} className="hover:bg-slate-50">
+                              <td className="py-2.5 px-3 font-bold">{ord.code}</td>
+                              <td className="py-2.5 px-3 font-medium" data-no-translate>{ord.client_name}</td>
+                              <td className="py-2.5 px-3 text-slate-500" data-no-translate>{ord.marketer_name}</td>
+                              <td className="py-2.5 px-3 text-slate-400">{fmtDate(ord.approved_at || ord.created_at)}</td>
+                              <td className="py-2.5 px-3 text-slate-600">{ord.cash_deposited_at ? fmtDate(ord.cash_deposited_at, true) : "—"}</td>
+                              <td className="py-2.5 px-3 text-right font-bold text-emerald-700">{fmtMoney(ord.total, "USD")}</td>
+                              <td className="py-2.5 px-3 text-center">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                                  <CheckCircle2 className="h-3 w-3" /> Encaissé
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {pages > 1 && (
+                      <div className="mt-3 flex flex-wrap items-center justify-center gap-1" aria-label="Pages de l'historique">
+                        {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setDepositHistoryPage(n)}
+                            aria-current={n === page ? "page" : undefined}
+                            className={`h-7 min-w-7 rounded-lg px-2 text-xs font-bold ${n === page ? "bg-[#0F3D68] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 

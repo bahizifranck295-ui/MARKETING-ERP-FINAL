@@ -1727,45 +1727,78 @@ apiRouter.post("/cash/operations", authenticate, (req, res) => {
 
 // MARKETER CASH DEPOSITS & DYNAMIC NON-DEPOSITED ORDERS
 apiRouter.get("/cash/marketer-deposits", authenticate, (req, res) => {
+  const user = (req as any).user as User;
+  // Versements attendus pour la caisse du site choisi : tous les marketeurs du site (fiche utilisateur)
+  // et toutes les ventes au comptant de ce site non encore versées
+  const siteId = cashSiteFor(user, requestedCashSite(req));
   const cashOrders = db.orders.filter(
-    (o) => o.payment_method === "cash" && o.status !== "cancelled" && o.status !== "rejected"
+    (o) => o.payment_method === "cash" && o.status !== "cancelled" && o.status !== "rejected" && orderLocation(o).site_id === siteId
   );
+  const roleName = (code: string) => db.roles.find((r) => r.code === code)?.name || code;
+  const warehouseName = (id?: string) => db.warehouses.find((w) => w.id === id)?.name || "";
+  const profile = (u?: User) =>
+    u
+      ? {
+          marketer_id: u.id,
+          email: u.email,
+          phone: u.phone || "",
+          role_code: u.role_code,
+          role_name: roleName(u.role_code),
+          site_name: userSite(u).name,
+          warehouse_name: warehouseName(u.warehouse_id),
+          departments: u.all_categories ? "Toutes les catégories" : (u.categories || []).join(", ") || u.department || "",
+          is_active: u.is_active !== false,
+        }
+      : {};
 
   const marketerMap = new Map<string, any>();
-  for (const ord of cashOrders) {
-    const mName = ord.marketer_name || "Patrick K.";
-    if (!marketerMap.has(mName)) {
-      marketerMap.set(mName, {
-        marketer_name: mName,
+  const groupFor = (name: string, u?: User) => {
+    const key = u?.id || name;
+    if (!marketerMap.has(key)) {
+      marketerMap.set(key, {
+        marketer_name: u?.full_name || name,
+        ...profile(u),
         pending_orders_count: 0,
         pending_total_usd: 0,
         pending_total_fc: 0,
+        deposited_total_usd: 0,
+        last_deposit_at: null as string | null,
         orders: [],
       });
     }
-    const group = marketerMap.get(mName)!;
+    return marketerMap.get(key)!;
+  };
+  // Tous les vendeurs du site, même sans versement attendu
+  for (const u of db.users)
+    if (u.is_active !== false && ["marketeur", "commercial"].includes(u.role_code) && userSite(u).id === siteId) groupFor(u.full_name, u);
+
+  for (const ord of cashOrders) {
+    // Le vendeur de la commande (par identifiant, sinon par nom) : une seule carte par personne
+    const u = db.users.find((x) => x.id === ord.marketer_id) || db.users.find((x) => x.full_name === ord.marketer_name);
+    const group = groupFor(ord.marketer_name || "Marketeur", u);
     // Taux de la catégorie de la commande (Caisse › Taux), utilisé pour l'encaissement
     group.orders.push({ ...ord, fx_category: orderCategory(ord), fx_rate: orderRate(ord) });
     if ((ord.cash_deposit_status || "pending_deposit") === "pending_deposit") {
       group.pending_orders_count += 1;
       group.pending_total_usd += ord.total;
       group.pending_total_fc += ord.total_fc || Math.round(ord.total * orderRate(ord));
+    } else {
+      group.deposited_total_usd += ord.total;
+      const at = (ord as any).cash_deposited_at;
+      if (at && (!group.last_deposit_at || at > group.last_deposit_at)) group.last_deposit_at = at;
     }
   }
 
-  const allCashOrders = db.orders.filter((o) => o.payment_method === "cash");
-  const totalPendingUSD = allCashOrders
-    .filter((o) => (o.cash_deposit_status || "pending_deposit") === "pending_deposit")
-    .reduce((sum, o) => sum + o.total, 0);
-  const totalPendingFC = allCashOrders
-    .filter((o) => (o.cash_deposit_status || "pending_deposit") === "pending_deposit")
-    .reduce((sum, o) => sum + (o.total_fc || Math.round(o.total * 2500)), 0);
+  const pending = cashOrders.filter((o) => (o.cash_deposit_status || "pending_deposit") === "pending_deposit");
+  const marketers = Array.from(marketerMap.values())
+    .map((m) => ({ ...m, pending_total_usd: Math.round(m.pending_total_usd * 100) / 100, deposited_total_usd: Math.round(m.deposited_total_usd * 100) / 100 }))
+    .sort((a, b) => b.pending_total_usd - a.pending_total_usd || a.marketer_name.localeCompare(b.marketer_name, "fr"));
 
   res.json({
-    marketers: Array.from(marketerMap.values()),
+    marketers,
     orders: cashOrders,
-    total_pending_usd: Math.round(totalPendingUSD * 100) / 100,
-    total_pending_fc: Math.round(totalPendingFC),
+    total_pending_usd: Math.round(pending.reduce((sum, o) => sum + o.total, 0) * 100) / 100,
+    total_pending_fc: Math.round(pending.reduce((sum, o) => sum + (o.total_fc || Math.round(o.total * 2500)), 0)),
   });
 });
 
