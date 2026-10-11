@@ -49,12 +49,13 @@
 :root,
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg-primary: #f2f1fa;
-  --bg-secondary: #f7f7fc;
-  --surface-primary: #ffffff;
-  --surface-secondary: #f0ebfa;
+  /* Blanc doux et lavande : fond légèrement violet, cartes blanc cassé, contrastes conservés */
+  --bg-primary: #eeeafa;
+  --bg-secondary: #f5f2fe;
+  --surface-primary: #fdfcff;
+  --surface-secondary: #f1ecfd;
   --surface-input: #ffffff;
-  --surface-overlay: #ffffff;
+  --surface-overlay: #fdfcff;
   --accent-primary: #7c4dff;
   --accent-primary-hover: #6a3bef;
   --accent-deep: #5a2fd8;
@@ -66,27 +67,48 @@
   --text-body: #303548;
   --text-secondary: #717787;
   --text-disabled: #a5a9b5;
-  --border-primary: #e1e3e9;
-  --border-input: #d9dce6;
+  --border-primary: #ded6f3;
+  --border-input: #cfc5ee;
   --icon-secondary: #b2b5be;
   --focus-ring: #7c4dff;
-  --shadow-card: 0 4px 12px rgba(29, 32, 48, 0.06);
+  --shadow-card: 0 4px 14px rgba(76, 47, 160, 0.07);
   --shadow-glow: 0 6px 16px rgba(124, 77, 255, 0.22);
   --gradient-primary: linear-gradient(135deg, #7c4dff 0%, #8b5cf6 55%, #59cbe8 100%);
-  --sidebar-bg: #ffffff;
-  --sidebar-border: #e1e3e9;
+  --sidebar-bg: #faf8ff;
+  --sidebar-border: #ded6f3;
   --sidebar-text: #303548;
   --sidebar-muted: #717787;
-  --sidebar-hover: #f0ebfa;
-  --chart-grid: #e1e3e9;
+  --sidebar-hover: #efe8ff;
+  --chart-grid: #e4ddf5;
+
+  /* Éléments cliquables (boutons, onglets, filtres, icônes) : toujours un fond et un contour visibles */
+  --ctl-bg: #f6f2ff;
+  --ctl-border: #cdbff2;
+  --ctl-hover-bg: #ece4ff;
+  --ctl-hover-border: #9f86ef;
+  --ctl-active-bg: #e2d6ff;
+  --ctl-text: #303548;
+  --ctl-disabled-bg: #f1eff6;
+  --ctl-disabled-border: #dcd8e6;
+  --ctl-disabled-text: #8c90a0;
+  /* Menu latéral */
+  --nav-bg: rgba(124, 77, 255, 0.06);
+  --nav-border: rgba(124, 77, 255, 0.3);
+  /* Boutons d'en-tête */
+  --hdr-bg: #ffffff;
+  --hdr-border: #cdbff2;
+  --hdr-text: #4a3aa7;
+  --hdr-shadow: 0 2px 6px rgba(76, 47, 160, 0.1);
+  --hdr-hover-border: #7c4dff;
+  --hdr-hover-shadow: 0 0 0 3px rgba(124, 77, 255, 0.14), 0 4px 10px rgba(76, 47, 160, 0.14);
   --chart-text: #717787;
   --chart-strong: #1d2030;
 
   /* Neutres (textes, bordures, fonds discrets) alignés sur la palette officielle */
-  --color-slate-50: #f7f7fc;
-  --color-slate-100: #f1f0f8;
-  --color-slate-200: #e1e3e9;
-  --color-slate-300: #d9dce6;
+  --color-slate-50: #f7f4fe;
+  --color-slate-100: #f0ebfb;
+  --color-slate-200: #ded6f3;
+  --color-slate-300: #cdc4ea;
   --color-slate-400: #a5a9b5;
   --color-slate-500: #717787;
   --color-slate-600: #555a6b;
@@ -135,6 +157,27 @@
   --sidebar-muted: #8e9bb8;
   --sidebar-hover: rgba(8, 123, 255, 0.1);
   --chart-grid: #17396c;
+
+  /* Éléments cliquables : fond bleu nuit relevé, contour bleu lumineux */
+  --ctl-bg: #0f1d40;
+  --ctl-border: #2a5596;
+  --ctl-hover-bg: #142853;
+  --ctl-hover-border: #3d8bff;
+  --ctl-active-bg: #183268;
+  --ctl-text: #dce5fa;
+  --ctl-disabled-bg: #0b1430;
+  --ctl-disabled-border: #1b3361;
+  --ctl-disabled-text: #6f7d9d;
+  /* Menu latéral */
+  --nav-bg: rgba(8, 123, 255, 0.07);
+  --nav-border: rgba(64, 140, 255, 0.34);
+  /* Boutons d'en-tête : verre bleu nuit, liseré cyan lumineux, léger relief */
+  --hdr-bg: linear-gradient(180deg, rgba(24, 48, 104, 0.95) 0%, rgba(10, 20, 48, 0.95) 100%);
+  --hdr-border: rgba(0, 217, 255, 0.38);
+  --hdr-text: #7fe9ff;
+  --hdr-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(8, 123, 255, 0.12), 0 0 14px rgba(0, 217, 255, 0.12);
+  --hdr-hover-border: rgba(0, 217, 255, 0.8);
+  --hdr-hover-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(0, 217, 255, 0.35), 0 0 20px rgba(0, 217, 255, 0.3);
   --chart-text: #aab9dd;
   --chart-strong: #f4f7ff;
 
@@ -449,5 +492,95 @@ html.theme-transition *::after {
   }
   .form-landscape > .form-full {
     column-span: all;
+  }
+}
+
+
+/* =====================================================================================
+ * ÉLÉMENTS CLIQUABLES — un seul système d'états pour les deux thèmes.
+ * Couche « base » : s'applique aux boutons et onglets qui n'ont pas de fond défini (icônes,
+ * boutons discrets, onglets et filtres inactifs, lignes cliquables). Toute classe de fond, de
+ * contour ou d'état déjà présente sur un bouton reste prioritaire.
+ * ===================================================================================== */
+@layer base {
+  button,
+  [role="tab"] {
+    background-color: var(--ctl-bg);
+    border: 1px solid var(--ctl-border);
+    color: var(--ctl-text);
+    transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 100ms ease;
+  }
+  button:not(:disabled),
+  [role="tab"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+  button:hover:not(:disabled),
+  [role="tab"]:hover:not([aria-disabled="true"]) {
+    background-color: var(--ctl-hover-bg);
+    border-color: var(--ctl-hover-border);
+  }
+  button:active:not(:disabled) {
+    background-color: var(--ctl-active-bg);
+    transform: translateY(1px);
+  }
+  /* Sélectionné / actif : contour de la couleur principale, toujours lisible */
+  button[aria-pressed="true"],
+  button[aria-current="page"],
+  [role="tab"][aria-selected="true"],
+  [role="tab"][data-state="active"] {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 1px var(--accent-primary);
+  }
+  button:disabled,
+  [role="tab"][aria-disabled="true"] {
+    background-color: var(--ctl-disabled-bg);
+    border-color: var(--ctl-disabled-border);
+    color: var(--ctl-disabled-text);
+    cursor: not-allowed;
+  }
+}
+
+/* Tous les boutons désactivés : identifiables (curseur interdit), jamais invisibles */
+button:disabled {
+  cursor: not-allowed;
+}
+
+@layer components {
+  /* Liens du menu latéral : fond et liseré discrets, l'élément actif garde sa couleur pleine */
+  .nav-item {
+    background-color: var(--nav-bg);
+    border: 1px solid var(--nav-border);
+  }
+  .nav-item:hover {
+    border-color: var(--ctl-hover-border);
+  }
+
+  /* Boutons d'en-tête (langue, thème, notifications, retour, menu utilisateur) */
+  .hdr-btn {
+    background: var(--hdr-bg);
+    border: 1px solid var(--hdr-border);
+    color: var(--hdr-text);
+    box-shadow: var(--hdr-shadow);
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 100ms ease;
+  }
+  .hdr-btn:hover {
+    border-color: var(--hdr-hover-border);
+    box-shadow: var(--hdr-hover-shadow);
+  }
+  .hdr-btn:active {
+    transform: translateY(1px) scale(0.98);
+  }
+  .hdr-btn[data-state="open"] {
+    border-color: var(--hdr-hover-border);
+    box-shadow: var(--hdr-hover-shadow);
+  }
+}
+
+/* Mode clair : les surfaces « blanches » deviennent blanc doux (comme les cartes du thème) ;
+   couche « utilities » pour que les survols (hover:bg-…) restent prioritaires */
+@layer utilities {
+  :root:not([data-theme="dark"]) .bg-white,
+  :root:not([data-theme="dark"]) .bg-white\/95 {
+    background-color: var(--surface-primary);
   }
 }

@@ -13,7 +13,7 @@ export function ThemeToggle({ variant = "default", className = "" }: { variant?:
   const base =
     variant === "hero"
       ? "bg-white/15 hover:bg-white/25 ring-1 ring-white/25 text-white"
-      : "bg-surface border border-line text-slate-700 shadow-xs hover:bg-surface-2 dark:text-accent2 dark:hover:shadow-[var(--shadow-glow)]";
+      : "hdr-btn";
   return (
     <button
       type="button"

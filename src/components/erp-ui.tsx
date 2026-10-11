@@ -20,9 +20,9 @@ export function PageHeader({
         {back && (
           <Link
             to={back}
-            className="h-9 w-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 shrink-0 shadow-xs"
+            className="hdr-btn h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
           >
-            <ArrowLeft className="h-4 w-4 text-slate-600" />
+            <ArrowLeft className="h-4 w-4" />
           </Link>
         )}
         <div className="min-w-0">

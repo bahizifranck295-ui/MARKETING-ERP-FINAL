@@ -176,7 +176,7 @@ export default function Layout() {
                   `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                     isActive
                       ? "bg-brand text-white font-semibold shadow-[var(--shadow-glow)]"
-                      : "text-sidebar-fg hover:bg-sidebar-hover hover:text-brand dark:hover:text-white"
+                      : "nav-item text-sidebar-fg hover:bg-sidebar-hover hover:text-brand dark:hover:text-white"
                   } ${sidebarCollapsed ? "justify-center px-0" : ""}`
                 }
               >
@@ -239,7 +239,7 @@ export default function Layout() {
             <ThemeToggle />
             <button
               onClick={() => navigate("/notifications")}
-              className="relative h-9 w-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700"
+              className="hdr-btn relative h-9 w-9 rounded-full flex items-center justify-center"
             >
               <Bell className="h-4 w-4" />
               {unread > 0 && (

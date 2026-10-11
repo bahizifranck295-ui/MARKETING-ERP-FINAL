@@ -63,7 +63,7 @@ export default function DashboardPage() {
           <Link
             to="/notifications"
             title="Notifications"
-            className="relative grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            className="hdr-btn relative grid h-9 w-9 place-items-center rounded-full"
           >
             <Bell className="h-4 w-4" />
             {unread > 0 && (

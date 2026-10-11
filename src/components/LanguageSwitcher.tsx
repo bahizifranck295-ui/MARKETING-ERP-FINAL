@@ -22,7 +22,7 @@ export function LanguageSwitcher({ variant = "light", className = "" }: { varian
           aria-label="Langue / Language"
           title="Langue / Language"
           className={`relative h-9 w-9 rounded-full flex items-center justify-center transition ${
-            dark ? "bg-white/15 hover:bg-white/25 ring-1 ring-white/25 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+            dark ? "bg-white/15 hover:bg-white/25 ring-1 ring-white/25 text-white" : "hdr-btn"
           } ${className}`}
         >
           <Languages className="h-4 w-4" />

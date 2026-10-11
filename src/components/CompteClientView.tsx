@@ -638,10 +638,10 @@ export default function CompteClientView({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab("transactions")}
-              className={`pb-3 px-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+              className={`pt-2 pb-3 px-3 text-sm font-semibold border-b-2 rounded-t-xl transition-all flex items-center gap-2 ${
                 activeTab === "transactions"
-                  ? "border-brand text-brand"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
+                  ? "border-brand bg-brand/10 text-brand"
+                  : "border-slate-300 text-slate-600 hover:text-slate-900"
               }`}
             >
               <FileText className="h-4 w-4" />
@@ -649,10 +649,10 @@ export default function CompteClientView({
             </button>
             <button
               onClick={() => setActiveTab("products")}
-              className={`pb-3 px-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+              className={`pt-2 pb-3 px-3 text-sm font-semibold border-b-2 rounded-t-xl transition-all flex items-center gap-2 ${
                 activeTab === "products"
-                  ? "border-brand text-brand"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
+                  ? "border-brand bg-brand/10 text-brand"
+                  : "border-slate-300 text-slate-600 hover:text-slate-900"
               }`}
             >
               <Package className="h-4 w-4" />

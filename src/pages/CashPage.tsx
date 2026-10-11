@@ -902,10 +902,10 @@ export default function CashPage() {
       <div className="flex border-b border-slate-200">
         <button
           onClick={() => setActiveTab("journal")}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
+          className={`py-3 px-4 text-xs font-bold border-b-2 rounded-t-xl transition-colors flex items-center gap-2 ${
             activeTab === "journal"
-              ? "border-brand text-brand"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-brand bg-brand/10 text-brand"
+              : "border-slate-300 text-slate-600 hover:text-slate-900"
           }`}
         >
           <Receipt className="w-4 h-4" />
@@ -914,10 +914,10 @@ export default function CashPage() {
 
         <button
           onClick={() => setActiveTab("marketers")}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
+          className={`py-3 px-4 text-xs font-bold border-b-2 rounded-t-xl transition-colors flex items-center gap-2 ${
             activeTab === "marketers"
-              ? "border-brand text-brand"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-brand bg-brand/10 text-brand"
+              : "border-slate-300 text-slate-600 hover:text-slate-900"
           }`}
         >
           <Users className="w-4 h-4" />
@@ -932,10 +932,10 @@ export default function CashPage() {
         {has("cash.close") && (
         <button
           onClick={() => setActiveTab("closing")}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
+          className={`py-3 px-4 text-xs font-bold border-b-2 rounded-t-xl transition-colors flex items-center gap-2 ${
             activeTab === "closing"
-              ? "border-brand text-brand"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-brand bg-brand/10 text-brand"
+              : "border-slate-300 text-slate-600 hover:text-slate-900"
           }`}
         >
           <Coins className="w-4 h-4" />
@@ -946,10 +946,10 @@ export default function CashPage() {
         {has("cash.rates") && (
         <button
           onClick={() => setActiveTab("rates")}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
+          className={`py-3 px-4 text-xs font-bold border-b-2 rounded-t-xl transition-colors flex items-center gap-2 ${
             activeTab === "rates"
-              ? "border-brand text-brand"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-brand bg-brand/10 text-brand"
+              : "border-slate-300 text-slate-600 hover:text-slate-900"
           }`}
         >
           <TrendingUp className="w-4 h-4" />
