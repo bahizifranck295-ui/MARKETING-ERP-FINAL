@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { BackButton } from "@/components/erp-ui";
 import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
@@ -636,6 +637,7 @@ export default function ReportsPage() {
     <div className="space-y-5 pb-16">
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <BackButton />
           <div className="h-12 w-[88px] rounded-xl logo-tile border border-slate-200 flex items-center justify-center p-1 shadow-sm" data-report-logo>
             <img src={LOGO_SRC} alt={LOGO_ALT} className="max-h-full max-w-full object-contain" />
           </div>

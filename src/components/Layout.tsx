@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavTrail } from "@/components/erp-ui";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -75,6 +76,8 @@ const DESKTOP_NAV = [
 ].filter((item) => inThisApp(item.to));
 
 export default function Layout() {
+  // Trace des modules visités : bouton « Retour au module précédent » de chaque page
+  useNavTrail();
   const { user, role, logout, has } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

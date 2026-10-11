@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { BackButton } from "@/components/erp-ui";
 import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
@@ -504,6 +505,8 @@ export default function StockPage() {
         <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-indigo-500/25 blur-3xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+          <BackButton />
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-200">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_8px_2px_rgba(103,232,249,0.7)]" />
@@ -511,6 +514,7 @@ export default function StockPage() {
             </div>
             <h1 className="mt-2 text-3xl font-black tracking-tight">Stock</h1>
             <p className="text-sm text-blue-100/80">{MULTI_SITE ? "Sites → Dépôts → Produits → Quantités → Transferts" : "Dépôts → Produits → Quantités → Transferts"}</p>
+          </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold backdrop-blur">

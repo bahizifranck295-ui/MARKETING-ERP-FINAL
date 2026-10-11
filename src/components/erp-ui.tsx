@@ -1,7 +1,48 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { IS_COMMERCIAL } from "@/app/edition";
+
+/*
+ * Retour au module précédent : trace des pages visitées dans la session (hors connexion), tenue par
+ * useNavTrail() dans la mise en page. Sans page précédente, retour au tableau de bord.
+ */
+const navTrail: string[] = [];
+export function useNavTrail() {
+  const loc = useLocation();
+  React.useEffect(() => {
+    if (loc.pathname === "/login") return;
+    if (navTrail[navTrail.length - 1] !== loc.pathname + loc.search) navTrail.push(loc.pathname + loc.search);
+    if (navTrail.length > 50) navTrail.splice(0, navTrail.length - 50);
+  }, [loc.pathname, loc.search]);
+}
+export function previousPage(): string | null {
+  return navTrail.length > 1 ? navTrail[navTrail.length - 2] : null;
+}
+export function BackButton({ fallback = "/dashboard", onlyIfHistory = false }: { fallback?: string; onlyIfHistory?: boolean }) {
+  const navigate = useNavigate();
+  useLocation(); // re-rendu à chaque navigation
+  const prev = previousPage();
+  if (onlyIfHistory && !prev) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (prev) {
+          navTrail.pop(); // page actuelle
+          navTrail.pop(); // la page précédente sera de nouveau inscrite à l'arrivée
+          navigate(prev);
+        } else navigate(fallback);
+      }}
+      aria-label="Retour au module précédent"
+      title="Retour au module précédent"
+      data-back-button
+      className="hdr-btn h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+    >
+      <ArrowLeft className="h-4 w-4" />
+    </button>
+  );
+}
 
 export function PageHeader({
   title,
@@ -17,14 +58,7 @@ export function PageHeader({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="flex items-center gap-2 min-w-0">
-        {back && (
-          <Link
-            to={back}
-            className="hdr-btn h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        )}
+        {back && <BackButton fallback={back} />}
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-900 truncate">{title}</h1>
           {subtitle && <p className="text-xs text-slate-500 truncate">{subtitle}</p>}

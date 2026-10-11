@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { BackButton } from "@/components/erp-ui";
 import { MULTI_SITE } from "@/app/edition";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -97,7 +98,10 @@ export default function LogisticsDashboardPage() {
     <div className="space-y-5" data-logistics-dashboard>
       <div className="rounded-2xl hero-surface p-5 shadow-sm">
         <div className="flex items-start justify-between gap-3">
-          <div className="text-white/80 text-sm">Bienvenue,</div>
+          <div className="flex items-center gap-2">
+            <BackButton onlyIfHistory />
+            <div className="text-white/80 text-sm">Bienvenue,</div>
+          </div>
           <div className="flex items-center gap-2 shrink-0">
             <LanguageSwitcher variant="dark" />
             <ThemeToggle variant="hero" />

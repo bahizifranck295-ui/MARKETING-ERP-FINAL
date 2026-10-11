@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { BackButton } from "@/components/erp-ui";
 import { MULTI_SITE } from "@/app/edition";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -71,9 +72,12 @@ export default function DashboardPage() {
     <div className="space-y-5">
       {/* En-tête : titre, langue, thème, notifications et utilisateur */}
       <div className="flex flex-wrap items-center justify-between gap-3" data-dash-header>
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <BackButton onlyIfHistory />
+          <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tableau de bord</h1>
           <p className="text-xs capitalize text-slate-500">{today}</p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {has("dashboard.read") && (

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { BackButton } from "@/components/erp-ui";
 import { MULTI_SITE } from "@/app/edition";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -102,6 +103,7 @@ export default function DeliveryPage() {
       {/* En-tête */}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
+          <BackButton />
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand text-white shadow-[0_10px_24px_-10px_rgba(15,61,104,0.9)]">
             <Truck className="h-6 w-6" />
           </span>
