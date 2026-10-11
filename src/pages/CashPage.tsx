@@ -1209,7 +1209,7 @@ export default function CashPage() {
             <div className="text-xs text-amber-900">
               <span className="font-bold uppercase tracking-wider">Versement attendu de tous les marketeurs</span>
               <span className="ml-2 text-slate-600">
-                {marketerDeposits.filter((m: any) => m.pending_orders_count > 0).length} marketeur(s) sur {marketerDeposits.length} doivent verser
+                {marketerDeposits.filter((m: any) => m.pending_orders_count > 0).length} marketeur(s) doivent verser
               </span>
             </div>
             <div className="text-right">
@@ -1222,7 +1222,8 @@ export default function CashPage() {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {marketerDeposits.map((m: any) => (
+            {/* Seuls les versements encore attendus : ce qui est déjà versé passe dans l'historique ci-dessous */}
+            {marketerDeposits.filter((m: any) => m.pending_orders_count > 0).map((m: any) => (
               <div
                 key={m.marketer_id || m.marketer_name}
                 data-deposit-card
@@ -1298,9 +1299,9 @@ export default function CashPage() {
                 </Button>
               </div>
             ))}
-            {!marketerDeposits.length && (
+            {!marketerDeposits.some((m: any) => m.pending_orders_count > 0) && (
               <div className="col-span-full rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500">
-                Aucun marketeur rattaché à ce site.
+                Aucun versement attendu : tous les marketeurs de ce site sont à jour.
               </div>
             )}
           </div>
