@@ -2303,9 +2303,25 @@ function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessi
     open_count: cashRows.filter((r: any) => r.is_open).length,
   };
 
+  // Versements en attente : ventes au comptant pas encore versées en caisse (même règle que Caisse › Versements)
+  const pendingDeposits = db.orders.filter(
+    (o: any) =>
+      o.payment_method === "cash" &&
+      o.status !== "cancelled" &&
+      o.status !== "rejected" &&
+      (o.cash_deposit_status || "pending_deposit") === "pending_deposit" &&
+      inSiteScope(me, orderLocation(o).site_id, "indicators")
+  );
+  const pending_deposits = {
+    total_usd: r2(pendingDeposits.reduce((t: number, o: any) => t + (Number(o.total) || 0), 0)),
+    orders_count: pendingDeposits.length,
+    marketers_count: new Set(pendingDeposits.map((o: any) => o.marketer_id || o.marketer_name)).size,
+  };
+
   return {
     overview: {
       cash_balance,
+      pending_deposits,
       revenue: kpi(sum(salesOn(todayKey), (o) => Number(o.total) || 0), sum(salesOn(yesterdayKey), (o) => Number(o.total) || 0)),
       profit: kpi(sum(salesOn(todayKey), profitOf), sum(salesOn(yesterdayKey), profitOf)),
       receipts: kpi(cashInOn(todayKey), cashInOn(yesterdayKey)),

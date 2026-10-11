@@ -108,7 +108,9 @@ export default function CashPage() {
   const { user, has } = useAuth();
 
   // Navigation tabs (sessions replaced with rates)
-  const [activeTab, setActiveTab] = useState<"journal" | "marketers" | "closing" | "rates">("journal");
+  // Onglet initial : ?tab=marketers (lien « Versements en attente » du tableau de bord)
+  const initialTab = new URLSearchParams(window.location.search).get("tab") === "marketers" ? "marketers" : "journal";
+  const [activeTab, setActiveTab] = useState<"journal" | "marketers" | "closing" | "rates">(initialTab);
 
   // State data
   const [activeSession, setActiveSession] = useState<CashSession | null>(null);

@@ -5,7 +5,7 @@ import { ShoppingBag, TrendingUp, HandCoins, Users, Wallet, Loader2 } from "luci
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney, KpiCard } from "@/components/erp-ui";
-import { OutOfStockPanel, SalesDonut, SalesLineChart, StatCard, type Overview } from "@/components/dashboard/DashboardOverview";
+import { CardLink, OutOfStockPanel, SalesDonut, SalesLineChart, StatCard, type Overview } from "@/components/dashboard/DashboardOverview";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Bell } from "lucide-react";
@@ -96,32 +96,38 @@ export default function DashboardPage() {
       ) : o ? (
         <>
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <StatCard label="Chiffre d'affaires du jour" value={fmtMoney(o.revenue.today)} k={o.revenue} icon={Wallet} tone="blue" />
-            <StatCard label="Bénéfice estimé" value={fmtMoney(o.profit.today)} k={o.profit} icon={TrendingUp} tone="green" />
-            <StatCard label="Créances" value={fmtMoney(k.debts?.total)} sub={`${k.debts?.clients ?? 0} client(s)`} icon={HandCoins} tone="red" />
-            <StatCard label="Nombre de ventes" value={o.sales_count.today.toLocaleString("fr-FR")} k={o.sales_count} icon={ShoppingBag} tone="orange" />
-            <StatCard label="Nombre de clients" value={o.clients.today.toLocaleString("fr-FR")} k={o.clients} icon={Users} tone="violet" />
+            <StatCard label="Chiffre d'affaires du jour" value={fmtMoney(o.revenue.today)} k={o.revenue} icon={Wallet} tone="blue" to={has("orders.read") ? "/orders" : null} />
+            <StatCard label="Bénéfice estimé" value={fmtMoney(o.profit.today)} k={o.profit} icon={TrendingUp} tone="green" to={has("reports.read") ? "/reports" : null} />
+            <StatCard label="Créances" value={fmtMoney(k.debts?.total)} sub={`${k.debts?.clients ?? 0} client(s)`} icon={HandCoins} tone="red" to={has("credits.read") ? "/credits" : null} />
+            <StatCard label="Nombre de ventes" value={o.sales_count.today.toLocaleString("fr-FR")} k={o.sales_count} icon={ShoppingBag} tone="orange" to={has("orders.read") ? "/orders" : null} />
+            <StatCard label="Nombre de clients" value={o.clients.today.toLocaleString("fr-FR")} k={o.clients} icon={Users} tone="violet" to={has("crm.read") ? "/clients" : null} />
           </div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <SalesLineChart data={o.series} days={o.days} onDays={setDays} />
             <OutOfStockPanel items={o.out_of_stock} />
             <SalesDonut byCategory={o.by_category} total={o.period_total} days={o.days} />
           </div>
-          {/* Suivi : solde de caisse, commandes à approuver, sorties de caisse */}
+          {/* Suivi : solde de caisse, versements en attente, sorties de caisse */}
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3" data-dash-follow>
-            <KpiCard
-              label="Solde actuel en caisse"
-              value={fmtMoney(o.cash_balance.current_usd)}
-              sub={`${fmtMoney(o.cash_balance.cash_usd)} · ${fmtMoney(o.cash_balance.cash_cdf, "CDF")} · ${o.cash_balance.open_count} caisse(s) ouverte(s)`}
-              tone="green"
-            />
-            <KpiCard
-              label="À approuver"
-              value={String(k.orders?.pending_approval ?? 0)}
-              sub={`${k.objectives?.active ?? 0} objectif(s) en cours`}
-              tone="slate"
-            />
-            <KpiCard label="Sorties de caisse" value={fmtMoney(k.cash?.today_out)} sub="Aujourd'hui" tone="slate" />
+            <CardLink to={has("cash.read") ? "/cash" : null} className="block rounded-2xl">
+              <KpiCard
+                label="Solde actuel en caisse"
+                value={fmtMoney(o.cash_balance.current_usd)}
+                sub={`${fmtMoney(o.cash_balance.cash_usd)} · ${fmtMoney(o.cash_balance.cash_cdf, "CDF")} · ${o.cash_balance.open_count} caisse(s) ouverte(s)`}
+                tone="green"
+              />
+            </CardLink>
+            <CardLink to={has("cash.read") ? "/cash?tab=marketers" : null} className="block rounded-2xl">
+              <KpiCard
+                label="Versements en attente"
+                value={fmtMoney(o.pending_deposits.total_usd)}
+                sub={`${o.pending_deposits.orders_count} vente(s) au comptant pas encore versée(s) en caisse · ${o.pending_deposits.marketers_count} vendeur(s)`}
+                tone={o.pending_deposits.total_usd > 0 ? "red" : "slate"}
+              />
+            </CardLink>
+            <CardLink to={has("cash.read") ? "/cash" : null} className="block rounded-2xl">
+              <KpiCard label="Sorties de caisse" value={fmtMoney(k.cash?.today_out)} sub="Aujourd'hui" tone="slate" />
+            </CardLink>
           </div>
         </>
       ) : null}

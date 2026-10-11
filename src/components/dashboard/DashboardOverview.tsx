@@ -13,6 +13,7 @@ import { compactMoney, niceScale } from "@/lib/chartScale";
 export type Kpi = { today: number; yesterday: number };
 export type Overview = {
   cash_balance: { current_usd: number; cash_usd: number; cash_cdf: number; open_count: number };
+  pending_deposits: { total_usd: number; orders_count: number; marketers_count: number };
   revenue: Kpi;
   profit: Kpi;
   receipts: Kpi;
@@ -26,6 +27,15 @@ export type Overview = {
 };
 
 /* ---------------- Cartes statistiques ---------------- */
+/** Carte cliquable vers son module source (si l'utilisateur y a accès), sinon simple bloc */
+export function CardLink({ to, className = "", children, ...rest }: { to?: string | null; className?: string; children: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
+  if (!to) return <div className={className} {...(rest as any)}>{children}</div>;
+  return (
+    <Link to={to} className={`${className} transition-transform hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand`} data-dash-link={to} {...(rest as any)}>
+      {children}
+    </Link>
+  );
+}
 const TONES = {
   blue: "linear-gradient(135deg, var(--accent-blue) 0%, #2563eb 100%)",
   green: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
@@ -55,9 +65,9 @@ function Trend({ k }: { k: Kpi }) {
   );
 }
 
-export function StatCard({ label, value, k, sub, icon: Icon, tone }: { label: string; value: string; k?: Kpi; sub?: string; icon: LucideIcon; tone: keyof typeof TONES }) {
+export function StatCard({ label, value, k, sub, icon: Icon, tone, to }: { label: string; value: string; k?: Kpi; sub?: string; icon: LucideIcon; tone: keyof typeof TONES; to?: string | null }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl p-4 text-white shadow-md" style={{ backgroundImage: TONES[tone] }} data-dash-kpi={tone}>
+    <CardLink to={to} className="relative block overflow-hidden rounded-2xl p-4 text-white shadow-md" style={{ backgroundImage: TONES[tone] }} data-dash-kpi={tone}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 pt-0.5 text-[12px] font-medium leading-tight text-white/85">{label}</div>
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25">
@@ -70,7 +80,7 @@ export function StatCard({ label, value, k, sub, icon: Icon, tone }: { label: st
       <div className="mt-3 text-[11px] font-medium text-white/85">
         {k ? <Trend k={k} /> : sub}
       </div>
-    </div>
+    </CardLink>
   );
 }
 
