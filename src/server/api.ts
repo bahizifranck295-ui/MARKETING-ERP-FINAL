@@ -2233,7 +2233,7 @@ apiRouter.get("/dashboard", authenticate, (req, res) => {
     },
     orders: { pending_approval: live.filter((o) => o.status === "pending_approval").length },
     objectives: { active: db.objectives.filter((o: any) => o.status !== "completed").length },
-    ...dashboardOverview(me, live, usd, sessionSite, Number(req.query.days) || 7),
+    ...dashboardOverview(me, live, usd, sessionSite, Number(req.query.days) || 7, String(req.query.range || "day")),
   });
 });
 
@@ -2241,7 +2241,7 @@ apiRouter.get("/dashboard", authenticate, (req, res) => {
  * Tableau de bord : indicateurs du jour comparés à la veille, ventes des N derniers jours,
  * répartition des ventes par catégorie et produits en rupture. Données réelles, dans le périmètre.
  */
-function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessionSite: Map<string, string | null>, daysIn: number) {
+function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessionSite: Map<string, string | null>, daysIn: number, rangeIn = "day") {
   const days = [7, 14, 30].includes(daysIn) ? daysIn : 7;
   const dayKey = (d: Date | string) => {
     const x = new Date(d);
@@ -2253,6 +2253,23 @@ function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessi
   yesterday.setDate(now.getDate() - 1);
   const yesterdayKey = dayKey(yesterday);
   const saleDay = (o: any) => dayKey(o.approved_at || o.created_at);
+  // Période choisie dans l'en-tête du tableau de bord (aujourd'hui / cette semaine / ce mois / cette année),
+  // mêmes bornes que le module Rapports ; la période précédente de même nature sert à la comparaison
+  const range = ["day", "week", "month", "year"].includes(rangeIn) ? rangeIn : "day";
+  const periodKeys = (shift: number): [string, string] => {
+    const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+    let a: Date, b: Date;
+    if (range === "week") {
+      const monday = d - ((now.getDay() + 6) % 7) + 7 * shift;
+      a = new Date(y, m, monday); b = new Date(y, m, monday + 7);
+    } else if (range === "month") { a = new Date(y, m + shift, 1); b = new Date(y, m + shift + 1, 1); }
+    else if (range === "year") { a = new Date(y + shift, 0, 1); b = new Date(y + shift + 1, 0, 1); }
+    else { a = new Date(y, m, d + shift); b = new Date(y, m, d + shift + 1); }
+    return [dayKey(a), dayKey(b)];
+  };
+  const curP = periodKeys(0);
+  const prevP = periodKeys(-1);
+  const inP = (k: string, [lo, hi]: [string, string]) => k >= lo && k < hi;
   const r2 = (n: number) => Math.round(n * 100) / 100;
   const productById = new Map(db.products.map((p) => [p.id, p]));
   // Bénéfice net réel (même calcul que Rapports › Vue d'ensemble, période « Aujourd'hui ») :
@@ -2268,15 +2285,16 @@ function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessi
         ),
       0
     );
-  const reportOrdersOn = (k: string) =>
+  const reportOrdersIn = (r: [string, string]) =>
     db.orders.filter(
-      (o: any) => o.status !== "cancelled" && saleDay(o) === k && inSiteScope(me, orderLocation(o).site_id, "indicators") && orderInCategoryScope(me, o, "indicators")
+      (o: any) => o.status !== "cancelled" && inP(saleDay(o), r) && inSiteScope(me, orderLocation(o).site_id, "indicators") && orderInCategoryScope(me, o, "indicators")
     );
-  const cashOutOn = (k: string) =>
+  const cashOutIn = (r: [string, string]) =>
     db.cash_operations
-      .filter((o: any) => o.type === "out" && dayKey(o.created_at) === k && inSiteScope(me, sessionSite.get(o.session_id) || null, "indicators"))
+      .filter((o: any) => o.type === "out" && inP(dayKey(o.created_at), r) && inSiteScope(me, sessionSite.get(o.session_id) || null, "indicators"))
       .reduce((t: number, o: any) => t + usd(o), 0);
-  const netOn = (k: string) => r2(grossOf(reportOrdersOn(k)) - cashOutOn(k));
+  const netIn = (r: [string, string]) => r2(grossOf(reportOrdersIn(r)) - cashOutIn(r));
+  const salesIn = (r: [string, string]) => live.filter((o) => inP(saleDay(o), r));
   const salesOn = (k: string) => live.filter((o) => saleDay(o) === k);
   const sum = (list: any[], f: (o: any) => number) => r2(list.reduce((t, o) => t + f(o), 0));
   const cashInOn = (k: string) =>
@@ -2337,10 +2355,11 @@ function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessi
     overview: {
       cash_balance,
       pending_deposits,
-      revenue: kpi(sum(salesOn(todayKey), (o) => Number(o.total) || 0), sum(salesOn(yesterdayKey), (o) => Number(o.total) || 0)),
-      net_profit: kpi(netOn(todayKey), netOn(yesterdayKey)),
+      range,
+      revenue: kpi(sum(salesIn(curP), (o) => Number(o.total) || 0), sum(salesIn(prevP), (o) => Number(o.total) || 0)),
+      net_profit: kpi(netIn(curP), netIn(prevP)),
       receipts: kpi(cashInOn(todayKey), cashInOn(yesterdayKey)),
-      sales_count: kpi(salesOn(todayKey).length, salesOn(yesterdayKey).length),
+      sales_count: kpi(salesIn(curP).length, salesIn(prevP).length),
       clients: kpi(clients.length, clients.filter((c: any) => !c.created_at || new Date(c.created_at).getTime() < endOfYesterday).length),
       days,
       series,

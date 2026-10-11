@@ -6,7 +6,7 @@ import { ShoppingBag, TrendingUp, HandCoins, Users, Wallet, Loader2 } from "luci
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney, KpiCard } from "@/components/erp-ui";
-import { CardLink, OutOfStockPanel, SalesDonut, SalesLineChart, StatCard, type Overview } from "@/components/dashboard/DashboardOverview";
+import { CardLink, DASH_RANGES, OutOfStockPanel, SalesDonut, SalesLineChart, StatCard, type DashRange, type Overview } from "@/components/dashboard/DashboardOverview";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Bell } from "lucide-react";
@@ -17,18 +17,35 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);
   const [days, setDays] = useState(7);
+  // Période des indicateurs (en-tête) : aujourd'hui, cette semaine, ce mois ou cette année
+  const [range, setRange] = useState<DashRange>(() => {
+    try {
+      const v = sessionStorage.getItem("dash_range");
+      return v === "week" || v === "month" || v === "year" ? v : "day";
+    } catch {
+      return "day";
+    }
+  });
+  const R = DASH_RANGES.find((x) => x.id === range) || DASH_RANGES[0];
 
   useEffect(() => {
     let ok = true;
     // Indicateurs : uniquement avec la permission « Voir les indicateurs »
-    (has("dashboard.read") ? api.get("/dashboard", { params: { days } }) : Promise.resolve({ data: null }))
+    (has("dashboard.read") ? api.get("/dashboard", { params: { days, range } }) : Promise.resolve({ data: null }))
       .then((r) => ok && setK(r.data))
       .catch((e) => toast.error(extractErrorMessage(e, "KPI indisponibles")))
       .finally(() => ok && setLoading(false));
     return () => {
       ok = false;
     };
-  }, [days]);
+  }, [days, range]);
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("dash_range", range);
+    } catch {
+      /* stockage indisponible : la période revient à « Aujourd'hui » au prochain chargement */
+    }
+  }, [range]);
 
   useEffect(() => {
     api
@@ -58,7 +75,22 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tableau de bord</h1>
           <p className="text-xs capitalize text-slate-500">{today}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {has("dashboard.read") && (
+            <div role="group" aria-label="Période des indicateurs" className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1" data-dash-range>
+              {DASH_RANGES.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  aria-pressed={range === r.id}
+                  onClick={() => setRange(r.id)}
+                  className={`h-8 rounded-lg px-3 text-xs font-bold transition-colors ${range === r.id ? "border-brand bg-brand text-white" : "text-slate-700 hover:text-slate-900"}`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
           <LanguageSwitcher />
           <ThemeToggle />
           <Link
@@ -97,10 +129,10 @@ export default function DashboardPage() {
       ) : o ? (
         <>
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <StatCard label="Chiffre d'affaires du jour" value={fmtMoney(o.revenue.today)} k={o.revenue} icon={Wallet} tone="blue" to={has("orders.read") ? "/orders" : null} />
-            <StatCard label="Bénéfice net réel" value={fmtMoney(o.net_profit.today)} k={o.net_profit} icon={TrendingUp} tone="green" to={has("reports.read") ? "/reports?period=day" : null} />
+            <StatCard label={`Chiffre d'affaires ${R.of}`} value={fmtMoney(o.revenue.today)} k={o.revenue} vs={R.vs} icon={Wallet} tone="blue" to={has("orders.read") ? "/orders" : null} />
+            <StatCard label={`Bénéfice net réel ${R.of}`} value={fmtMoney(o.net_profit.today)} k={o.net_profit} vs={R.vs} icon={TrendingUp} tone="green" to={has("reports.read") ? `/reports?period=${range}` : null} />
             <StatCard label="Créances" value={fmtMoney(k.debts?.total)} sub={`${k.debts?.clients ?? 0} client(s)`} icon={HandCoins} tone="red" to={has("credits.read") ? "/credits" : null} />
-            <StatCard label="Nombre de ventes" value={o.sales_count.today.toLocaleString("fr-FR")} k={o.sales_count} icon={ShoppingBag} tone="orange" to={has("orders.read") ? "/orders" : null} />
+            <StatCard label={`Nombre de ventes ${R.of}`} value={o.sales_count.today.toLocaleString("fr-FR")} k={o.sales_count} vs={R.vs} icon={ShoppingBag} tone="orange" to={has("orders.read") ? "/orders" : null} />
             <StatCard label="Nombre de clients" value={o.clients.today.toLocaleString("fr-FR")} k={o.clients} icon={Users} tone="violet" to={has("crm.read") ? "/clients" : null} />
           </div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

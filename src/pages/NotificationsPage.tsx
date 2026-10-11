@@ -4,8 +4,12 @@ import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { PageHeader, EmptyState, fmtDate } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { inThisApp } from "@/app/edition";
 
 export default function NotificationsPage() {
+  const { has } = useAuth();
   const [notifs, setNotifs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -88,6 +92,12 @@ export default function NotificationsPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">{n.message}</p>
+                  {/* Alerte de sécurité : traitée dans le Journal d'audit */}
+                  {n.type === "security" && has("audit.alerts") && inThisApp("/admin/audit") && (
+                    <Link to="/admin/audit" className="mt-1 inline-block text-[11px] font-bold text-brand hover:underline" data-security-notif>
+                      Traiter dans le Journal d'audit →
+                    </Link>
+                  )}
                 </div>
               </div>
             );

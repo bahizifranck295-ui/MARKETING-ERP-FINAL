@@ -11,6 +11,15 @@ import { compactMoney, niceScale } from "@/lib/chartScale";
  */
 
 export type Kpi = { today: number; yesterday: number };
+export type DashRange = "day" | "week" | "month" | "year";
+/** Période des indicateurs du tableau de bord : libellé du sélecteur, complément des cartes, comparaison */
+export const DASH_RANGES: Array<{ id: DashRange; label: string; of: string; vs: string }> = [
+  { id: "day", label: "Aujourd'hui", of: "du jour", vs: "hier" },
+  { id: "week", label: "Cette semaine", of: "de la semaine", vs: "semaine précédente" },
+  { id: "month", label: "Ce mois", of: "du mois", vs: "mois précédent" },
+  { id: "year", label: "Cette année", of: "de l'année", vs: "année précédente" },
+];
+
 export type Overview = {
   cash_balance: { current_usd: number; cash_usd: number; cash_cdf: number; open_count: number };
   pending_deposits: { total_usd: number; orders_count: number; marketers_count: number };
@@ -45,13 +54,13 @@ const TONES = {
   violet: "linear-gradient(135deg, var(--accent-violet) 0%, var(--accent-deep) 100%)",
 } as const;
 
-function Trend({ k }: { k: Kpi }) {
+function Trend({ k, vs = "hier" }: { k: Kpi; vs?: string }) {
   const { today: t, yesterday: y } = k;
   if (!y) {
     return (
       <span className="inline-flex items-center gap-1">
         {t > 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
-        {t > 0 ? "Aucune valeur hier" : "Stable vs hier"}
+        {t > 0 ? `Aucune valeur ${vs}` : `Stable vs ${vs}`}
       </span>
     );
   }
@@ -60,12 +69,12 @@ function Trend({ k }: { k: Kpi }) {
   return (
     <span className="inline-flex items-center gap-1 tabular-nums">
       <Icon className="h-3.5 w-3.5" />
-      {Math.abs(pct).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % vs hier
+      {Math.abs(pct).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % vs {vs}
     </span>
   );
 }
 
-export function StatCard({ label, value, k, sub, icon: Icon, tone, to }: { label: string; value: string; k?: Kpi; sub?: string; icon: LucideIcon; tone: keyof typeof TONES; to?: string | null }) {
+export function StatCard({ label, value, k, sub, icon: Icon, tone, to, vs }: { label: string; value: string; k?: Kpi; sub?: string; icon: LucideIcon; tone: keyof typeof TONES; to?: string | null; vs?: string }) {
   return (
     <CardLink to={to} className="relative block overflow-hidden rounded-2xl p-4 text-white shadow-md" style={{ backgroundImage: TONES[tone] }} data-dash-kpi={tone}>
       <div className="flex items-start justify-between gap-2">
@@ -78,7 +87,7 @@ export function StatCard({ label, value, k, sub, icon: Icon, tone, to }: { label
         {value}
       </div>
       <div className="mt-3 text-[11px] font-medium text-white/85">
-        {k ? <Trend k={k} /> : sub}
+        {k ? <Trend k={k} vs={vs} /> : sub}
       </div>
     </CardLink>
   );

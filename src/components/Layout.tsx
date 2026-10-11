@@ -81,7 +81,6 @@ export default function Layout() {
   const [online, setOnline] = useState(navigator.onLine);
   const [unread, setUnread] = useState(2);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [openAlerts, setOpenAlerts] = useState(0);
 
   useEffect(() => {
     const up = () => setOnline(true);
@@ -103,12 +102,7 @@ export default function Layout() {
           if (alive && r.data) setUnread(r.data.length || 0);
         })
         .catch(() => {});
-      // Alertes de sécurité ouvertes : uniquement pour les administrateurs autorisés
-      if (inThisApp("/admin/audit") && has("audit.alerts"))
-        api
-          .get("/audit/stats")
-          .then((r) => alive && setOpenAlerts(r.data?.open_alerts || 0))
-          .catch(() => {});
+      // Les alertes de sécurité arrivent dans les notifications (plus de bandeau en haut de page)
     };
     load();
     const iv = setInterval(load, 30000);
@@ -308,15 +302,6 @@ export default function Layout() {
           </div>
         </header>
 
-        {openAlerts > 0 && has("audit.alerts") && location.pathname !== "/admin/audit" && (
-          <NavLink
-            to="/admin/audit"
-            data-security-alert
-            className="flex items-center justify-center gap-2 bg-red-600 px-4 py-1.5 text-center text-xs font-bold text-white hover:bg-red-700"
-          >
-            <Bell className="h-3.5 w-3.5" /> {openAlerts} alerte(s) de sécurité à traiter dans le Journal d'audit
-          </NavLink>
-        )}
 
         {/* MAIN BODY */}
         <main
