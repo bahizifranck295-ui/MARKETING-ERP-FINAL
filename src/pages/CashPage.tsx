@@ -1066,7 +1066,6 @@ export default function CashPage() {
                     <th className="py-3 px-4">Motif & Autorisation</th>
                     <th className="py-3 px-4 text-right">Montant</th>
                     <th className="py-3 px-4 text-center">Pièce Justificative</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1186,31 +1185,6 @@ export default function CashPage() {
                           )}
                         </td>
 
-                        {/* Actions */}
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedOperation(op)}
-                              title="Consulter les détails"
-                              className="h-7 w-7 p-0 text-slate-500 hover:text-slate-900"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                            {has("cash.export") && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handlePrintReceipt(op)}
-                              title="Imprimer le reçu officiel"
-                              className="h-7 w-7 p-0 text-slate-500 hover:text-blue-600"
-                            >
-                              <Printer className="w-3.5 h-3.5" />
-                            </Button>
-                            )}
-                          </div>
-                        </td>
                       </tr>
                     );
                   })}
