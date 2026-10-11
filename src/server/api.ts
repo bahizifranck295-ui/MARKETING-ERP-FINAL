@@ -73,7 +73,11 @@ apiRouter.get("/health", (req, res) => {
 apiRouter.post("/auth/login", (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = (email || "").toLowerCase().trim();
-  const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+  // Identifiant : l'email complet, ou le nom d'utilisateur (partie avant « @ ») s'il désigne un seul compte
+  const byLocal = normalizedEmail && !normalizedEmail.includes("@")
+    ? db.users.filter((u) => u.email.toLowerCase().split("@")[0] === normalizedEmail)
+    : [];
+  const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail) || (byLocal.length === 1 ? byLocal[0] : undefined);
   // Seul le mot de passe propre au compte est accepté (aucun mot de passe universel : il contournerait
   // toutes les permissions en ouvrant n'importe quel compte, super administrateur compris)
   const isMatch = !!user && typeof password === "string" && bcrypt.compareSync(password, user.password_hash);

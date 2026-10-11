@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { ensureDemoAccounts } from "./demoAccounts";
 import { db, type User } from "./db";
 import {
   PERM_BY_CODE,
@@ -295,6 +296,7 @@ export function installSecurity(router: any, resolveUser: (req: any) => User | n
   router.use((req: any, res: any, next: any) => {
     ensurePermissionModel();
     ensureAddedPermissions();
+    ensureDemoAccounts();
     checkCoverage(router);
     const user = resolveUser(req);
     req._actor = user;
