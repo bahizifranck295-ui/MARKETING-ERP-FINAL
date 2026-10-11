@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
   Target,
@@ -229,7 +230,7 @@ export default function ObjectivesPage() {
             <div className="h-4 w-px bg-slate-200" />
             <div>
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
-                {obj.business_unit} • {obj.site}
+                {obj.business_unit}{MULTI_SITE ? ` • ${obj.site}` : ""}
               </span>
               <h1 className="text-base font-bold text-slate-900">{obj.label}</h1>
             </div>
@@ -391,7 +392,7 @@ export default function ObjectivesPage() {
         <EmptyState
           icon={Target}
           title={objectives.length === 0 ? "Aucun objectif configuré" : "Aucun objectif en cours"}
-          subtitle={objectives.length === 0 ? "Créez votre premier objectif par Business Unit et Site." : "Les objectifs atteints dont toutes les primes sont encaissées sont dans « Clôturés »."}
+          subtitle={objectives.length === 0 ? (MULTI_SITE ? "Créez votre premier objectif par Business Unit et Site." : "Créez votre premier objectif par Business Unit.") : "Les objectifs atteints dont toutes les primes sont encaissées sont dans « Clôturés »."}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -422,7 +423,7 @@ export default function ObjectivesPage() {
                       </div>
                       <div>
                         <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                          {obj.business_unit} • {obj.site}
+                          {obj.business_unit}{MULTI_SITE ? ` • ${obj.site}` : ""}
                         </div>
                         <h3 className="font-bold text-slate-900 text-sm">{obj.label}</h3>
                       </div>
@@ -493,6 +494,7 @@ export default function ObjectivesPage() {
                     ))}
                   </select>
                 </div>
+                {MULTI_SITE && (
                 <div>
                   <Label className="text-xs font-semibold">Site / Ville *</Label>
                   <select
@@ -508,6 +510,7 @@ export default function ObjectivesPage() {
                     ))}
                   </select>
                 </div>
+                )}
               </div>
               <div>
                 <Label className="text-xs font-semibold">Intitulé de l'objectif</Label>

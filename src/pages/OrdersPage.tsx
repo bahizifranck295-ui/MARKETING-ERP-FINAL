@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
   ShoppingCart,
@@ -170,7 +171,7 @@ export default function OrdersPage() {
         title="Gestion des Commandes"
         subtitle="Validation, suivi des ventes terrain et historique des commandes"
         right={
-          has("orders.filter") && (
+          MULTI_SITE && has("orders.filter") && (
           <div className="flex flex-wrap items-center gap-2" data-orders-scope>
             <select
               aria-label="Site"

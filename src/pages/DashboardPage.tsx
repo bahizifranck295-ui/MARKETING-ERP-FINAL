@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ShoppingBag, TrendingUp, HandCoins, Users, Wallet, Loader2 } from "lucide-react";
@@ -113,7 +114,7 @@ export default function DashboardPage() {
               <KpiCard
                 label="Solde actuel en caisse"
                 value={fmtMoney(o.cash_balance.current_usd)}
-                sub={`${fmtMoney(o.cash_balance.cash_usd)} · ${fmtMoney(o.cash_balance.cash_cdf, "CDF")} · ${o.cash_balance.open_count} caisse(s) ouverte(s)`}
+                sub={`${fmtMoney(o.cash_balance.cash_usd)} · ${fmtMoney(o.cash_balance.cash_cdf, "CDF")}${MULTI_SITE ? ` · ${o.cash_balance.open_count} caisse(s) ouverte(s)` : ""}`}
                 tone="green"
               />
             </CardLink>

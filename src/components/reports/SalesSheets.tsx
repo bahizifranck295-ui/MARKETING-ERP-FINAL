@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import { CalendarDays, FileText, Loader2 } from "lucide-react";
@@ -330,7 +331,7 @@ export default function SalesSheets({
         const info: Array<[string, string]> = [
           ["Catégorie", sheet.label],
           [period === "day" ? "Jour / Date" : "Mois (récapitulatif)", periodLabel],
-          ["Site", siteLabel || "Tous les sites"],
+          ...(MULTI_SITE ? ([["Site", siteLabel || "Tous les sites"]] as Array<[string, string]>) : []),
           ["Préparée par", preparedBy],
         ];
         const cw4 = (W - 2 * M) / info.length;

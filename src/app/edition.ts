@@ -31,3 +31,11 @@ export function inThisApp(path: string) {
   if (match(SHARED_ROUTES)) return true;
   return IS_LOGISTICS ? match(LOGISTICS_ROUTES) : match(COMMERCIAL_ROUTES);
 }
+
+/*
+ * Site unique : l'entreprise travaille pour l'instant avec un seul site (Goma, Nord-Kivu).
+ * Tant que ce drapeau est à false, l'interface n'affiche aucune gestion par site (sélecteurs,
+ * colonnes, filtres, périmètre « sites ») ; le code reste en place et le serveur rattache tout au
+ * site principal. Passer à true pour réactiver la gestion multi-sites.
+ */
+export const MULTI_SITE = false;

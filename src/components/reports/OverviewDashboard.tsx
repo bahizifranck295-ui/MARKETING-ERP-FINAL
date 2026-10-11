@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { BarChart3, Layers, LineChart, MapPin, PieChart, ShoppingCart, Tag, TrendingDown, TrendingUp, Trophy, Wallet, Package } from "lucide-react";
 import { fmtMoney } from "@/components/erp-ui";
 import { compactMoney, niceScale } from "@/lib/chartScale";
@@ -389,10 +390,12 @@ export default function OverviewDashboard({ orders, periodOrders, cashOps, produ
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <Card title="Répartition des ventes par site" sub="Chiffre d'affaires par site" icon={MapPin}>
-          <SitesDonut slices={siteSlices} total={siteTotal} />
-        </Card>
+      <div className={`grid grid-cols-1 gap-4 lg:grid-cols-2 ${MULTI_SITE ? "xl:grid-cols-3" : ""}`}>
+        {MULTI_SITE && (
+          <Card title="Répartition des ventes par site" sub="Chiffre d'affaires par site" icon={MapPin}>
+            <SitesDonut slices={siteSlices} total={siteTotal} />
+          </Card>
+        )}
 
         <Card title="Top 5 produits par bénéfices" sub="Produits les plus rentables" icon={Tag}>
           {top.rows.length ? (

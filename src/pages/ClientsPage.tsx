@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
   Users,
@@ -578,6 +579,7 @@ export default function ClientsPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-2">
+              {MULTI_SITE ? (
               <div>
                 <Label className="text-xs font-semibold text-slate-800">
                   Site géographique / Ville *
@@ -606,6 +608,10 @@ export default function ClientsPage() {
                   );
                 })()}
               </div>
+              ) : (
+                // Site unique : la ville du client est conservée (ou celle du site principal), sans choix à faire
+                <input type="hidden" name="city" value={editingClient?.city || stockSites[0] || "Goma, RDC"} />
+              )}
               <div>
                 <Label className="text-xs font-semibold text-slate-800">
                   Type de client
@@ -859,7 +865,7 @@ export default function ClientsPage() {
       {has("crm.filter") && (
       <div className="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-xs space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-          <div className="relative md:col-span-4">
+          <div className={`relative ${MULTI_SITE ? "md:col-span-4" : "md:col-span-7"}`}>
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder="Rechercher nom, code, tél, ville, produit..."
@@ -895,6 +901,7 @@ export default function ClientsPage() {
             </div>
           </div>
 
+          {MULTI_SITE && (
           <div className="md:col-span-3">
             <div className="relative flex items-center">
               <MapPin className="h-3.5 w-3.5 absolute left-3 text-slate-400 pointer-events-none" />
@@ -912,6 +919,7 @@ export default function ClientsPage() {
               </select>
             </div>
           </div>
+          )}
 
           <div className="md:col-span-2 flex items-center gap-1.5">
             <div className="relative flex-1">
@@ -922,7 +930,7 @@ export default function ClientsPage() {
                 className="w-full h-10 pl-8 pr-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium focus:bg-white cursor-pointer"
               >
                 <option value="product">Trier : Produit</option>
-                <option value="site">Trier : Site Géo</option>
+                {MULTI_SITE && <option value="site">Trier : Site Géo</option>}
                 <option value="name">Trier : Nom Client</option>
                 <option value="solde">Trier : Solde</option>
                 <option value="date">Trier : Récents</option>

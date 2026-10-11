@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
   Package,
@@ -65,7 +66,7 @@ const TABS: Array<{ id: Tab; label: string; icon: any }> = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { id: "products", label: "Produits", icon: Package },
   { id: "categories", label: "Catégories", icon: Shapes },
-  { id: "sites", label: "Sites & Dépôts", icon: MapPin },
+  { id: "sites", label: MULTI_SITE ? "Sites & Dépôts" : "Dépôts", icon: MULTI_SITE ? MapPin : WarehouseIcon },
   { id: "transfers", label: "Transferts", icon: ArrowRightLeft },
   { id: "movements", label: "Mouvements", icon: History },
 ];
@@ -175,7 +176,8 @@ export default function StockPage() {
   }, [tab]);
 
   const openSites = (siteId?: string, depotId?: string) => {
-    setSitesFocus((f) => ({ siteId, depotId, n: f.n + 1 }));
+    // Site unique : les dépôts s'ouvrent directement au niveau du site principal
+    setSitesFocus((f) => ({ siteId: siteId ?? (MULTI_SITE ? undefined : sites[0]?.id), depotId, n: f.n + 1 }));
     setTab("sites");
   };
 
@@ -508,7 +510,7 @@ export default function StockPage() {
               Stock en direct
             </div>
             <h1 className="mt-2 text-3xl font-black tracking-tight">Stock</h1>
-            <p className="text-sm text-blue-100/80">Sites → Dépôts → Produits → Quantités → Transferts</p>
+            <p className="text-sm text-blue-100/80">{MULTI_SITE ? "Sites → Dépôts → Produits → Quantités → Transferts" : "Dépôts → Produits → Quantités → Transferts"}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold backdrop-blur">
@@ -559,7 +561,8 @@ export default function StockPage() {
         ) : (
           <>
             {/* Tri du tableau de bord (site, dépôt, catégorie, recherche) : en haut de la page */}
-            <div data-dash-filters className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-2 xl:grid-cols-4">
+            <div data-dash-filters className={`grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-2 ${MULTI_SITE ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>
+              {MULTI_SITE && (
               <label className="text-[11px] font-semibold text-slate-600">
                 Site
                 <select
@@ -573,6 +576,7 @@ export default function StockPage() {
                   ))}
                 </select>
               </label>
+              )}
               <label className="text-[11px] font-semibold text-slate-600">
                 Dépôt
                 <select
@@ -584,7 +588,7 @@ export default function StockPage() {
                   {warehouses
                     .filter((w) => dashSite === ALL || w.site_id === dashSite)
                     .map((w) => (
-                      <option key={w.id} value={w.id}>{dashSite === ALL ? w.label : w.name}</option>
+                      <option key={w.id} value={w.id}>{MULTI_SITE && dashSite === ALL ? w.label : w.name}</option>
                     ))}
                 </select>
               </label>
@@ -615,10 +619,10 @@ export default function StockPage() {
               </label>
             </div>
             {/* Indicateurs globaux (la rupture est comptée dans « Stock faible ») */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
+            <div className={`grid grid-cols-2 gap-3 lg:grid-cols-4 ${MULTI_SITE ? "xl:grid-cols-7" : "xl:grid-cols-6"}`}>
               <KpiTile icon={Boxes} glow="from-blue-500 to-indigo-600" label="Total produits" value={fmtNum(dashRows.length)} hint={`${fmtNum(totalUnits)} unités`} />
               <KpiTile icon={Shapes} glow="from-violet-500 to-fuchsia-600" label="Catégories" value={fmtNum(scopeCategoryCount)} hint="Voir les catégories" onClick={() => setTab("categories")} />
-              <KpiTile icon={MapPin} glow="from-emerald-500 to-teal-600" label="Sites" value={fmtNum(scopeSiteCount)} hint="Voir les sites" onClick={() => openSites(dashSite !== ALL ? dashSite : undefined)} />
+              {MULTI_SITE && <KpiTile icon={MapPin} glow="from-emerald-500 to-teal-600" label="Sites" value={fmtNum(scopeSiteCount)} hint="Voir les sites" onClick={() => openSites(dashSite !== ALL ? dashSite : undefined)} />}
               <KpiTile icon={WarehouseIcon} glow="from-cyan-500 to-sky-600" label="Dépôts" value={fmtNum(scopeDepotCount)} hint="Voir les dépôts" onClick={() => openSites(dashSite !== ALL ? dashSite : undefined, dashDepot !== ALL ? dashDepot : undefined)} />
               <KpiTile
                 icon={Database}
@@ -653,10 +657,12 @@ export default function StockPage() {
               {lastSync ? ` · dernière mise à jour à ${lastSync.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}
             </p>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <GlassCard title="Valeur du stock par site" icon={BarChart3}>
-                <BarsBySite rows={bySite} />
-              </GlassCard>
+            <div className={`grid grid-cols-1 gap-4 ${MULTI_SITE ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
+              {MULTI_SITE && (
+                <GlassCard title="Valeur du stock par site" icon={BarChart3}>
+                  <BarsBySite rows={bySite} />
+                </GlassCard>
+              )}
               <GlassCard title="Répartition du stock par catégorie" icon={PieChart}>
                 <Donut slices={byCategory} total={totalValue} />
               </GlassCard>
@@ -795,7 +801,8 @@ export default function StockPage() {
               </GlassCard>
             </div>
 
-            {/* Stock par site : chaque nouveau site apparaît automatiquement */}
+            {/* Stock par site : chaque nouveau site apparaît automatiquement (masqué en site unique) */}
+            {MULTI_SITE && (
             <GlassCard
               title="Stock par site"
               icon={MapPin}
@@ -841,6 +848,7 @@ export default function StockPage() {
                 {!scopeSites.length && <p className="text-xs text-slate-500">{sites.length ? "Aucun site dans ce périmètre." : "Aucun site. Créez-en un dans « Sites & Dépôts »."}</p>}
               </div>
             </GlassCard>
+            )}
 
             {/* Stock embarqué : marchandise sortie des dépôts vers les camions des marketeurs */}
             {scopeEmbarked && (
@@ -943,6 +951,7 @@ export default function StockPage() {
             }
           >
             <div className="mb-3 flex flex-wrap items-end gap-2" data-prod-scope>
+              {MULTI_SITE && (
               <label className="text-[11px] font-semibold text-slate-600">
                 Site
                 <select
@@ -956,6 +965,7 @@ export default function StockPage() {
                   ))}
                 </select>
               </label>
+              )}
               <label className="text-[11px] font-semibold text-slate-600">
                 Dépôt
                 <select
@@ -967,12 +977,12 @@ export default function StockPage() {
                   {warehouses
                     .filter((w: any) => prodSite === ALL || w.site_id === prodSite)
                     .map((w: any) => (
-                      <option key={w.id} value={w.id} data-no-translate>{prodSite === ALL ? w.label || w.name : w.name}</option>
+                      <option key={w.id} value={w.id} data-no-translate>{MULTI_SITE && prodSite === ALL ? w.label || w.name : w.name}</option>
                     ))}
                 </select>
               </label>
               <span className="pb-2 text-[11px] text-slate-500">
-                {prodScoped ? "Inventaire du site / dépôt choisi" : "Inventaire général (tous les sites)"}
+                {prodScoped ? (MULTI_SITE ? "Inventaire du site / dépôt choisi" : "Inventaire du dépôt choisi") : MULTI_SITE ? "Inventaire général (tous les sites)" : "Inventaire général (tous les dépôts)"}
               </span>
             </div>
             <div className="mb-3 flex flex-wrap items-center gap-1.5">
@@ -1001,7 +1011,7 @@ export default function StockPage() {
                     <th className="px-2.5 py-3 font-semibold">Produit</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Prix achat</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Prix vente</th>
-                    <th className="px-2.5 py-3 font-semibold">{prodScoped ? "Stock (site / dépôt)" : "Stock global"}</th>
+                    <th className="px-2.5 py-3 font-semibold">{prodScoped ? (MULTI_SITE ? "Stock (site / dépôt)" : "Stock (dépôt)") : "Stock global"}</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Valeur</th>
                     <th className="px-2.5 py-3 text-center font-semibold">Statut</th>
                     {(has("stock.update") || has("stock.adjust")) && <th className="px-2.5 py-3 text-center font-semibold">Actions</th>}

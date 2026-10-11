@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -228,6 +229,7 @@ export default function AuditPage() {
                   </option>
                 ))}
               </select>
+              {MULTI_SITE && (
               <select value={site} onChange={(e) => setSite(e.target.value)} aria-label="Site" className={sel}>
                 <option value="all">Tous les sites</option>
                 {sites.map((s) => (
@@ -236,6 +238,7 @@ export default function AuditPage() {
                   </option>
                 ))}
               </select>
+              )}
               <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Statut du compte" className={sel}>
                 <option value="all">Tous les statuts</option>
                 <option value="active">Actifs</option>
@@ -370,7 +373,7 @@ function UserCard({ u, sites, onOpen }: { u: any; sites: any[]; onOpen: () => vo
             <Phone className="h-3.5 w-3.5 text-slate-400" /> {u.phone}
           </div>
         )}
-        {site && (
+        {MULTI_SITE && site && (
           <div className="flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 text-slate-400" /> {site}
           </div>
@@ -420,7 +423,7 @@ function Notebook({ u, range, modules, sites, onClose }: { u: any; range: any; m
                   <Phone className="h-3.5 w-3.5" /> {u.phone}
                 </span>
               )}
-              {site && (
+              {MULTI_SITE && site && (
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" /> {site}
                 </span>
@@ -429,7 +432,7 @@ function Notebook({ u, range, modules, sites, onClose }: { u: any; range: any; m
             <div className="flex flex-wrap gap-1.5">
               <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">{u.role_name}</span>
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${u.is_active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{u.is_active ? "Actif" : "Inactif"}</span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">Sites : {u.sites}</span>
+              {MULTI_SITE && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">Sites : {u.sites}</span>}
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600" data-no-translate>Départements : {u.departments}</span>
             </div>
             <div className="text-[11px] text-slate-500">

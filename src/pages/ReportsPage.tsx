@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
   BarChart3,
@@ -279,7 +280,7 @@ export default function ReportsPage() {
       const ok = await exportReceivablesPdf({
         rows: filteredReceivables,
         editedBy: user?.full_name || "Utilisateur",
-        filtersLabel: `${siteName} · créances en cours${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`,
+        filtersLabel: `${MULTI_SITE ? `${siteName} · ` : ""}créances en cours${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`,
         tab,
       });
       if (!ok) closeTab(tab);
@@ -303,7 +304,7 @@ export default function ReportsPage() {
     setExportingCash(true);
     const RED: [number, number, number] = [190, 18, 60];
     const GREEN: [number, number, number] = [4, 120, 87];
-    const filtersLabel = `${siteName} · ${periodLabel}${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`;
+    const filtersLabel = `${MULTI_SITE ? `${siteName} · ` : ""}${periodLabel}${search.trim() ? ` · recherche « ${search.trim()} »` : ""}`;
     const stamp = new Date().toISOString().slice(0, 10);
     try {
       let ok: boolean;
@@ -322,7 +323,7 @@ export default function ReportsPage() {
             fmtDate(sess.opened_at, true),
             sess.closed_at ? fmtDate(sess.closed_at, true) : "-",
             sess.closed_by || sess.opened_by_name || "-",
-            sessionSiteName(sess),
+            ...(MULTI_SITE ? [sessionSiteName(sess)] : []),
             fmtMoney(expected, "USD"),
             fmtMoney(real, "USD"),
             fmtMoney(sess.actual_balance_cdf || 0, "CDF"),
@@ -337,11 +338,11 @@ export default function ReportsPage() {
             { label: "Session", weight: 1.1, bold: true },
             { label: "Clôture", weight: 1.1 },
             { label: "Caissier", weight: 1.2, bold: true },
-            { label: "Site", weight: 1 },
+            ...(MULTI_SITE ? [{ label: "Site", weight: 1 }] : []),
             { label: "Solde attendu", weight: 1, right: true },
             { label: "Billetage réel USD", weight: 1.1, right: true, color: () => GREEN },
             { label: "Billetage réel CDF", weight: 1.2, right: true },
-            { label: "Écart", weight: 0.9, color: (r) => (r[7] === "Équilibrée" ? GREEN : RED) },
+            { label: "Écart", weight: 0.9, color: (r) => (r[MULTI_SITE ? 7 : 6] === "Équilibrée" ? GREEN : RED) },
             { label: "Motif", weight: 1.5 },
           ],
           rows,
@@ -648,6 +649,7 @@ export default function ReportsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {MULTI_SITE && (
           <select
             value={selectedSite}
             onChange={(e) => setSelectedSite(e.target.value)}
@@ -661,6 +663,7 @@ export default function ReportsPage() {
               </option>
             ))}
           </select>
+          )}
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
@@ -920,7 +923,7 @@ export default function ReportsPage() {
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
                       <th className="p-3.5">Session</th>
-                      <th className="p-3.5">Caissier & Site</th>
+                      <th className="p-3.5">{MULTI_SITE ? "Caissier & Site" : "Caissier"}</th>
                       <th className="p-3.5 text-right">Solde Attendu</th>
                       <th className="p-3.5 text-right">Billetage Réel</th>
                       <th className="p-3.5 text-center">Écart</th>
@@ -939,7 +942,7 @@ export default function ReportsPage() {
                         </td>
                         <td className="p-3.5">
                           <div className="font-bold text-slate-800">{sess.closed_by || sess.opened_by_name}</div>
-                          <div className="text-[10px] text-slate-500">{sessionSiteName(sess)}</div>
+                          {MULTI_SITE && <div className="text-[10px] text-slate-500">{sessionSiteName(sess)}</div>}
                         </td>
                         <td className="p-3.5 text-right">
                           <div className="font-bold text-slate-900">

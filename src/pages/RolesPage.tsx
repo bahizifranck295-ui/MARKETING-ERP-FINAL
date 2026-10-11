@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, History, KeyRound, Loader2, Lock, Plus, RotateCcw, Save, Search, ShieldCheck, Users } from "lucide-react";
@@ -343,15 +344,15 @@ function ScopeEditor({ scope, onChange, sites, categories, disabled, resources =
     </div>
   );
   return (
-    <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs md:grid-cols-2" data-scope-editor>
-      <Block title="Sites" allKey="all_sites" listKey="site_ids" allLabel="Tous les sites (transversal)" items={sites.map((s) => ({ value: s.id, label: s.name }))} />
+    <div className={`grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs ${MULTI_SITE ? "md:grid-cols-2" : ""}`} data-scope-editor>
+      {MULTI_SITE && <Block title="Sites" allKey="all_sites" listKey="site_ids" allLabel="Tous les sites (transversal)" items={sites.map((s) => ({ value: s.id, label: s.name }))} />}
       <Block title="Départements (catégories de produits)" allKey="all_categories" listKey="categories" allLabel="Tous les départements" items={categories.map((c) => ({ value: c, label: c }))} />
       {Object.keys(resources).length > 0 && (
         <div className="space-y-2 md:col-span-2" data-transversal-resources>
           <span className="text-xs font-bold text-slate-700">Accès transversal à certaines ressources seulement</span>
-          <p className="text-[11px] text-slate-500">Pour ces ressources, l'utilisateur voit les données de tous les sites et de tous les départements (ex. le CRM gère les clients de plusieurs départements). Ses actions restent limitées par ses permissions.</p>
+          <p className="text-[11px] text-slate-500">{MULTI_SITE ? "Pour ces ressources, l'utilisateur voit les données de tous les sites et de tous les départements (ex. le CRM gère les clients de plusieurs départements). Ses actions restent limitées par ses permissions." : "Pour ces ressources, l'utilisateur voit les données de tous les départements (ex. le CRM gère les clients de plusieurs départements). Ses actions restent limitées par ses permissions."}</p>
           <div className="flex flex-wrap gap-1.5">
-            {Object.entries(resources).map(([k, label]) => {
+            {Object.entries(resources).filter(([k]) => MULTI_SITE || k !== "cash").map(([k, label]) => {
               const on = (scope.transversal_resources || []).includes(k);
               return (
                 <button

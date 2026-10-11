@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
   Search,
@@ -227,6 +228,7 @@ export default function CreditsPage() {
         title="Gestion des Crédits & Créances"
         subtitle="Suivi des impayés clients, dettes à charge des marketeurs et encaissements"
         right={
+          MULTI_SITE && (
           <div role="group" aria-label="Tri des dettes par site" className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-xl">
             {(siteLocked
               ? debtSites.filter((x) => x.id === debtSite)
@@ -246,6 +248,7 @@ export default function CreditsPage() {
               </button>
             ))}
           </div>
+          )
         }
       />
 

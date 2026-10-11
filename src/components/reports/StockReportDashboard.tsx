@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { createPortal } from "react-dom";
 import {
   ChevronDown,
@@ -204,7 +205,7 @@ export default function StockReportDashboard({ products, orders, search, siteKey
   }, []);
   const sortBar = (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
-      <Select
+      {MULTI_SITE && <Select
         label="Site"
         value={site}
         onChange={(v: string) => {
@@ -212,7 +213,7 @@ export default function StockReportDashboard({ products, orders, search, siteKey
           setDepot(ALL);
         }}
         options={[{ value: ALL, label: "Tous les sites" }, ...allSites]}
-      />
+      />}
       <Select
         label="Dépôt"
         value={depot}
@@ -236,7 +237,7 @@ export default function StockReportDashboard({ products, orders, search, siteKey
       {/* Graphiques */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* Valeur du stock par site, avec la valeur totale du stock en tête du graphique */}
-        <Card title="Valeur du stock par site" icon={Database}>
+        <Card title={MULTI_SITE ? "Valeur du stock par site" : "Valeur du stock"} icon={Database}>
           <div className="mb-3 flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand text-white">
               <Database className="h-5 w-5" />
@@ -247,7 +248,7 @@ export default function StockReportDashboard({ products, orders, search, siteKey
               <div className="truncate text-[11px] text-slate-500">Au prix de revient</div>
             </div>
           </div>
-          <BarsBySite rows={bySite} />
+          {MULTI_SITE && <BarsBySite rows={bySite} />}
         </Card>
         <Card title="Répartition du stock par catégorie" icon={PieChart}>
           <Donut slices={byCategory} total={donutTotal} />

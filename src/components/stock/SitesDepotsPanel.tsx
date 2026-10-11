@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
   ArrowRightLeft,
@@ -15,6 +16,7 @@ import {
   Plus,
   TriangleAlert,
   User,
+  Warehouse as WarehouseIcon,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -95,6 +97,10 @@ export default function SitesDepotsPanel({
   const [adjusting, setAdjusting] = useState<any>(null);
 
   const site = view.level !== "sites" ? sites.find((s) => s.id === view.siteId) : null;
+  // Site unique : pas de liste des sites, on travaille directement dans le site principal
+  useEffect(() => {
+    if (!MULTI_SITE && view.level === "sites" && sites[0]) setView({ level: "site", siteId: sites[0].id });
+  }, [sites, view.level]);
 
   const loadSites = async () => {
     const [s, d] = await Promise.all([api.get("/stock/sites"), api.get("/stock/depots")]);
@@ -213,14 +219,14 @@ export default function SitesDepotsPanel({
       {/* ----- Un site et ses dépôts ----- */}
       {view.level === "site" && site && (
         <>
-          <Breadcrumb items={[{ label: "Sites", onClick: () => setView({ level: "sites" }) }, { label: site.name }]} />
+          {MULTI_SITE && <Breadcrumb items={[{ label: "Sites", onClick: () => setView({ level: "sites" }) }, { label: site.name }]} />}
           <GlassCard
-            title={`Site : ${site.name}`}
-            icon={MapPin}
+            title={MULTI_SITE ? `Site : ${site.name}` : "Dépôts"}
+            icon={MULTI_SITE ? MapPin : WarehouseIcon}
             right={
               <div className="flex flex-wrap items-center gap-2">
-                <ActivePill active={site.is_active !== false} />
-                {canManage && (
+                {MULTI_SITE && <ActivePill active={site.is_active !== false} />}
+                {MULTI_SITE && canManage && (
                   <Button size="sm" variant="outline" onClick={() => toggleSite(site)} className="h-8 rounded-xl text-[11px]">
                     {site.is_active !== false ? "Désactiver" : "Activer"}
                   </Button>
@@ -233,11 +239,11 @@ export default function SitesDepotsPanel({
               </div>
             }
           >
-            <p className="mb-3 text-xs text-slate-500">
+            {MULTI_SITE && <p className="mb-3 text-xs text-slate-500">
               <span className="font-mono">{site.code}</span>
               {site.location ? ` · ${site.location}` : ""} · {fmtNum(site.depot_count)} dépôt(s)
               {site.description ? ` · ${site.description}` : ""}
-            </p>
+            </p>}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] border-collapse text-left text-xs">
                 <thead>
@@ -307,8 +313,12 @@ export default function SitesDepotsPanel({
         <>
           <Breadcrumb
             items={[
-              { label: "Sites", onClick: () => setView({ level: "sites" }) },
-              { label: site.name, onClick: () => setView({ level: "site", siteId: site.id }) },
+              ...(MULTI_SITE
+                ? [
+                    { label: "Sites", onClick: () => setView({ level: "sites" }) },
+                    { label: site.name, onClick: () => setView({ level: "site", siteId: site.id }) },
+                  ]
+                : [{ label: "Dépôts", onClick: () => setView({ level: "site", siteId: site.id }) }]),
               { label: detail?.depot?.name || "…" },
             ]}
           />
@@ -321,7 +331,7 @@ export default function SitesDepotsPanel({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-lg font-black text-slate-900">
-                    {site.name} → {detail.depot.name}
+                    {MULTI_SITE ? `${site.name} → ${detail.depot.name}` : detail.depot.name}
                   </h2>
                   <p className="text-xs text-slate-500">
                     <span className="font-mono">{detail.depot.code}</span>

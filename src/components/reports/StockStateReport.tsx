@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import { CalendarDays, Download, Eye, FileText, History, Loader2, Printer } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
@@ -406,15 +407,15 @@ export default function StockStateReport({
       </div>
 
       {/* Filtres */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Field label="Site">
+      <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${MULTI_SITE ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+        {MULTI_SITE && <Field label="Site">
           <select value={siteId} onChange={(e) => { setSiteId(e.target.value); setDepotId("all"); }} className={fieldCls} disabled={!!restrictedSite}>
             {!restrictedSite && sites.length > 1 && <option value="all">Tous les sites (vue d'ensemble)</option>}
             {sites.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
-        </Field>
+        </Field>}
         <Field label="Catégorie">
           <select value={category} onChange={(e) => setCategory(e.target.value)} className={fieldCls}>
             {categories.map((c) => (
@@ -502,7 +503,7 @@ export default function StockStateReport({
           <table className="w-full min-w-[760px] text-left text-[11px]">
             <thead>
               <tr className="bg-slate-50 font-semibold text-slate-600">
-                <th className="p-2.5">Site</th>
+                {MULTI_SITE && <th className="p-2.5">Site</th>}
                 <th className="p-2.5">Catégorie</th>
                 <th className="p-2.5">Dépôt</th>
                 <th className="p-2.5">Période</th>
@@ -514,7 +515,7 @@ export default function StockStateReport({
             <tbody className="divide-y divide-slate-100">
               {pageHistory.map((h) => (
                 <tr key={h.id} className={current?.id === h.id ? "bg-blue-50/60" : ""}>
-                  <td className="p-2.5 font-semibold" data-no-translate>{h.site_name}</td>
+                  {MULTI_SITE && <td className="p-2.5 font-semibold" data-no-translate>{h.site_name}</td>}
                   <td className="p-2.5" data-no-translate>{h.category}</td>
                   <td className="p-2.5" data-no-translate={h.warehouse_id === "all" ? undefined : ""}>{h.warehouse_name}</td>
                   <td className="p-2.5">{h.period_label}</td>

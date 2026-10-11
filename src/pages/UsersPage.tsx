@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
   UserPlus,
@@ -108,7 +109,7 @@ export default function UsersPage() {
       position: form.elements.position.value.trim(),
       photo_url: photo || "",
       ...(has("users.scope")
-        ? { all_categories: allCategories, categories: allCategories ? [] : userCategories, site_id: form.elements.site_id?.value || "" }
+        ? { all_categories: allCategories, categories: allCategories ? [] : userCategories, ...(MULTI_SITE ? { site_id: form.elements.site_id?.value || "" } : {}) }
         : {}),
       ...(form.elements.is_active ? { is_active: form.elements.is_active.checked } : {}),
     };
@@ -167,7 +168,7 @@ export default function UsersPage() {
                   <th className="p-3.5">Email</th>
                   <th className="p-3.5">Rôle</th>
                   <th className="p-3.5">Département</th>
-                  <th className="p-3.5">Site d'affectation</th>
+                  {MULTI_SITE && <th className="p-3.5">Site d'affectation</th>}
                   <th className="p-3.5 text-center">Statut</th>
                   {(canEditRow || has("users.permissions")) && <th className="p-3.5 text-center">Action</th>}
                 </tr>
@@ -185,7 +186,7 @@ export default function UsersPage() {
                     <td className="p-3.5 text-slate-600" data-no-translate={!u.all_categories || undefined}>
                       {departmentLabel(u)}
                     </td>
-                    <td className="p-3.5 text-slate-600">{sites.find((x) => x.id === u.site_id)?.name || "-"}</td>
+                    {MULTI_SITE && <td className="p-3.5 text-slate-600">{sites.find((x) => x.id === u.site_id)?.name || "-"}</td>}
                     <td className="p-3.5 text-center">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -374,6 +375,7 @@ export default function UsersPage() {
                   </>
                 )}
               </div>
+              {MULTI_SITE && (
               <div>
                 <Label className="text-xs font-semibold">Site d'affectation</Label>
                 <select
@@ -392,6 +394,7 @@ export default function UsersPage() {
                   Une caissière gère les entrées et sorties de caisse de son site d'affectation.
                 </p>
               </div>
+              )}
               </>
               )}
               {has("users.delete") && (

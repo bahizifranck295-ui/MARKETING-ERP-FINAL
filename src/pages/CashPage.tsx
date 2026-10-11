@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import {
   Wallet,
@@ -686,7 +687,7 @@ export default function CashPage() {
         subtitle="Suivi des mouvements en espèces, encaissements clients, décaissements et clôtures journalières"
         right={
           <div className="flex flex-wrap items-center gap-2.5">
-            {cashLocked ? (
+            {!MULTI_SITE ? null : cashLocked ? (
               <Badge className="bg-slate-50 text-slate-700 border-slate-200 px-3 py-1 font-semibold" data-no-translate>
                 Caisse : {cashSites.find((x) => x.id === cashSite)?.name || "Mon site"}
               </Badge>
@@ -1281,7 +1282,7 @@ export default function CashPage() {
                   {[
                     [Phone, m.phone || "—"],
                     [Mail, m.email || "—"],
-                    [MapPin, m.site_name || "—"],
+                    ...(MULTI_SITE ? [[MapPin, m.site_name || "—"]] : []),
                     [Tags, m.departments || "—"],
                   ].map(([Icon, v]: any, i: number) => (
                     <div key={i} className="flex items-center gap-1.5 text-slate-600">
@@ -1339,7 +1340,7 @@ export default function CashPage() {
             ))}
             {!marketerDeposits.some((m: any) => m.pending_orders_count > 0) && (
               <div className="col-span-full rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500">
-                Aucun versement attendu : tous les marketeurs de ce site sont à jour.
+                Aucun versement attendu : tous les marketeurs sont à jour.
               </div>
             )}
           </div>

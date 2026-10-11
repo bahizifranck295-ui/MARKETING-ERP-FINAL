@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { CalendarDays, CheckCircle2, ClipboardList, History, Loader2, Settings2, Truck, Warehouse } from "lucide-react";
@@ -110,6 +111,7 @@ export default function DeliveryPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2" data-delivery-scope>
+          {MULTI_SITE && (
           <select
             aria-label="Site"
             value={siteFilter}
@@ -129,6 +131,7 @@ export default function DeliveryPage() {
                 </option>
               ))}
           </select>
+          )}
           <select
             aria-label="Dépôt"
             value={depotFilter}
@@ -140,7 +143,7 @@ export default function DeliveryPage() {
               .filter((d) => siteFilter === ALL || d.site_id === siteFilter)
               .map((d) => (
                 <option key={d.id} value={d.id} data-no-translate>
-                  {siteFilter === ALL ? d.label || d.name : d.name}
+                  {MULTI_SITE && siteFilter === ALL ? d.label || d.name : d.name}
                 </option>
               ))}
           </select>
@@ -161,7 +164,7 @@ export default function DeliveryPage() {
           <StatCard icon={Truck} tone="bg-emerald-600" title="Stock embarqué" subtitle="Dans les camions des marketeurs" value={fmtNum(overview.embarked_units || 0)} unit="unités" onClick={() => setSection("embarked")} />
           <StatCard icon={ClipboardList} tone="bg-blue-600" title="Commandes en cours" subtitle="Approuvées, à préparer ou à livrer" value={fmtNum(overview.orders_in_progress || 0)} unit="commandes" onClick={() => setSection("orders")} />
           <StatCard icon={CheckCircle2} tone="bg-emerald-500" title="Livraisons du jour" subtitle={`Terminées · ${fmtNum(overview.shipping_now || 0)} en cours`} value={fmtNum(overview.delivered_today || 0)} unit="livrées" onClick={() => setSection("history")} />
-          <StatCard icon={Warehouse} tone="bg-violet-600" title={siteFilter === ALL && depotFilter === ALL ? "Stock dépôt (global)" : "Stock dépôt (site / dépôt)"} subtitle="Unités disponibles dans les dépôts" value={fmtNum(overview.depot_units || 0)} unit="unités" onClick={() => navigate("/stock")} />
+          <StatCard icon={Warehouse} tone="bg-violet-600" title={siteFilter === ALL && depotFilter === ALL ? "Stock dépôt (global)" : MULTI_SITE ? "Stock dépôt (site / dépôt)" : "Stock dépôt (dépôt)"} subtitle="Unités disponibles dans les dépôts" value={fmtNum(overview.depot_units || 0)} unit="unités" onClick={() => navigate("/stock")} />
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { MULTI_SITE } from "@/app/edition";
 import { drawLogo, loadLogoDataUrl } from "@/app/brand";
 
 /*
@@ -36,12 +37,16 @@ export const mainTitle = (report: any) =>
   report.all_sites
     ? "Vue d'ensemble — Tous les sites (synthèse de tous les dépôts)"
     : report.warehouse_id === "all"
-    ? `État de stock — ${report.site_name} (synthèse des dépôts du site)`
+    ? MULTI_SITE
+      ? `État de stock — ${report.site_name} (synthèse des dépôts du site)`
+      : "État de stock — synthèse de tous les dépôts"
     : `État de stock — ${report.warehouse_name}`;
 export const neutralNote = (report: any) =>
   report.all_sites
     ? "Vue d'ensemble : les transferts entre dépôts de l'entreprise ne sont comptés ni en sortie ni en entrée."
-    : "Synthèse du site : les transferts entre dépôts du même site ne sont comptés ni en sortie ni en entrée.";
+    : MULTI_SITE
+    ? "Synthèse du site : les transferts entre dépôts du même site ne sont comptés ni en sortie ni en entrée."
+    : "Synthèse des dépôts : les transferts entre dépôts ne sont comptés ni en sortie ni en entrée.";
 export const sectionTitleOf = (s: any) => (s.kind === "site" ? `Site : ${s.warehouse_name}` : `Dépôt : ${s.warehouse_name}`);
 
 export function reportTitle(category: string) {

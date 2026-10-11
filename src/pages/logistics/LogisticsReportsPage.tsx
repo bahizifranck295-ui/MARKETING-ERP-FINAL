@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
 import { ClipboardList, Download, Loader2, Package, Truck } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
@@ -98,11 +99,11 @@ export default function LogisticsReportsPage() {
   }, [delivered]);
 
   const exportDeliveries = () => {
-    const head = ["Commande", "Client", "Site", "Camion", "Chauffeur", "Livrée le"];
+    const head = ["Commande", "Client", ...(MULTI_SITE ? ["Site"] : []), "Camion", "Chauffeur", "Livrée le"];
     const rows = delivered.map((o) => [
       o.code,
       o.client_name || "",
-      o.site_name || "",
+      ...(MULTI_SITE ? [o.site_name || ""] : []),
       o.delivery?.vehicle_plate || "",
       o.delivery?.driver_name || "",
       new Date(o.delivered_at || o.updated_at).toLocaleString("fr-FR"),
@@ -182,7 +183,7 @@ export default function LogisticsReportsPage() {
                     <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
                       <th className="p-3">Commande</th>
                       <th className="p-3">Client</th>
-                      <th className="p-3">Site</th>
+                      {MULTI_SITE && <th className="p-3">Site</th>}
                       <th className="p-3">Camion · chauffeur</th>
                       <th className="p-3">Livrée le</th>
                       <th className="p-3">Statut</th>
@@ -193,7 +194,7 @@ export default function LogisticsReportsPage() {
                       <tr key={o.id}>
                         <td className="p-3 font-mono font-bold text-slate-900">{o.code}</td>
                         <td className="p-3">{o.client_name || "—"}</td>
-                        <td className="p-3">{o.site_name || "—"}</td>
+                        {MULTI_SITE && <td className="p-3">{o.site_name || "—"}</td>}
                         <td className="p-3">{[o.delivery?.vehicle_plate, o.delivery?.driver_name].filter(Boolean).join(" · ") || "—"}</td>
                         <td className="p-3">{fmtDate(o.delivered_at || o.updated_at)}</td>
                         <td className="p-3">

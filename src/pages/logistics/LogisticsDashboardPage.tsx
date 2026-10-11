@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { MULTI_SITE } from "@/app/edition";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowRight, BarChart3, Bell, ClipboardList, Loader2, Package, ShieldCheck, Truck, Warehouse } from "lucide-react";
@@ -197,7 +198,7 @@ export default function LogisticsDashboardPage() {
                         <span className="font-mono font-bold text-slate-900">{o.code}</span>{" "}
                         <span className="text-slate-500" data-no-translate>
                           · {o.client_name || "—"}
-                          {o.site_name ? ` · ${o.site_name}` : ""}
+                          {MULTI_SITE && o.site_name ? ` · ${o.site_name}` : ""}
                         </span>
                       </span>
                       <StatusBadge status={o.status} />
