@@ -316,7 +316,7 @@ export default function AuditPage() {
               </span>
             )}
           </div>
-          <AuditTimeline key={`${refreshKey}`} base={{ ...range, role: role !== "all" ? role : undefined, site: site !== "all" ? site : undefined }} modules={modules} showActor />
+          <AuditTimeline key={`${refreshKey}`} base={{ ...range, role: role !== "all" ? role : undefined, site: site !== "all" ? site : undefined }} modules={modules} showActor title="Journal d'audit" />
         </div>
       )}
 
@@ -445,7 +445,7 @@ function Notebook({ u, range, modules, sites, onClose }: { u: any; range: any; m
             </Link>
           )}
         </div>
-        <AuditTimeline base={{ ...range, user_id: u.id }} modules={modules} compact />
+        <AuditTimeline base={{ ...range, user_id: u.id }} modules={modules} compact title={`Cahier d'audit — ${u.full_name}`} />
       </DialogContent>
     </Dialog>
   );

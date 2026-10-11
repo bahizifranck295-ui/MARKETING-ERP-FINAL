@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { saveFile } from "@/lib/documentViewer";
+import { closeTab, openPendingTab } from "@/lib/documentViewer";
+import { exportTablePdf } from "@/lib/exportTablePdf";
 
 /*
  * Historique chronologique des événements du journal d'audit (cahier d'un utilisateur ou journal global) :
@@ -75,8 +76,9 @@ const TONE: Record<string, string> = {
 
 export type AuditFilters = { from?: string; to?: string; user_id?: string; role?: string; site?: string; module?: string; action_type?: string; result?: string; q?: string };
 
-export default function AuditTimeline({ base, modules, showActor = false, compact = false }: { base: AuditFilters; modules?: string[]; showActor?: boolean; compact?: boolean }) {
-  const { has } = useAuth();
+export default function AuditTimeline({ base, modules, showActor = false, compact = false, title }: { base: AuditFilters; modules?: string[]; showActor?: boolean; compact?: boolean; title?: string }) {
+  const { has, user } = useAuth();
+  const [exporting, setExporting] = useState(false);
   const [module, setModule] = useState(base.module || "all");
   const [actionType, setActionType] = useState(base.action_type || "all");
   const [result, setResult] = useState("all");
@@ -87,6 +89,12 @@ export default function AuditTimeline({ base, modules, showActor = false, compac
   const [open, setOpen] = useState<string | null>(null);
 
   const params = { ...base, module, action_type: actionType, result, q: q.trim() || undefined };
+  // Historique toujours à jour : rechargement automatique toutes les 15 s tant qu'il est affiché
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setTick((t) => t + 1), 15000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => setPage(1), [JSON.stringify(base), module, actionType, result, q]);
   useEffect(() => {
@@ -108,17 +116,59 @@ export default function AuditTimeline({ base, modules, showActor = false, compac
       alive = false;
       clearTimeout(t);
     };
-  }, [JSON.stringify(params), page]);
+  }, [JSON.stringify(params), page, tick]);
 
-  const exportCsv = async () => {
+  // Export PDF de l'historique affiché (tous les événements correspondant aux critères, toutes pages)
+  const exportPdf = async () => {
+    const tab = openPendingTab(title || "Journal d'audit");
+    setExporting(true);
     try {
-      const { data: all } = await api.get("/audit/logs", { params: { ...params, page: 1, limit: 200 } });
-      const head = ["Date", "Utilisateur", "Module", "Type", "Action", "Objet", "Résultat", "IP"];
-      const rows = (all.items || []).map((e: any) => [new Date(e.at).toLocaleString("fr-FR"), e.actor_name || e.actor_email || "", e.module || "", ACTION_TYPES[e.action_type] || e.action_type, e.summary || "", e.entity_label || "", e.success === false ? "Échec" : "Réussite", e.ip || ""]);
-      const csv = "﻿" + [head, ...rows].map((r) => r.map((c: any) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
-      saveFile(new Blob([csv], { type: "text/csv" }), `Journal_audit_${new Date().toISOString().slice(0, 10)}.csv`);
+      const all: any[] = [];
+      for (let p = 1; p <= 50; p++) {
+        const { data: res } = await api.get("/audit/logs", { params: { ...params, page: p, limit: 200 } });
+        all.push(...(res.items || []));
+        if (p >= (res.pages || 1)) break;
+      }
+      const fmt = (d?: string) => (d ? new Date(d).toLocaleDateString("fr-FR") : "");
+      const period = base.from || base.to ? `du ${fmt(base.from) || "début"} au ${fmt(base.to) || fmt(new Date().toISOString())}` : "toute la période";
+      const filters = [
+        period,
+        module !== "all" ? `module ${module}` : "",
+        actionType !== "all" ? ACTION_TYPES[actionType] || actionType : "",
+        result === "success" ? "réussites" : result === "failure" ? "échecs / refus" : "",
+        q.trim() ? `recherche « ${q.trim()} »` : "",
+      ].filter(Boolean);
+      const ok = await exportTablePdf({
+        title: (title || "Journal d'audit").toUpperCase(),
+        fileName: `${(title || "Journal d'audit").replace(/[^\p{L}\p{N}]+/gu, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`,
+        columns: [
+          { label: "Date et heure", weight: 1.2 },
+          ...(showActor ? [{ label: "Utilisateur", weight: 1.3, bold: true }] : []),
+          { label: "Module", weight: 1 },
+          { label: "Type", weight: 0.9 },
+          { label: "Action", weight: 3 },
+          { label: "Résultat", weight: 0.8, color: (r: string[]) => (r[r.length - 1] === "Échec" ? ([190, 18, 60] as [number, number, number]) : ([5, 150, 105] as [number, number, number])) },
+        ],
+        rows: all.map((e) => [
+          new Date(e.at).toLocaleString("fr-FR"),
+          ...(showActor ? [e.actor_name || e.actor_email || ""] : []),
+          e.module || "",
+          ACTION_TYPES[e.action_type] || e.action_type || "",
+          e.summary || "",
+          e.success === false ? "Échec" : "Réussite",
+        ]),
+        editedBy: user?.full_name || "Utilisateur",
+        filtersLabel: filters.join(" · "),
+        countLabel: "Événements",
+        emptyLabel: "Aucun événement pour ces critères.",
+        tab,
+      });
+      if (!ok) closeTab(tab);
     } catch (e) {
-      toast.error(extractErrorMessage(e, "Export impossible"));
+      closeTab(tab);
+      toast.error(extractErrorMessage(e, "Export PDF impossible"));
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -164,8 +214,8 @@ export default function AuditTimeline({ base, modules, showActor = false, compac
           </button>
         )}
         {has("audit.export") && (
-          <button type="button" onClick={exportCsv} className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-brand hover:bg-slate-50">
-            <Download className="h-3.5 w-3.5" /> CSV
+          <button type="button" onClick={exportPdf} disabled={exporting} data-audit-export-pdf className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-brand hover:bg-slate-50">
+            {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} PDF
           </button>
         )}
       </div>
