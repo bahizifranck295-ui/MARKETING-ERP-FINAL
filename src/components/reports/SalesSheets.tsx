@@ -7,6 +7,7 @@ import { fmtMoney } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { closeTab, openPendingTab, presentDocument } from "@/lib/documentViewer";
 import { useAuth } from "@/contexts/AuthContext";
+import { drawLogo, loadLogoDataUrl } from "@/app/brand";
 
 /*
  * Rapport des ventes : fiches de commande (de livraison) par catégorie de produits,
@@ -119,21 +120,8 @@ export function sheetOfCategory(category?: string): SheetKey | null {
 
 // Logo PREMIDIS converti en image pour le PDF (même logo que les factures)
 async function loadLogo(): Promise<string | null> {
-  try {
-    const img = new Image();
-    img.src = "/assets/premidis-logo.svg";
-    await new Promise((res, rej) => {
-      img.onload = res;
-      img.onerror = rej;
-    });
-    const c = document.createElement("canvas");
-    c.width = 400;
-    c.height = 320;
-    c.getContext("2d")!.drawImage(img, 0, 0, 400, 320);
-    return c.toDataURL("image/png");
-  } catch {
-    return null;
-  }
+  // Logo officiel PREMIDIS (fichier unique, sans modification) : voir src/app/brand.ts
+  return loadLogoDataUrl();
 }
 
 const APPROVED = ["validated", "prepared", "shipped", "delivered"];
@@ -303,7 +291,7 @@ export default function SalesSheets({
       const number = `FCH-${(period === "day" ? day : month).replace(/-/g, "")}-${strip(sheet.label).replace(/[^a-z0-9]/g, "").slice(0, 6).toUpperCase()}`;
       const TOP = 53;
       const draw = (first: boolean) => {
-        if (logo) doc.addImage(logo, "PNG", M, 8, 17, 13.6);
+        if (logo) drawLogo(doc, logo, M, 8, 17, 13.6);
         const x0 = logo ? M + 20 : M;
         doc.setTextColor(...INK);
         doc.setFont("helvetica", "bold");

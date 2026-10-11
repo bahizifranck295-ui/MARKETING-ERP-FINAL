@@ -44,6 +44,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { LOGO_ALT, LOGO_SRC } from "@/app/brand";
 
 export default function ReportsPage() {
   const { user, has } = useAuth();
@@ -625,8 +626,8 @@ export default function ReportsPage() {
     <div className="space-y-5 pb-16">
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-brand text-white flex items-center justify-center font-black text-base shadow-sm">
-            P
+          <div className="h-12 w-[88px] rounded-xl logo-tile border border-slate-200 flex items-center justify-center p-1 shadow-sm" data-report-logo>
+            <img src={LOGO_SRC} alt={LOGO_ALT} className="max-h-full max-w-full object-contain" />
           </div>
           <div>
             <div className="flex items-center gap-2">

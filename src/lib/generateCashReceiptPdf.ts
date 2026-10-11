@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { drawLogo, loadLogoDataUrl } from "@/app/brand";
 
 export interface CashReceiptBilletage {
   usd?: Record<string, number>;
@@ -30,37 +31,8 @@ export interface CashReceiptData {
 
 // Convert SVG logo to PNG Data URL for reliable jsPDF rendering
 async function getLogoPngDataUrl(): Promise<string | null> {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return null;
-  }
-  return new Promise((resolve) => {
-    try {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = 240;
-          canvas.height = 192;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, 240, 192);
-            ctx.drawImage(img, 0, 0, 240, 192);
-            resolve(canvas.toDataURL("image/png"));
-            return;
-          }
-        } catch {
-          // fallback
-        }
-        resolve(null);
-      };
-      img.onerror = () => resolve(null);
-      img.src = "/assets/premidis-logo.svg";
-    } catch {
-      resolve(null);
-    }
-  });
+  // Logo officiel PREMIDIS (fichier unique, sans modification) : voir src/app/brand.ts
+  return loadLogoDataUrl();
 }
 
 function formatDateSlash(d: string | Date): string {
@@ -114,7 +86,7 @@ export async function generateCashReceiptPdf(
   // 1. TOP HEADER: LOGO + "PREMIDIS S.A.R.L"
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, "PNG", margin + 2, curY - 2, 22, 17.6);
+      drawLogo(doc, logoDataUrl, margin + 2, curY - 2, 22, 17.6);
     } catch {
       drawFallbackLogo();
     }
@@ -476,7 +448,7 @@ export async function generateCashClosingReceiptPdf(
   // 1. TOP HEADER: LOGO + "PREMIDIS S.A.R.L"
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, "PNG", margin + 2, curY - 2, 22, 17.6);
+      drawLogo(doc, logoDataUrl, margin + 2, curY - 2, 22, 17.6);
     } catch {
       drawFallbackLogo();
     }

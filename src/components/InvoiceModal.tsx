@@ -14,6 +14,7 @@ import { fmtMoney, fmtDate } from "@/components/erp-ui";
 import { api } from "@/lib/api";
 import { openPendingTab, presentDocument } from "@/lib/documentViewer";
 import PremidisLogo from "./PremidisLogo";
+import { LOGO_ALT, LOGO_SRC } from "@/app/brand";
 
 export interface InvoiceItem {
   product_id?: string;
@@ -226,10 +227,10 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
                 <div className="space-y-1">
                   <div className="flex items-center gap-2.5">
                     <img
-                      src="/assets/premidis-logo.svg"
-                      alt="Logo PREMIDIS SARL"
+                      src={LOGO_SRC}
+                      alt={LOGO_ALT}
                       className={`w-auto object-contain rounded-sm ${
-                        isCompact ? "h-8 max-w-[65px]" : "h-11 max-w-[80px]"
+                        isCompact ? "h-8 max-w-[80px]" : "h-11 max-w-[100px]"
                       }`}
                     />
                     <div>

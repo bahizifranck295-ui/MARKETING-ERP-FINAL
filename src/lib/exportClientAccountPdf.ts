@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";
 import { presentDocument } from "@/lib/documentViewer";
+import { drawLogo, loadLogoDataUrl } from "@/app/brand";
 
 export interface AccountTransactionItem {
   id: string;
@@ -44,37 +45,8 @@ export interface ClientAccountExportOptions {
 
 // Convert SVG logo to PNG Data URL for reliable jsPDF rendering
 async function getLogoPngDataUrl(): Promise<string | null> {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return null;
-  }
-  return new Promise((resolve) => {
-    try {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = 240;
-          canvas.height = 192;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, 240, 192);
-            ctx.drawImage(img, 0, 0, 240, 192);
-            resolve(canvas.toDataURL("image/png"));
-            return;
-          }
-        } catch (e) {
-          console.warn("Canvas conversion error:", e);
-        }
-        resolve(null);
-      };
-      img.onerror = () => resolve(null);
-      img.src = "/assets/premidis-logo.svg";
-    } catch {
-      resolve(null);
-    }
-  });
+  // Logo officiel PREMIDIS (fichier unique, sans modification) : voir src/app/brand.ts
+  return loadLogoDataUrl();
 }
 
 function formatSoldeText(val: number | undefined): { text: string; color: [number, number, number] } {
@@ -161,7 +133,7 @@ export async function generateClientAccountPdf(
     // 1. Logo area
     if (logoDataUrl) {
       try {
-        doc.addImage(logoDataUrl, "PNG", margin, 10, 24, 19.2);
+        drawLogo(doc, logoDataUrl, margin, 10, 24, 19.2);
       } catch {
         drawFallbackLogo();
       }

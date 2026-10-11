@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { drawLogo, loadLogoDataUrl } from "@/app/brand";
 
 /*
  * PDF du rapport « Sales & Stock Report » (modèle papier PREMIDIS SARL) :
@@ -48,21 +49,8 @@ export function reportTitle(category: string) {
 }
 
 async function loadLogo(): Promise<string | null> {
-  try {
-    const img = new Image();
-    img.src = "/assets/premidis-logo.svg";
-    await new Promise((res, rej) => {
-      img.onload = res;
-      img.onerror = rej;
-    });
-    const c = document.createElement("canvas");
-    c.width = 400;
-    c.height = 320;
-    c.getContext("2d")!.drawImage(img, 0, 0, 400, 320);
-    return c.toDataURL("image/png");
-  } catch {
-    return null;
-  }
+  // Logo officiel PREMIDIS (fichier unique, sans modification) : voir src/app/brand.ts
+  return loadLogoDataUrl();
 }
 
 export async function buildStockStateReportPdf(report: any, opts: { periodLabel: string; preparedBy: string; generatedAt?: string }) {
@@ -79,7 +67,7 @@ export async function buildStockStateReportPdf(report: any, opts: { periodLabel:
     doc.setDrawColor(...INK);
     doc.setLineWidth(0.4);
     doc.rect(M, 8, IW, 26);
-    if (logo) doc.addImage(logo, "PNG", M + 2, 10, 15, 12);
+    if (logo) drawLogo(doc, logo, M + 2, 10, 15, 12);
     doc.setTextColor(...INK);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);

@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LOGO_ALT, LOGO_SRC } from "@/app/brand";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -45,7 +46,7 @@ export default function LoginPage() {
         <div className="text-center space-y-2">
           <div className="mx-auto flex justify-center">
             <img
-              src="/assets/premidis-logo.svg"
+              src={LOGO_SRC}
               alt="PREMIDIS SARL"
               className="logo-tile h-20 w-auto rounded-2xl object-contain p-1.5"
             />

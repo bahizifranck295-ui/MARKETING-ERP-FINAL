@@ -18,6 +18,7 @@ import {
   reportTitle,
   stockStateFileName,
 } from "@/lib/exportStockStateReportPdf";
+import { LOGO_ALT, LOGO_SRC } from "@/app/brand";
 
 /*
  * Rapports › État de stock : rapport automatique « Sales & Stock Report »
@@ -104,7 +105,7 @@ function ReportDocument({ report, periodLabel, preparedBy }: { report: any; peri
     <div className="mx-auto max-w-[900px] rounded-xl border border-slate-300 bg-white p-4 shadow-sm sm:p-6">
       <div className="border-2 border-ink">
         <div className="flex items-center gap-3 px-3 py-2">
-          <img src="/assets/premidis-logo.svg" alt="" className="h-10 w-12 object-contain" />
+          <img src={LOGO_SRC} alt={LOGO_ALT} className="h-10 w-[72px] object-contain" />
           <div className="flex-1 text-center">
             <div className="text-base font-black text-ink sm:text-lg">
               PREMIDIS SARL · <span data-no-translate>{report.category}</span> Sales &amp; Stock Report

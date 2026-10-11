@@ -56,6 +56,7 @@ import {
   generateCashReceiptPdf,
   CashReceiptData,
 } from "@/lib/generateCashReceiptPdf";
+import { LOGO_ALT, LOGO_SRC } from "@/app/brand";
 
 export default function CompteClientView({
   clientId,
@@ -1094,7 +1095,7 @@ export default function CompteClientView({
               <div className="flex justify-between items-start border-b border-slate-200 pb-4">
                 <div className="flex items-center gap-3">
                   <img
-                    src="/assets/premidis-logo.svg"
+                    src={LOGO_SRC}
                     alt="Logo PREMIDIS SARL"
                     className="h-10 w-auto object-contain"
                   />

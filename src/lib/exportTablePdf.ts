@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { presentDocument } from "@/lib/documentViewer";
+import { drawLogo, loadLogoDataUrl } from "@/app/brand";
 
 /*
  * Export PDF d'un tableau de rapport avec l'en-tête officiel PREMIDIS
@@ -13,21 +14,8 @@ const SLATE: [number, number, number] = [100, 116, 139];
 const txt = (v: unknown) => String(v ?? "").replace(/[  ]/g, " ");
 
 async function loadLogo(): Promise<string | null> {
-  try {
-    const img = new Image();
-    img.src = "/assets/premidis-logo.svg";
-    await new Promise((res, rej) => {
-      img.onload = res;
-      img.onerror = rej;
-    });
-    const c = document.createElement("canvas");
-    c.width = 400;
-    c.height = 320;
-    c.getContext("2d")!.drawImage(img, 0, 0, 400, 320);
-    return c.toDataURL("image/png");
-  } catch {
-    return null;
-  }
+  // Logo officiel PREMIDIS (fichier unique, sans modification) : voir src/app/brand.ts
+  return loadLogoDataUrl();
 }
 
 export type TableColumn = {
@@ -75,7 +63,7 @@ export async function exportTablePdf({
 
   let y = 0;
   const header = (first: boolean) => {
-    if (logo) doc.addImage(logo, "PNG", M, 9, 17, 13.6);
+    if (logo) drawLogo(doc, logo, M, 9, 17, 13.6);
     const x0 = logo ? M + 20 : M;
     doc.setTextColor(...INK);
     doc.setFont("helvetica", "bold");

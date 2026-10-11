@@ -36,6 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { LOGO_ALT, LOGO_SRC } from "@/app/brand";
 
 const BOTTOM_NAV = IS_LOGISTICS
   ? [
@@ -137,11 +138,11 @@ export default function Layout() {
         {/* Brand Header */}
         <div className="h-16 px-4 flex items-center gap-3 border-b border-sidebar-line select-none">
           {/* Logo PREMIDIS sur fond clair dans les deux thèmes (lisibilité) */}
-          <div className="h-9 w-9 rounded-xl logo-tile border border-line flex items-center justify-center p-1 flex-shrink-0 shadow-xs">
+          <div className="h-9 w-14 rounded-xl logo-tile border border-line flex items-center justify-center p-0.5 flex-shrink-0 shadow-xs">
             <img
-              src="/assets/premidis-logo.svg"
-              alt="PREMIDIS"
-              className="h-full w-auto object-contain"
+              src={LOGO_SRC}
+              alt={LOGO_ALT}
+              className="max-h-full max-w-full object-contain"
             />
           </div>
           {!sidebarCollapsed && (
