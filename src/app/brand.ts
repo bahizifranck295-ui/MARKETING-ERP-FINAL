@@ -7,6 +7,11 @@
  */
 export const LOGO_SRC = "/assets/premidis-logo.png";
 export const LOGO_ALT = "PREMIDIS S.A.R.L.";
+/**
+ * Même image officielle avec le fond blanc retiré (couleurs inchangées), utilisée uniquement pendant
+ * l'assemblage des anneaux de l'introduction en mode sombre.
+ */
+export const LOGO_TRANSPARENT_SRC = "/assets/premidis-logo-transparent.png";
 /** Proportions de l'image officielle (1683 × 935 px) */
 export const LOGO_RATIO = 1683 / 935;
 

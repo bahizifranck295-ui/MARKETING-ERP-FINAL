@@ -8,6 +8,7 @@ import Layout from "@/components/Layout";
 
 // Pages
 import LoginPage from "@/pages/LoginPage";
+import { StartupIntro } from "@/components/login/StartupIntro";
 import DashboardPage from "@/pages/DashboardPage";
 import BoutiquePage from "@/pages/BoutiquePage";
 import OrdersPage from "@/pages/OrdersPage";
@@ -35,6 +36,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Toaster position="top-right" richColors theme={theme} />
+      <StartupIntro />
       <BrowserRouter>
         <Routes>
           {/* Public Route */}

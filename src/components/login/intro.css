@@ -17,6 +17,12 @@
 .intro-root.is-leaving {
   pointer-events: none;
 }
+/* Pas d'emplacement de logo (ouverture du projet déjà connecté) : le logo s'efface sur place */
+.intro-root.is-leaving.no-target .intro-stage {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.85);
+  transition: opacity 900ms ease, transform 1100ms cubic-bezier(0.65, 0, 0.25, 1);
+}
 .intro-root.is-leaving .intro-sky,
 .intro-root.is-leaving .intro-floor,
 .intro-root.is-leaving .intro-horizon,
@@ -110,6 +116,29 @@
   mix-blend-mode: multiply;
   user-select: none;
   pointer-events: none;
+}
+/*
+ * Mode sombre : pendant l'assemblage, seuls les anneaux sont visibles (sans fond blanc) ;
+ * la plaque blanche du logo officiel apparaît ensuite, avec le nom.
+ */
+.intro-plate.is-clear {
+  background-color: transparent;
+  box-shadow: none;
+  overflow: visible;
+  clip-path: inset(-80% -80% round 28px);
+  animation:
+    intro-plate 1.7s cubic-bezier(0.22, 0.9, 0.3, 1) 0.9s forwards,
+    intro-plate-white 0.6s ease 3.3s forwards;
+}
+.intro-plate.is-clear .intro-ring-blue,
+.intro-plate.is-clear .intro-ring-violet {
+  mix-blend-mode: normal;
+}
+.intro-plate.is-clear .intro-sweep {
+  opacity: 0;
+  animation:
+    intro-sweep 1.3s ease 3.7s forwards,
+    intro-fade 0.01s linear 3.7s forwards;
 }
 /* Anneau bleu (moitié gauche du symbole) et anneau violet (moitié droite) : découpes temporaires */
 .intro-ring-blue {
@@ -342,6 +371,16 @@
 @keyframes intro-fade {
   to {
     opacity: 1;
+  }
+}
+@keyframes intro-plate-white {
+  to {
+    clip-path: inset(0 round 28px);
+    background-color: #ffffff;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.55),
+      0 0 40px rgba(8, 123, 255, 0.45),
+      0 0 110px rgba(130, 0, 255, 0.3);
   }
 }
 @keyframes intro-horizon {
