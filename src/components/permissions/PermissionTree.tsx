@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { ChevronRight, Search, ShieldAlert } from "lucide-react";
+import { ERP_APP } from "@/app/edition";
 
 /*
  * Arbre des permissions (module › page › action) construit à partir du catalogue servi par l'API.
@@ -56,7 +57,8 @@ export default function PermissionTree({
   readOnly?: boolean;
 }) {
   const [q, setQ] = useState("");
-  const [app, setApp] = useState<"all" | "commercial" | "logistique">("all");
+  // Chaque application ne présente que les permissions de ses propres modules
+  const app = ERP_APP;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const all = useMemo(() => tree.flatMap((m) => m.pages.flatMap((p) => p.actions)), [tree]);
   const byCode = useMemo(() => new Map(all.map((a) => [a.code, a])), [all]);
@@ -64,7 +66,7 @@ export default function PermissionTree({
   const visible = useMemo(() => {
     const s = q.trim().toLowerCase();
     return tree
-      .filter((m) => app === "all" || m.app === app)
+      .filter((m) => m.app === app)
       .map((m) => ({
         ...m,
         pages: m.pages
@@ -117,11 +119,6 @@ export default function PermissionTree({
             className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs"
           />
         </div>
-        <select value={app} onChange={(e) => setApp(e.target.value as any)} aria-label="Application" className="h-9 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold">
-          <option value="all">Les deux applications</option>
-          <option value="commercial">Gestion commerciale</option>
-          <option value="logistique">Stock & Livraison</option>
-        </select>
         {!readOnly && (
           <>
             <button type="button" onClick={() => setMany(visibleCodes, true)} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-brand hover:bg-slate-50">

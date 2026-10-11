@@ -22,6 +22,7 @@ import {
   PanelLeftOpen,
   HandCoins,
   Target,
+  ShieldCheck,
 } from "lucide-react";
 import { APP_INFO, IS_LOGISTICS, REPORTS_PERM, inThisApp } from "@/app/edition";
 import { api } from "@/lib/api";
@@ -67,6 +68,7 @@ const DESKTOP_NAV = [
   { to: "/reports", label: IS_LOGISTICS ? "Rapports Stock & Livraison" : "Rapports & KPIs", icon: BarChart3, perm: REPORTS_PERM },
   { to: "/objectives", label: "Objectifs commerciaux", icon: Target, perm: "objectives.read" },
   { to: "/admin/users", label: "Utilisateurs", icon: UserCheck, perm: "users.read" },
+  ...(IS_LOGISTICS ? [{ to: "/admin/roles", label: "Rôles & permissions", icon: ShieldCheck, perm: "roles.read" }] : []),
   { to: "/profile", label: "Mon Compte", icon: Settings, perm: null },
 ].filter((item) => inThisApp(item.to));
 

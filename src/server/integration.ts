@@ -26,6 +26,8 @@ function ownerOf(method: string, path: string): "commercial" | "logistique" | nu
   // Catalogue : lecture complète (quantités) côté logistique ; la création / modification d'un produit
   // reste possible depuis la Boutique (formulaire « Nouveau produit »)
   if (path === "/products" && method === "GET") return "logistique";
+  // Rôles & permissions : chaque application configure les permissions de ses propres modules
+  if (starts(path, ["/roles"]) || (path === "/users" && method === "GET") || /^\/users\/[^/]+\/permissions$/.test(path) || path === "/audit/coverage") return null;
   if (starts(path, COMMERCIAL_ONLY)) return "commercial";
   return null; // commun : /auth, /notifications, /integration, /products (écriture), /roles/catalog…
 }

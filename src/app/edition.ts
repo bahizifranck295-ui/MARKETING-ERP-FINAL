@@ -21,7 +21,7 @@ export const REPORTS_PERM = IS_LOGISTICS ? "logistics_reports.read" : "reports.r
 
 // Modules (routes) appartenant à chaque application
 const COMMERCIAL_ROUTES = ["/boutique", "/orders", "/clients", "/cash", "/credits", "/accounting", "/objectives", "/admin"];
-const LOGISTICS_ROUTES = ["/stock", "/delivery"];
+const LOGISTICS_ROUTES = ["/stock", "/delivery", "/admin/roles"];
 // Communs aux deux : tableau de bord, rapports (propres à chaque application), notifications, profil
 const SHARED_ROUTES = ["/dashboard", "/reports", "/notifications", "/profile", "/more"];
 
