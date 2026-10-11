@@ -65,6 +65,15 @@ export default function ReportsPage() {
     const p = new URLSearchParams(window.location.search).get("period");
     return p && ["day", "week", "month", "year"].includes(p) ? p : "month";
   });
+  // Date de référence de la période : un jour précis, la semaine qui le contient, son mois ou son année
+  const todayIso = () => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  };
+  const [refDate, setRefDate] = useState(() => {
+    const d = new URLSearchParams(window.location.search).get("date");
+    return d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : todayIso();
+  });
   const [activeTab, setActiveTab] = useState<
     "overview" | "sales" | "cash" | "credits"
   >("overview");
@@ -123,48 +132,42 @@ export default function ReportsPage() {
     loadAllReports();
   }, [period]);
 
-  // Période choisie en haut de page (Aujourd'hui / Semaine / Mois / Année) : appliquée à tous les chiffres
+  // Période choisie en haut de page (jour précis, semaine, mois ou année choisis) : appliquée à tous les chiffres.
+  // Bornes [début, fin[ de la période contenant la date de référence, décalée de `shift` périodes.
+  const periodBounds = (shift = 0) => {
+    const [y, m, dd] = refDate.split("-").map(Number);
+    if (period === "day") return [new Date(y, m - 1, dd + shift), new Date(y, m - 1, dd + shift + 1)];
+    if (period === "week") {
+      const ref = new Date(y, m - 1, dd);
+      const monday = dd - ((ref.getDay() + 6) % 7) + 7 * shift;
+      return [new Date(y, m - 1, monday), new Date(y, m - 1, monday + 7)];
+    }
+    if (period === "month") return [new Date(y, m - 1 + shift, 1), new Date(y, m + shift, 1)];
+    return [new Date(y + shift, 0, 1), new Date(y + shift + 1, 0, 1)];
+  };
   const inPeriod = (dateStr?: string) => {
     if (!dateStr) return false;
     const d = new Date(dateStr);
-    const now = new Date();
-    if (period === "day") return d.toDateString() === now.toDateString();
-    if (period === "week") {
-      const start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-      start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // lundi
-      return d >= start && d <= now;
-    }
-    if (period === "month") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    return d.getFullYear() === now.getFullYear();
+    const [start, end] = periodBounds(0);
+    return d >= start && d < end;
   };
-  // Période précédente de même nature (hier, semaine / mois / année précédents) pour les variations des indicateurs
+  // Période précédente de même nature (veille, semaine / mois / année précédents) pour les variations des indicateurs
   const inPrevPeriod = (dateStr?: string) => {
     if (!dateStr) return false;
     const d = new Date(dateStr);
-    const now = new Date();
-    let start: Date;
-    let end: Date;
-    if (period === "day") {
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      start = new Date(end);
-      start.setDate(start.getDate() - 1);
-    } else if (period === "week") {
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      end.setDate(end.getDate() - ((end.getDay() + 6) % 7));
-      start = new Date(end);
-      start.setDate(start.getDate() - 7);
-    } else if (period === "month") {
-      end = new Date(now.getFullYear(), now.getMonth(), 1);
-      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    } else {
-      end = new Date(now.getFullYear(), 0, 1);
-      start = new Date(now.getFullYear() - 1, 0, 1);
-    }
+    const [start, end] = periodBounds(-1);
     return d >= start && d < end;
   };
-  const prevPeriodLabel = ({ day: "vs hier", week: "vs semaine précédente", month: "vs mois précédent", year: "vs année précédente" } as Record<string, string>)[period] || "vs période précédente";
-  const periodLabel = ({ day: "Aujourd'hui", week: "Cette semaine", month: "Ce mois", year: "Cette année" } as Record<string, string>)[period] || period;
+  const prevPeriodLabel = ({ day: refDate === todayIso() ? "vs hier" : "vs veille", week: "vs semaine précédente", month: "vs mois précédent", year: "vs année précédente" } as Record<string, string>)[period] || "vs période précédente";
+  const periodLabel = (() => {
+    const [start, end] = periodBounds(0);
+    const last = new Date(end.getTime() - 1);
+    const fr = (d: Date, o: Intl.DateTimeFormatOptions) => d.toLocaleDateString("fr-FR", o);
+    if (period === "day") return `${refDate === todayIso() ? "Aujourd'hui · " : ""}${fr(start, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`;
+    if (period === "week") return `Semaine du ${fr(start, { day: "2-digit", month: "2-digit" })} au ${fr(last, { day: "2-digit", month: "2-digit", year: "numeric" })}`;
+    if (period === "month") return fr(start, { month: "long", year: "numeric" }).replace(/^./, (c) => c.toUpperCase());
+    return `Année ${start.getFullYear()}`;
+  })();
 
   const inSite = (kind: "orders" | "cash" | "credits", id: string) =>
     selectedSite === "all" || !siteMap || siteMap[kind]?.[id] === selectedSite;
@@ -190,8 +193,8 @@ export default function ReportsPage() {
     }
     return list;
   };
-  const filteredOrders = useMemo(() => selectOrders(inPeriod), [orders, selectedBU, search, period, selectedSite, siteMap]);
-  const prevOrders = useMemo(() => selectOrders(inPrevPeriod), [orders, selectedBU, search, period, selectedSite, siteMap]);
+  const filteredOrders = useMemo(() => selectOrders(inPeriod), [orders, selectedBU, search, period, refDate, selectedSite, siteMap]);
+  const prevOrders = useMemo(() => selectOrders(inPrevPeriod), [orders, selectedBU, search, period, refDate, selectedSite, siteMap]);
   const anyDate = (d?: string) => !!d;
   const allTimeOrders = useMemo(() => selectOrders(anyDate), [orders, selectedBU, search, selectedSite, siteMap]);
 
@@ -209,8 +212,8 @@ export default function ReportsPage() {
     }
     return list;
   };
-  const filteredCashOps = useMemo(() => selectCashOps(inPeriod), [cashOps, search, period, selectedSite, siteMap]);
-  const prevCashOps = useMemo(() => selectCashOps(inPrevPeriod), [cashOps, search, period, selectedSite, siteMap]);
+  const filteredCashOps = useMemo(() => selectCashOps(inPeriod), [cashOps, search, period, refDate, selectedSite, siteMap]);
+  const prevCashOps = useMemo(() => selectCashOps(inPrevPeriod), [cashOps, search, period, refDate, selectedSite, siteMap]);
   const allTimeCashOps = useMemo(() => selectCashOps(anyDate), [cashOps, search, selectedSite, siteMap]);
   const siteNameOfOrder = (o: any) => {
     const id = siteMap?.orders?.[o.id] || siteMap?.main_site;
@@ -222,7 +225,7 @@ export default function ReportsPage() {
       cashSessions.filter(
         (s) => inPeriod(s.closed_at || s.opened_at) && (selectedSite === "all" || !siteMap || (siteMap.sessions?.[s.id] ?? siteMap.main_site) === selectedSite)
       ),
-    [cashSessions, period, selectedSite, siteMap]
+    [cashSessions, period, refDate, selectedSite, siteMap]
   );
   const journalOps = useMemo(() => (cashFlow === "all" ? filteredCashOps : filteredCashOps.filter((op) => op.type === cashFlow)), [filteredCashOps, cashFlow]);
   const periodCashInUSD = filteredCashOps.filter((c) => c.type === "in").reduce((s, c) => s + (c.amount_usd || (c.currency === "USD" ? c.amount : c.amount / (c.exchange_rate || 2500))), 0);
@@ -604,7 +607,7 @@ export default function ReportsPage() {
     const lines = [
       ["PREMIDIS SARL - RAPPORT GÉNÉRAL"],
       ["Date d'exportation", new Date().toLocaleString("fr-FR")],
-      ["Période", period],
+      ["Période", periodLabel],
       [""],
       ["VENTES"],
       ["Chiffre d'Affaires Total ($)", totalSales],
@@ -624,7 +627,7 @@ export default function ReportsPage() {
 
     const csv = "\uFEFF" + lines.map((e) => e.join(";")).join("\n");
     // Téléchargement réel ; la notification vient de saveFile, après réussite
-    saveFile(new Blob([csv], { type: "text/csv" }), `Rapport_PREMIDIS_${period}_${new Date().toISOString().slice(0, 10)}.csv`);
+    saveFile(new Blob([csv], { type: "text/csv" }), `Rapport_PREMIDIS_${period}_${refDate}.csv`);
   };
 
   return (
@@ -669,27 +672,65 @@ export default function ReportsPage() {
             onChange={(e) => setPeriod(e.target.value)}
             className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700"
           >
-            <option value="day">Aujourd'hui</option>
-            <option value="week">Cette Semaine</option>
-            <option value="month">Ce Mois</option>
-            <option value="year">Cette Année</option>
+            <option value="day">Journalier</option>
+            <option value="week">Hebdomadaire</option>
+            <option value="month">Mensuel</option>
+            <option value="year">Annuel</option>
           </select>
+          {/* Choix précis : tel jour, tel mois, telle année */}
+          {period === "day" || period === "week" ? (
+            <input
+              type="date"
+              value={refDate}
+              max={todayIso()}
+              onChange={(e) => e.target.value && setRefDate(e.target.value)}
+              aria-label={period === "day" ? "Jour du rapport" : "Semaine du rapport (un jour de la semaine)"}
+              className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700"
+              data-report-date
+            />
+          ) : period === "month" ? (
+            <input
+              type="month"
+              value={refDate.slice(0, 7)}
+              max={todayIso().slice(0, 7)}
+              onChange={(e) => e.target.value && setRefDate(`${e.target.value}-01`)}
+              aria-label="Mois du rapport"
+              className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700"
+              data-report-month
+            />
+          ) : (
+            <select
+              value={refDate.slice(0, 4)}
+              onChange={(e) => setRefDate(`${e.target.value}-01-01`)}
+              aria-label="Année du rapport"
+              className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700"
+              data-report-year
+            >
+              {Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          )}
+          <span className="text-xs font-semibold text-slate-600" data-report-period-label>{periodLabel}</span>
         </div>
       </div>
 
-      {/* 4 MAIN METRIC CARDS : chiffre d'affaires, bénéfice brut, dépenses de caisse, bénéfice net réel (en-tête de la Vue d'ensemble) */}
+      {/* 4 MAIN METRIC CARDS : chiffre d'affaires, total des créances (module Crédits), dépenses de caisse, bénéfice net réel */}
       {activeTab === "overview" ? (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {([
           { key: "sales", label: "Chiffre d'affaires (ventes)", icon: ShoppingCart, tone: "emerald", badge: `${filteredOrders.length} Cmds`, sub: null, goodUp: true },
-          { key: "gross", label: "Bénéfice brut", icon: Layers, tone: "blue", badge: null, sub: "Ventes − prix de revient", goodUp: true },
+          { key: "receivables", label: "Total créances accumulées", icon: Layers, tone: "blue", badge: `${filteredReceivables.length} dette(s)`, sub: "Créances en cours (module Crédits)", goodUp: false },
           { key: "expenses", label: "Dépenses de caisse", icon: Wallet, tone: "amber", badge: null, sub: "Sorties de caisse de la période", goodUp: false },
           { key: "net", label: "Bénéfice net réel", icon: TrendingUp, tone: "purple", badge: null, sub: "Bénéfice brut − dépenses de caisse", goodUp: true },
         ] as const).map((k) => {
           const Icon = k.icon;
-          const cur = kpiCur[k.key];
-          const prev = kpiPrev[k.key];
-          const pct = Math.abs(prev) > 0.004 ? ((cur - prev) / Math.abs(prev)) * 100 : null;
+          // Créances : total en cours, identique au module Crédits (pas de comparaison de période)
+          const cur = k.key === "receivables" ? receivablesTotal : kpiCur[k.key];
+          const prev = k.key === "receivables" ? 0 : kpiPrev[k.key];
+          const pct = k.key !== "receivables" && Math.abs(prev) > 0.004 ? ((cur - prev) / Math.abs(prev)) * 100 : null;
           const up = pct !== null && pct >= 0;
           const good = pct === null ? null : up === k.goodUp;
           const tones = {
@@ -709,6 +750,7 @@ export default function ReportsPage() {
               <div>
                 <div className={`text-2xl font-black tracking-tight ${cur < 0 ? "text-red-600" : tones[3]}`}>{fmtMoney(cur)}</div>
                 {k.sub && <div className="text-[11px] text-slate-500 font-medium">{k.sub}</div>}
+                {k.key !== "receivables" && (
                 <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
                   {pct === null ? (
                     <span className="font-semibold text-slate-400">—</span>
@@ -721,6 +763,7 @@ export default function ReportsPage() {
                   )}
                   <span>{prevPeriodLabel}</span>
                 </div>
+                )}
               </div>
             </div>
           );
