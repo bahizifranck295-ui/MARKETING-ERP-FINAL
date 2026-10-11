@@ -211,7 +211,6 @@ export default function Layout() {
             )}
           </div>
           <div className={`flex items-center gap-2 ${sidebarCollapsed ? "flex-col" : ""}`}>
-          <ThemeToggle />
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="flex-1 w-full flex items-center justify-center gap-2 py-1.5 text-[11px] text-sidebar-muted hover:text-brand hover:bg-sidebar-hover rounded-lg transition-colors"

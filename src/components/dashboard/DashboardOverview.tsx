@@ -12,6 +12,7 @@ import { compactMoney, niceScale } from "@/lib/chartScale";
 
 export type Kpi = { today: number; yesterday: number };
 export type Overview = {
+  cash_balance: { current_usd: number; cash_usd: number; cash_cdf: number; open_count: number };
   revenue: Kpi;
   profit: Kpi;
   receipts: Kpi;
@@ -29,6 +30,7 @@ const TONES = {
   blue: "linear-gradient(135deg, var(--accent-blue) 0%, #2563eb 100%)",
   green: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
   teal: "linear-gradient(135deg, #0891b2 0%, #0e7490 100%)",
+  red: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
   orange: "linear-gradient(135deg, #f59e0b 0%, #ea7a0c 100%)",
   violet: "linear-gradient(135deg, var(--accent-violet) 0%, var(--accent-deep) 100%)",
 } as const;
@@ -53,7 +55,7 @@ function Trend({ k }: { k: Kpi }) {
   );
 }
 
-export function StatCard({ label, value, k, icon: Icon, tone }: { label: string; value: string; k: Kpi; icon: LucideIcon; tone: keyof typeof TONES }) {
+export function StatCard({ label, value, k, sub, icon: Icon, tone }: { label: string; value: string; k?: Kpi; sub?: string; icon: LucideIcon; tone: keyof typeof TONES }) {
   return (
     <div className="relative overflow-hidden rounded-2xl p-4 text-white shadow-md" style={{ backgroundImage: TONES[tone] }} data-dash-kpi={tone}>
       <div className="flex items-start justify-between gap-2">
@@ -66,7 +68,7 @@ export function StatCard({ label, value, k, icon: Icon, tone }: { label: string;
         {value}
       </div>
       <div className="mt-3 text-[11px] font-medium text-white/85">
-        <Trend k={k} />
+        {k ? <Trend k={k} /> : sub}
       </div>
     </div>
   );

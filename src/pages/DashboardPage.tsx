@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { ShoppingBag, TrendingUp, Banknote, Users, Wallet, Loader2 } from "lucide-react";
+import { ShoppingBag, TrendingUp, HandCoins, Users, Wallet, Loader2 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney, KpiCard } from "@/components/erp-ui";
@@ -98,7 +98,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <StatCard label="Chiffre d'affaires du jour" value={fmtMoney(o.revenue.today)} k={o.revenue} icon={Wallet} tone="blue" />
             <StatCard label="Bénéfice estimé" value={fmtMoney(o.profit.today)} k={o.profit} icon={TrendingUp} tone="green" />
-            <StatCard label="Recettes" value={fmtMoney(o.receipts.today)} k={o.receipts} icon={Banknote} tone="teal" />
+            <StatCard label="Créances" value={fmtMoney(k.debts?.total)} sub={`${k.debts?.clients ?? 0} client(s)`} icon={HandCoins} tone="red" />
             <StatCard label="Nombre de ventes" value={o.sales_count.today.toLocaleString("fr-FR")} k={o.sales_count} icon={ShoppingBag} tone="orange" />
             <StatCard label="Nombre de clients" value={o.clients.today.toLocaleString("fr-FR")} k={o.clients} icon={Users} tone="violet" />
           </div>
@@ -107,13 +107,13 @@ export default function DashboardPage() {
             <OutOfStockPanel items={o.out_of_stock} />
             <SalesDonut byCategory={o.by_category} total={o.period_total} days={o.days} />
           </div>
-          {/* Suivi : indicateurs du tableau de bord précédent, conservés */}
+          {/* Suivi : solde de caisse, commandes à approuver, sorties de caisse */}
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3" data-dash-follow>
             <KpiCard
-              label="Créances"
-              value={fmtMoney(k.debts?.total)}
-              sub={`${k.debts?.clients} client(s)`}
-              tone={k.debts?.total > 0 ? "red" : "slate"}
+              label="Solde actuel en caisse"
+              value={fmtMoney(o.cash_balance.current_usd)}
+              sub={`${fmtMoney(o.cash_balance.cash_usd)} · ${fmtMoney(o.cash_balance.cash_cdf, "CDF")} · ${o.cash_balance.open_count} caisse(s) ouverte(s)`}
+              tone="green"
             />
             <KpiCard
               label="À approuver"

@@ -1522,6 +1522,44 @@ apiRouter.get("/cash/operations", authenticate, (req, res) => {
   res.json(mine ? list.filter((o) => o.site_id === mine) : list);
 });
 
+// Solde actuel d'une caisse (session ouverte du site) : utilisé par la vue des caisses et le tableau de bord
+function siteCashRow(site: any, rate: number) {
+  const session = openSessionOf(site.id);
+  let usd = 0;
+  let cdf = 0;
+  let inUsd = 0;
+  let outUsd = 0;
+  if (session) {
+    usd = Number(session.initial_balance_usd ?? session.initial_balance ?? 0) || 0;
+    cdf = Number(session.initial_balance_cdf || 0) || 0;
+    for (const o of db.cash_operations.filter((x) => x.session_id === session.id)) {
+      const sign = o.type === "in" ? 1 : -1;
+      const b: any = (o as any).billetage;
+      const hasBillet = b && (Number(b.total_usd) > 0 || Number(b.total_cdf) > 0);
+      usd += sign * (hasBillet ? Number(b.total_usd) || 0 : o.currency === "USD" ? Number(o.amount) || 0 : 0);
+      cdf += sign * (hasBillet ? Number(b.total_cdf) || 0 : o.currency === "CDF" ? Number(o.amount) || 0 : 0);
+      const u = Number(o.amount_usd) || (o.currency === "USD" ? Number(o.amount) || 0 : (Number(o.amount) || 0) / (o.exchange_rate || rate));
+      if (o.type === "in") inUsd += u;
+      else outUsd += u;
+    }
+  }
+  const cashiers = db.users.filter((u) => u.is_active !== false && u.role_code === "caissier" && u.site_id === site.id).map((u) => u.full_name);
+  return {
+    site_id: site.id,
+    site_name: site.name,
+    is_open: !!session,
+    session_id: session?.id || null,
+    opened_by_name: session?.opened_by_name || null,
+    opened_at: session?.opened_at || null,
+    cashiers,
+    cash_usd: Math.round(usd * 100) / 100,
+    cash_cdf: Math.round(cdf),
+    current_usd: Math.round((usd + cdf / rate) * 100) / 100,
+    in_usd: Math.round(inUsd * 100) / 100,
+    out_usd: Math.round(outUsd * 100) / 100,
+  };
+}
+
 // Vue générale des caisses : une ligne par site (session ouverte, caissière, solde actuel), plus le total
 apiRouter.get("/cash/overview", authenticate, (req, res) => {
   const user = (req as any).user as User;
@@ -1529,42 +1567,7 @@ apiRouter.get("/cash/overview", authenticate, (req, res) => {
   const rate = Number(db.rates_config?.general_rate) || 2500;
   const mine = cashSiteLocked(user) ? userSite(user).id : null;
   const allSites = ((db as any).sites || []).filter((x: any) => x.is_active !== false && (!mine || x.id === mine));
-  const rows = allSites.map((site: any) => {
-    const session = openSessionOf(site.id);
-    let usd = 0;
-    let cdf = 0;
-    let inUsd = 0;
-    let outUsd = 0;
-    if (session) {
-      usd = Number(session.initial_balance_usd ?? session.initial_balance ?? 0) || 0;
-      cdf = Number(session.initial_balance_cdf || 0) || 0;
-      for (const o of db.cash_operations.filter((x) => x.session_id === session.id)) {
-        const sign = o.type === "in" ? 1 : -1;
-        const b: any = (o as any).billetage;
-        const hasBillet = b && (Number(b.total_usd) > 0 || Number(b.total_cdf) > 0);
-        usd += sign * (hasBillet ? Number(b.total_usd) || 0 : o.currency === "USD" ? Number(o.amount) || 0 : 0);
-        cdf += sign * (hasBillet ? Number(b.total_cdf) || 0 : o.currency === "CDF" ? Number(o.amount) || 0 : 0);
-        const u = Number(o.amount_usd) || (o.currency === "USD" ? Number(o.amount) || 0 : (Number(o.amount) || 0) / (o.exchange_rate || rate));
-        if (o.type === "in") inUsd += u;
-        else outUsd += u;
-      }
-    }
-    const cashiers = db.users.filter((u) => u.is_active !== false && u.role_code === "caissier" && u.site_id === site.id).map((u) => u.full_name);
-    return {
-      site_id: site.id,
-      site_name: site.name,
-      is_open: !!session,
-      session_id: session?.id || null,
-      opened_by_name: session?.opened_by_name || null,
-      opened_at: session?.opened_at || null,
-      cashiers,
-      cash_usd: Math.round(usd * 100) / 100,
-      cash_cdf: Math.round(cdf),
-      current_usd: Math.round((usd + cdf / rate) * 100) / 100,
-      in_usd: Math.round(inUsd * 100) / 100,
-      out_usd: Math.round(outUsd * 100) / 100,
-    };
-  });
+  const rows = allSites.map((site: any) => siteCashRow(site, rate));
   const sum = (k: string) => rows.reduce((t: number, r: any) => t + (Number(r[k]) || 0), 0);
   res.json({
     rate,
@@ -2289,8 +2292,20 @@ function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessi
     .filter((p: any) => p.is_active !== false && (Number(p.stock ?? p.current_stock ?? 0) || 0) <= 0 && inCategoryScope(me, p.category, "indicators"))
     .map((p: any) => ({ id: p.id, name: p.name, category: p.category || "", image_url: p.image_url || "" }));
 
+  // Solde actuel en caisse : caisses ouvertes des sites du périmètre (même calcul que Caisse › Vue des caisses)
+  ensureStockStructure();
+  const rate = Number(db.rates_config?.general_rate) || 2500;
+  const cashRows = ((db as any).sites || []).filter((x: any) => x.is_active !== false && inSiteScope(me, x.id, "indicators")).map((x: any) => siteCashRow(x, rate));
+  const cash_balance = {
+    current_usd: r2(cashRows.reduce((t: number, r: any) => t + r.current_usd, 0)),
+    cash_usd: r2(cashRows.reduce((t: number, r: any) => t + r.cash_usd, 0)),
+    cash_cdf: Math.round(cashRows.reduce((t: number, r: any) => t + r.cash_cdf, 0)),
+    open_count: cashRows.filter((r: any) => r.is_open).length,
+  };
+
   return {
     overview: {
+      cash_balance,
       revenue: kpi(sum(salesOn(todayKey), (o) => Number(o.total) || 0), sum(salesOn(yesterdayKey), (o) => Number(o.total) || 0)),
       profit: kpi(sum(salesOn(todayKey), profitOf), sum(salesOn(yesterdayKey), profitOf)),
       receipts: kpi(cashInOn(todayKey), cashInOn(yesterdayKey)),
