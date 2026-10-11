@@ -77,6 +77,9 @@ export interface User {
   email: string;
   full_name: string;
   phone?: string;
+  /** Fonction / poste occupé et photo de profil (facultatifs, saisis dans Utilisateurs) */
+  position?: string;
+  photo_url?: string;
   department?: string;
   /** Départements = catégories de produits (Stock › Catégories) ; all_categories = accès à toutes */
   categories?: string[];

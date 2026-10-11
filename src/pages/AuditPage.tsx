@@ -5,6 +5,7 @@ import {
   Activity,
   AlertTriangle,
   BellRing,
+  Briefcase,
   CheckCircle2,
   Clock,
   Fingerprint,
@@ -127,7 +128,7 @@ export default function AuditPage() {
   const activityFilter = module !== "all" || actionType !== "all";
   const filtered = users.filter((u) => {
     const s = q.trim().toLowerCase();
-    if (s && ![u.full_name, u.email, u.phone, u.role_name, u.role_code, u.department].some((x) => String(x || "").toLowerCase().includes(s))) return false;
+    if (s && ![u.full_name, u.email, u.phone, u.position, u.role_name, u.role_code, u.department].some((x) => String(x || "").toLowerCase().includes(s))) return false;
     if (role !== "all" && u.role_code !== role) return false;
     if (site !== "all" && u.site_id !== site && !(u.site_ids || []).includes(site)) return false;
     if (status === "active" && !u.is_active) return false;
@@ -359,6 +360,11 @@ function UserCard({ u, sites, onOpen }: { u: any; sites: any[]; onOpen: () => vo
         </div>
       </div>
       <dl className="grid grid-cols-1 gap-1 text-[11px] text-slate-600" data-no-translate>
+        {u.position && (
+          <div className="flex items-center gap-1.5" data-user-position>
+            <Briefcase className="h-3.5 w-3.5 text-slate-400" /> {u.position}
+          </div>
+        )}
         {u.phone && (
           <div className="flex items-center gap-1.5">
             <Phone className="h-3.5 w-3.5 text-slate-400" /> {u.phone}
@@ -404,6 +410,11 @@ function Notebook({ u, range, modules, sites, onClose }: { u: any; range: any; m
               <span className="inline-flex items-center gap-1">
                 <Mail className="h-3.5 w-3.5" /> {u.email}
               </span>
+              {u.position && (
+                <span className="inline-flex items-center gap-1">
+                  <Briefcase className="h-3.5 w-3.5" /> {u.position}
+                </span>
+              )}
               {u.phone && (
                 <span className="inline-flex items-center gap-1">
                   <Phone className="h-3.5 w-3.5" /> {u.phone}

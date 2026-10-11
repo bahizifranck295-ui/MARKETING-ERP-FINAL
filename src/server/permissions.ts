@@ -106,7 +106,6 @@ export const PERMISSIONS: PermDef[] = [
   ...P("commercial", "Crédits", "Crédits & créances", [
     ["credits.read", "Consulter les crédits clients", "view", { legacy: ["credits.read"] }],
     ["credits.manage", "Encaisser un remboursement de crédit", "create", { legacy: ["credits.manage"], requires: ["credits.read"], sensitive: true }],
-    ["credits.export", "Exporter les créances (PDF)", "export", { legacy: ["credits.read"], requires: ["credits.read"], ui_only: true }],
   ]),
   ...P("commercial", "Comptabilité", "Écritures", [
     ["accounting.read", "Consulter les écritures comptables", "view", { legacy: ["accounting.read"] }],
@@ -245,39 +244,58 @@ export interface DataScope {
   site_ids: string[];
   all_categories: boolean;
   categories: string[];
+  /** Ressources pour lesquelles l'utilisateur a un accès transversal (tous sites, tous départements) */
+  transversal_resources: ScopeResource[];
 }
+
+/*
+ * Accès transversal limité à certaines ressources : par exemple un agent CRM limité au site de Goma
+ * qui gère pourtant les clients de tous les sites. Il élargit uniquement les DONNÉES de cette ressource ;
+ * les actions restent soumises aux permissions.
+ */
+export const SCOPE_RESOURCES = {
+  catalog: "Catalogue et commandes de produits",
+  orders: "Commandes (consultation, approbation)",
+  clients: "Clients (CRM) et créances",
+  cash: "Caisses de tous les sites",
+  indicators: "Indicateurs et rapports",
+} as const;
+export type ScopeResource = keyof typeof SCOPE_RESOURCES;
+const isResource = (r: any): r is ScopeResource => typeof r === "string" && r in SCOPE_RESOURCES;
 
 const TRANSVERSAL_ROLES = ["super_admin", "dg"];
 const norm = (s: any) => String(s || "").trim().toLowerCase();
 
-export function scopeOf(u?: User | null): DataScope {
-  if (!u) return { all_sites: false, site_ids: [], all_categories: false, categories: [] };
+export function scopeOf(u?: User | null, resource?: ScopeResource): DataScope {
+  if (!u) return { all_sites: false, site_ids: [], all_categories: false, categories: [], transversal_resources: [] };
   const anyU = u as any;
+  const transversal_resources: ScopeResource[] = (Array.isArray(anyU.transversal_resources) ? anyU.transversal_resources : []).filter(isResource);
+  if (resource && transversal_resources.includes(resource)) return { all_sites: true, site_ids: [], all_categories: true, categories: [], transversal_resources };
   const site_ids: string[] = Array.from(new Set([...(Array.isArray(anyU.site_ids) ? anyU.site_ids : []), ...(u.site_id ? [u.site_id] : [])].filter(Boolean)));
   const all_sites = TRANSVERSAL_ROLES.includes(u.role_code) || !!u.is_transversal || anyU.all_sites === true || site_ids.length === 0;
   const categories: string[] = Array.isArray(u.categories) ? u.categories.filter(Boolean) : [];
   const all_categories = isSuperAdmin(u) || u.all_categories === true || categories.length === 0;
-  return { all_sites, site_ids: all_sites ? [] : site_ids, all_categories, categories: all_categories ? [] : categories };
+  return { all_sites, site_ids: all_sites ? [] : site_ids, all_categories, categories: all_categories ? [] : categories, transversal_resources };
 }
 
-export function inSiteScope(u: User | null | undefined, siteId?: string | null) {
-  const s = scopeOf(u);
+export function inSiteScope(u: User | null | undefined, siteId?: string | null, resource?: ScopeResource) {
+  const s = scopeOf(u, resource);
   return s.all_sites || (!!siteId && s.site_ids.includes(siteId));
 }
 
-export function inCategoryScope(u: User | null | undefined, category?: string | null) {
-  const s = scopeOf(u);
+export function inCategoryScope(u: User | null | undefined, category?: string | null, resource?: ScopeResource) {
+  const s = scopeOf(u, resource);
   if (s.all_categories) return true;
   return !!category && s.categories.some((c) => norm(c) === norm(category));
 }
 
 /** Commande visible : au moins une ligne dans les départements de l'utilisateur */
-export function orderInCategoryScope(u: User | null | undefined, order: any) {
-  const s = scopeOf(u);
+export function orderInCategoryScope(u: User | null | undefined, order: any, resource: ScopeResource = "orders") {
+  const s = scopeOf(u, resource);
   if (s.all_categories) return true;
   return (order.items || []).some((it: any) => {
     const p = db.products.find((x) => x.id === it.product_id);
-    return inCategoryScope(u, p?.category || it.category);
+    return inCategoryScope(u, p?.category || it.category, resource);
   });
 }
 
@@ -464,6 +482,7 @@ export function permissionCoverage(router: any) {
     unknown_codes: unknownCodes,
     sensitive_unprotected: sensitiveUnprotected.map((p) => ({ code: p.code, label: p.label, module: p.module })),
     ui_only: PERMISSIONS.filter((p) => p.ui_only).map((p) => p.code),
+    enforced: [...enforced, ...SERVER_CHECKED_IN_CODE].filter((c, i, arr) => arr.indexOf(c) === i),
     no_feature: NO_FEATURE_CODES,
   };
 }

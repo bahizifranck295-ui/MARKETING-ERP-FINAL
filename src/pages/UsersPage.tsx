@@ -31,6 +31,27 @@ export default function UsersPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [allCategories, setAllCategories] = useState(true);
   const [userCategories, setUserCategories] = useState<string[]>([]);
+  // Photo de profil (facultative) : image réduite côté navigateur avant l'envoi
+  const [photo, setPhoto] = useState<string>("");
+  useEffect(() => {
+    if (userModal) setPhoto(editingUser?.photo_url || "");
+  }, [userModal, editingUser]);
+  const pickPhoto = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Choisissez une image");
+    const img = new Image();
+    img.onload = () => {
+      const max = 256;
+      const r = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * r);
+      c.height = Math.round(img.height * r);
+      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+      setPhoto(c.toDataURL("image/jpeg", 0.85));
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+  };
 
   const loadUsers = async () => {
     setLoading(true);
@@ -84,6 +105,8 @@ export default function UsersPage() {
       email: form.elements.email.value.trim(),
       role_code: form.elements.role_code.value,
       phone: form.elements.phone.value.trim(),
+      position: form.elements.position.value.trim(),
+      photo_url: photo || "",
       ...(has("users.scope")
         ? { all_categories: allCategories, categories: allCategories ? [] : userCategories, site_id: form.elements.site_id?.value || "" }
         : {}),
@@ -221,6 +244,24 @@ export default function UsersPage() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSaveUser} className="space-y-3 pt-2 text-xs">
+              <div className="flex items-center gap-3" data-user-photo>
+                {photo ? (
+                  <img src={photo} alt="" className="h-14 w-14 rounded-full object-cover" />
+                ) : (
+                  <span className="grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-500">Photo</span>
+                )}
+                <div className="flex flex-col gap-1">
+                  <label className="inline-flex cursor-pointer items-center rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
+                    Choisir une photo de profil
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(e.target.files?.[0])} />
+                  </label>
+                  {photo && (
+                    <button type="button" onClick={() => setPhoto("")} className="text-left text-[11px] text-red-600 hover:underline">
+                      Retirer la photo
+                    </button>
+                  )}
+                </div>
+              </div>
               <div>
                 <Label className="text-xs font-semibold">Nom complet *</Label>
                 <Input
@@ -240,6 +281,10 @@ export default function UsersPage() {
                     required
                     className="mt-1 h-9 rounded-lg"
                   />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs font-semibold">Fonction / poste</Label>
+                  <Input name="position" defaultValue={editingUser?.position} placeholder="Ex. Caissière principale" className="mt-1 h-9 rounded-lg" />
                 </div>
                 <div>
                   <Label className="text-xs font-semibold">Téléphone</Label>

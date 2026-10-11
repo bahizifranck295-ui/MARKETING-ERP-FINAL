@@ -13,6 +13,7 @@ import {
   ruleFor,
   scopeOf,
   ALL_CODES,
+  SCOPE_RESOURCES,
 } from "./permissions";
 
 /*
@@ -620,7 +621,7 @@ export function mountAuditRoutes(router: any, authenticate: any) {
   });
 
   /* ----- Catalogue et rôles (= catégories d'utilisateurs) ----- */
-  router.get("/roles/catalog", authenticate, (_req: any, res: any) => res.json({ tree: catalogTree(), codes: ALL_CODES }));
+  router.get("/roles/catalog", authenticate, (_req: any, res: any) => res.json({ tree: catalogTree(), codes: ALL_CODES, scope_resources: SCOPE_RESOURCES }));
 
   router.post("/roles", authenticate, (req: any, res: any) => {
     const u = me(req);
@@ -677,7 +678,7 @@ export function mountAuditRoutes(router: any, authenticate: any) {
         const sc = scopeOf(target);
         const known = new Set(((db as any).sites || []).map((x: any) => x.id));
         const siteIds = sc.site_ids.filter((id) => known.has(id));
-        return { site_ids: siteIds, all_sites: sc.all_sites || !siteIds.length, categories: sc.categories, all_categories: sc.all_categories };
+        return { site_ids: siteIds, all_sites: sc.all_sites || !siteIds.length, categories: sc.categories, all_categories: sc.all_categories, transversal_resources: sc.transversal_resources };
       })(),
       protected: isSuperAdmin(target),
       history,
@@ -716,6 +717,9 @@ export function mountAuditRoutes(router: any, authenticate: any) {
       target.all_categories = s.all_categories === true;
       target.categories = s.all_categories === true ? [] : cats;
       target.department = s.all_categories === true ? "Toutes les catégories" : cats.join(", ");
+      // Accès transversal limité à certaines ressources (données uniquement, jamais d'actions)
+      if (Array.isArray(s.transversal_resources))
+        target.transversal_resources = Array.from(new Set(s.transversal_resources.filter((r: any) => typeof r === "string" && r in SCOPE_RESOURCES)));
     }
     target.updated_at = new Date().toISOString();
     auditNote(req, { action: "permission.user.update", action_type: "permission", security: true, summary: `Permissions / périmètre modifiés pour ${target.full_name}` });

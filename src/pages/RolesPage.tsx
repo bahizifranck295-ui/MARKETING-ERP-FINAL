@@ -8,6 +8,7 @@ import { PageHeader, fmtDate } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PermissionTree, { type CatalogTree } from "@/components/permissions/PermissionTree";
+import { scanInterface } from "@/components/permissions/uiInventory";
 
 /*
  * Rôles & Permissions :
@@ -38,6 +39,7 @@ export default function RolesPage() {
   ].filter((t) => t.ok);
   const [tab, setTab] = useState<Tab>(params.get("user") && tabs.some((t) => t.id === "users") ? "users" : tabs[0]?.id || "roles");
   const [tree, setTree] = useState<CatalogTree>([]);
+  const [resources, setResources] = useState<Record<string, string>>({});
   const [roles, setRoles] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,7 @@ export default function RolesPage() {
         hasAny(["users.read", "users.permissions"]) ? api.get("/users") : Promise.resolve({ data: [] }),
       ]);
       setTree(c.data?.tree || []);
+      setResources(c.data?.scope_resources || {});
       setRoles(Array.isArray(r.data) ? r.data : []);
       setUsers(Array.isArray(u.data) ? u.data : []);
     } catch (err) {
@@ -92,6 +95,7 @@ export default function RolesPage() {
       ) : tab === "users" ? (
         <UserPermissions
           tree={tree}
+          resources={resources}
           users={users}
           roles={roles}
           mine={mine}
@@ -101,14 +105,14 @@ export default function RolesPage() {
       ) : tab === "roles" ? (
         <RoleTemplates tree={tree} roles={roles} users={users} mine={mine} onChanged={load} />
       ) : (
-        <Coverage />
+        <Coverage tree={tree} />
       )}
     </div>
   );
 }
 
 /* ---------------- Par utilisateur ---------------- */
-function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { tree: CatalogTree; users: any[]; roles: any[]; mine: Set<string>; selectedId: string; onSelect: (id: string) => void }) {
+function UserPermissions({ tree, resources, users, roles, mine, selectedId, onSelect }: { tree: CatalogTree; resources: Record<string, string>; users: any[]; roles: any[]; mine: Set<string>; selectedId: string; onSelect: (id: string) => void }) {
   const { has, user: me } = useAuth();
   const [q, setQ] = useState("");
   const [detail, setDetail] = useState<any>(null);
@@ -254,7 +258,7 @@ function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { t
             )}
 
             {scope && has("users.scope") && (
-              <ScopeEditor scope={scope} onChange={(next) => { setScope(next); setScopeDirty(true); }} sites={sites} categories={cats} disabled={!canScope} />
+              <ScopeEditor resources={resources} scope={scope} onChange={(next) => { setScope(next); setScopeDirty(true); }} sites={sites} categories={cats} disabled={!canScope} />
             )}
 
             {has("users.permissions") && (
@@ -302,7 +306,7 @@ function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { t
   );
 }
 
-function ScopeEditor({ scope, onChange, sites, categories, disabled }: { scope: any; onChange: (s: any) => void; sites: any[]; categories: string[]; disabled?: boolean }) {
+function ScopeEditor({ scope, onChange, sites, categories, disabled, resources = {} }: { scope: any; onChange: (s: any) => void; sites: any[]; categories: string[]; disabled?: boolean; resources?: Record<string, string> }) {
   const toggle = (key: "site_ids" | "categories", v: string) => {
     const cur: string[] = scope[key] || [];
     onChange({ ...scope, [key]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] });
@@ -342,6 +346,30 @@ function ScopeEditor({ scope, onChange, sites, categories, disabled }: { scope: 
     <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs md:grid-cols-2" data-scope-editor>
       <Block title="Sites" allKey="all_sites" listKey="site_ids" allLabel="Tous les sites (transversal)" items={sites.map((s) => ({ value: s.id, label: s.name }))} />
       <Block title="Départements (catégories de produits)" allKey="all_categories" listKey="categories" allLabel="Tous les départements" items={categories.map((c) => ({ value: c, label: c }))} />
+      {Object.keys(resources).length > 0 && (
+        <div className="space-y-2 md:col-span-2" data-transversal-resources>
+          <span className="text-xs font-bold text-slate-700">Accès transversal à certaines ressources seulement</span>
+          <p className="text-[11px] text-slate-500">Pour ces ressources, l'utilisateur voit les données de tous les sites et de tous les départements (ex. le CRM gère les clients de plusieurs départements). Ses actions restent limitées par ses permissions.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {Object.entries(resources).map(([k, label]) => {
+              const on = (scope.transversal_resources || []).includes(k);
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  disabled={disabled}
+                  aria-pressed={on}
+                  data-resource={k}
+                  onClick={() => onChange({ ...scope, transversal_resources: on ? scope.transversal_resources.filter((x: string) => x !== k) : [...(scope.transversal_resources || []), k] })}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${on ? "border-brand bg-brand/10 text-brand" : "border-slate-200 bg-white text-slate-600"}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <p className="text-[11px] text-slate-500 md:col-span-2">
         Le périmètre limite les données visibles et utilisables (produits, commandes, clients, caisse, indicateurs). Il s'ajoute aux permissions : aucune permission ne l'élargit.
       </p>
@@ -506,18 +534,26 @@ function NewRoleDialog({ roles, onClose, onCreated }: { roles: any[]; onClose: (
 }
 
 /* ---------------- Contrôle de couverture ---------------- */
-function Coverage() {
+function Coverage({ tree }: { tree: CatalogTree }) {
   const [cov, setCov] = useState<any>(null);
+  const [ui, setUi] = useState<{ files: number; usage: Record<string, string[]> } | null>(null);
   useEffect(() => {
     api.get("/audit/coverage").then(({ data }) => setCov(data)).catch((e) => toast.error(extractErrorMessage(e, "Contrôle indisponible")));
+    scanInterface().then(setUi).catch(() => setUi({ files: 0, usage: {} }));
   }, []);
+  const catalog = useMemo(() => new Map(tree.flatMap((m) => m.pages.flatMap((p) => p.actions.map((a) => [a.code, a] as const)))), [tree]);
   if (!cov)
     return (
       <div className="flex justify-center py-16">
         <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
       </div>
     );
-  const ok = !cov.unmapped.length && !cov.sensitive_unprotected.length;
+  // Inventaire automatique de l'interface comparé au catalogue et aux contrôles du serveur
+  const uiCodes = Object.keys(ui?.usage || {});
+  const unknownUi = uiCodes.filter((c) => !catalog.has(c));
+  const enforced = new Set<string>(cov.enforced || []);
+  const unused = [...catalog.keys()].filter((c) => !enforced.has(c) && !uiCodes.includes(c) && !(cov.no_feature || []).includes(c));
+  const ok = !cov.unmapped.length && !cov.sensitive_unprotected.length && !unknownUi.length;
   return (
     <div className="space-y-3" data-coverage>
       <div className={`flex items-center gap-3 rounded-2xl border p-4 ${ok ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
@@ -533,6 +569,23 @@ function Coverage() {
           </div>
         </div>
       </div>
+      {ui && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs" data-ui-inventory>
+          <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-600">Inventaire automatique de l'interface</h3>
+          <p className="text-xs text-slate-600">
+            {uiCodes.length} droit(s) contrôlé(s) par les écrans, dans {new Set(Object.values(ui.usage).flat()).size} fichier(s) analysé(s) sur {ui.files} ;{" "}
+            {catalog.size} droit(s) au catalogue, {enforced.size} vérifié(s) par le serveur.
+          </p>
+        </div>
+      )}
+      {unknownUi.length > 0 && (
+        <List
+          title="Boutons ou écrans protégés par un droit absent du catalogue (invisibles pour tous sauf le super administrateur)"
+          items={unknownUi.map((c) => `${c} — ${ui!.usage[c].join(", ")}`)}
+          tone="red"
+        />
+      )}
+      {unused.length > 0 && <List title="Droits du catalogue contrôlés ni par l'interface ni par le serveur" items={unused} tone="slate" />}
       {cov.unmapped.length > 0 && (
         <List title="Fonctionnalités non intégrées (refusées par défaut)" items={cov.unmapped.map((r: any) => `${r.method} ${r.path}`)} tone="red" />
       )}

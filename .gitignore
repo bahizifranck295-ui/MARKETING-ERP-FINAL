@@ -7,3 +7,6 @@ coverage/
 .env*
 !.env.example
 dist-logistique/
+
+# Base enregistrée du serveur (données réelles, jamais versionnées)
+data/

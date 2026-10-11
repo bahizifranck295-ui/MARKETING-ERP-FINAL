@@ -92,7 +92,7 @@ export function mountIntegrationRoutes(router: express.Router, authenticate: any
     res.json(
       db.products
         // Départements de l'utilisateur : seuls les produits de ses catégories
-        .filter((p) => p.is_active !== false && inCategoryScope(req.user, p.category))
+        .filter((p) => p.is_active !== false && inCategoryScope(req.user, p.category, "catalog"))
         .map((p: any) => ({
           id: p.id,
           code: p.code,

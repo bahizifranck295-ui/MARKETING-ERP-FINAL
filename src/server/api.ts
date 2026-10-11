@@ -282,6 +282,14 @@ function categoryAccess(body: any) {
  * Protection des comptes : seul un super administrateur crée, modifie ou désactive un super administrateur ;
  * un administrateur ne peut attribuer qu'un rôle dont il possède lui-même tous les droits (pas d'élévation).
  */
+// Photo de profil : image en data URL, taille raisonnable
+function photoError(v: any) {
+  if (!v) return null;
+  if (typeof v !== "string" || !/^data:image\/(png|jpe?g|webp|gif);base64,/.test(v)) return "La photo doit être une image (PNG, JPEG, WEBP ou GIF)";
+  if (v.length > 700_000) return "La photo est trop lourde (500 Ko maximum)";
+  return null;
+}
+
 function roleAssignError(actor: User, roleCode?: string) {
   if (!roleCode || isSuperAdmin(actor)) return null;
   if (roleCode === "super_admin") return "Seul un super administrateur peut attribuer le rôle Super Administrateur";
@@ -304,6 +312,8 @@ const scopeFieldsChanged = (u: any, body: any) => {
 apiRouter.post("/users", authenticate, (req, res) => {
   const actor = (req as any).user as User;
   const { email, full_name, phone, department, role_code, warehouse_id, site_id, password } = req.body;
+  const photoErr = photoError(req.body.photo_url);
+  if (photoErr) return res.status(400).json({ detail: photoErr });
   const roleErr = roleAssignError(actor, role_code || "marketeur");
   if (roleErr) return res.status(403).json({ detail: roleErr });
   const access = categoryAccess(req.body);
@@ -318,6 +328,8 @@ apiRouter.post("/users", authenticate, (req, res) => {
     email: email.toLowerCase().trim(),
     full_name: full_name || email,
     phone,
+    position: String(req.body.position || "").trim() || undefined,
+    photo_url: req.body.photo_url || undefined,
     department: access ? access.department : department,
     ...(access ? { categories: access.categories, all_categories: access.all_categories } : {}),
     role_code: role_code || "marketeur",
@@ -338,7 +350,7 @@ apiRouter.put("/users/:id", authenticate, (req, res) => {
   const user = db.users.find((u) => u.id === req.params.id);
   if (!user) return res.status(404).json({ detail: "Utilisateur introuvable" });
   if (isSuperAdmin(user) && !isSuperAdmin(actor)) return res.status(403).json({ detail: "Le super administrateur est protégé : seul un super administrateur peut le modifier" });
-  const touchesProfile = ["full_name", "phone", "email", "role_code", "password", "is_active", "warehouse_id"].some((k) => req.body[k] !== undefined && (k === "password" ? !!req.body.password : req.body[k] !== (user as any)[k]));
+  const touchesProfile = ["full_name", "phone", "email", "role_code", "password", "is_active", "warehouse_id", "position", "photo_url"].some((k) => req.body[k] !== undefined && (k === "password" ? !!req.body.password : (req.body[k] ?? "") !== ((user as any)[k] ?? "")));
   if (touchesProfile && !can(actor, "users.update")) return res.status(403).json({ detail: "Permission requise : Modifier un utilisateur", code: "PERMISSION_DENIED" });
   if (req.body.is_active === false && user.is_active && !can(actor, "users.delete"))
     return res.status(403).json({ detail: "Permission requise : Désactiver un utilisateur", code: "PERMISSION_DENIED" });
@@ -354,6 +366,12 @@ apiRouter.put("/users/:id", authenticate, (req, res) => {
   }
   if (req.body.full_name) user.full_name = req.body.full_name;
   if (req.body.phone !== undefined) user.phone = req.body.phone;
+  if (req.body.position !== undefined) user.position = String(req.body.position || "").trim() || undefined;
+  if (req.body.photo_url !== undefined) {
+    const photoErr = photoError(req.body.photo_url);
+    if (photoErr) return res.status(400).json({ detail: photoErr });
+    user.photo_url = req.body.photo_url || undefined;
+  }
   if (req.body.department !== undefined) user.department = req.body.department;
   const access = categoryAccess(req.body);
   if (access && !access.all_categories && !access.categories.length) return res.status(400).json({ detail: "Choisissez au moins une catégorie, ou donnez l'accès à toutes les catégories" });
@@ -552,7 +570,12 @@ export const orderRate = (order: any) => categoryRate(orderCategory(order));
  */
 const CASH_ALL_SITES_ROLES = ["super_admin", "dg"];
 export function cashSiteLocked(u?: User | null) {
-  return !!u?.site_id && !CASH_ALL_SITES_ROLES.includes(u.role_code) && !u.is_transversal;
+  // Accès transversal « Caisses de tous les sites » : la caisse n'est plus verrouillée sur le site de l'utilisateur
+  return !!u?.site_id && !CASH_ALL_SITES_ROLES.includes(u.role_code) && !u.is_transversal && scopeOf(u, "cash").all_sites !== true;
+}
+/** Créances : verrouillées sur le site de l'utilisateur, sauf accès transversal « Clients (CRM) et créances » */
+export function creditSiteLocked(u?: User | null) {
+  return !!u?.site_id && !CASH_ALL_SITES_ROLES.includes(u.role_code) && !u.is_transversal && scopeOf(u, "clients").all_sites !== true;
 }
 export function sessionSiteId(s: CashSession) {
   return s.site_id || userSite(null).id;
@@ -841,9 +864,9 @@ export function getClientFinancialSnapshot(clientId: string, orderTotalUSD: numb
 
 // Périmètre CRM : un client rattaché à un site ou à un département hors périmètre n'est pas visible
 function clientInScope(u: User, c: any) {
-  if (c.site_id && !inSiteScope(u, c.site_id) && ((db as any).sites || []).some((s: any) => s.id === c.site_id)) return false;
+  if (c.site_id && !inSiteScope(u, c.site_id, "clients") && ((db as any).sites || []).some((s: any) => s.id === c.site_id)) return false;
   const bu = c.business_unit;
-  if (bu && db.product_categories.some((x) => x.toLowerCase() === String(bu).toLowerCase()) && !inCategoryScope(u, bu)) return false;
+  if (bu && db.product_categories.some((x) => x.toLowerCase() === String(bu).toLowerCase()) && !inCategoryScope(u, bu, "clients")) return false;
   return true;
 }
 
@@ -1053,11 +1076,12 @@ apiRouter.get("/orders", authenticate, (req, res) => {
   if (q) list = list.filter((o) => o.code.toLowerCase().includes(q) || o.client_name.toLowerCase().includes(q));
   // Site et dépôt de chaque commande ; un utilisateur rattaché à un site ne voit que les commandes de son site
   // (la direction et les utilisateurs transversaux voient tous les sites)
-  const siteLocked = !!user.site_id && !["super_admin", "dg"].includes(user.role_code) && !user.is_transversal;
+  // Le périmètre (sites attribués, accès transversal aux commandes) est appliqué juste en dessous
+  const siteLocked = false;
   let located = list.map((ord) => ({ ...ord, ...orderLocation(ord) }));
   if (siteLocked) located = located.filter((o) => o.site_id === user.site_id);
   // Périmètre : sites et départements (catégories de produits) attribués à l'utilisateur
-  located = located.filter((o) => inSiteScope(user, o.site_id) && orderInCategoryScope(user, o));
+  located = located.filter((o) => inSiteScope(user, o.site_id, "orders") && orderInCategoryScope(user, o));
   const siteQ = req.query.site_id as string;
   const depotQ = req.query.warehouse_id as string;
   if (siteQ && siteQ !== "all") located = located.filter((o) => o.site_id === siteQ);
@@ -1070,7 +1094,7 @@ function orderVisibleTo(u: User, o: any) {
   const loc = orderLocation(o);
   const own = o.marketer_id === u.id;
   const all = u.role_code === "super_admin" || u.role_code === "chef_dept" || u.is_transversal || can(u, "orders.all") || can(u, "orders.approve");
-  return (own || all) && inSiteScope(u, loc.site_id) && orderInCategoryScope(u, o);
+  return (own || all) && inSiteScope(u, loc.site_id, "orders") && orderInCategoryScope(u, o);
 }
 
 apiRouter.get("/orders/:id", authenticate, (req, res) => {
@@ -1120,7 +1144,7 @@ apiRouter.post("/orders", authenticate, (req, res) => {
   // Départements de l'utilisateur : il ne commande que les produits de ses catégories
   const outOfScope = (items || [])
     .map((it: any) => db.products.find((p) => p.id === it.product_id))
-    .filter((p: any) => p && !inCategoryScope(user, p.category));
+    .filter((p: any) => p && !inCategoryScope(user, p.category, "catalog"));
   if (outOfScope.length)
     return res.status(403).json({
       detail: `Produit hors de vos départements : ${outOfScope.map((p: any) => p.name).join(", ")}`,
@@ -1305,7 +1329,7 @@ apiRouter.get("/boutique/products", authenticate, (req, res) => {
   // La source (camion / dépôt) d'une ligne vendue reste décidée par le serveur à la commande.
   res.json(
     db.products
-      .filter((p) => p.is_active && inCategoryScope((req as any).user, p.category))
+      .filter((p) => p.is_active && inCategoryScope((req as any).user, p.category, "catalog"))
       .map((p: any) => {
         const { stock, current_stock, low_stock_threshold, alert_threshold, warehouse_id, ...rest } = p;
         return { ...rest, available: p.available !== false };
@@ -1320,7 +1344,7 @@ apiRouter.get("/boutique/my-orders", authenticate, (req, res) => {
   if (!canSeeAll || req.query.only_mine === "true") {
     orders = orders.filter((o) => o.marketer_id === user.id);
   }
-  res.json(orders.filter((o) => o.marketer_id === user.id || (inSiteScope(user, orderLocation(o).site_id) && orderInCategoryScope(user, o))));
+  res.json(orders.filter((o) => o.marketer_id === user.id || (inSiteScope(user, orderLocation(o).site_id, "orders") && orderInCategoryScope(user, o))));
 });
 
 apiRouter.get("/boutique/marketers", authenticate, (req, res) => {
@@ -2003,7 +2027,7 @@ apiRouter.get("/credits/debts", authenticate, (req, res) => {
   // Ventes à crédit validées qui n'auraient pas encore leur créance
   db.orders.forEach(ensureCreditForOrder);
   // Une personne rattachée à un site ne voit que les dettes de son site
-  const mine = cashSiteLocked(user) ? userSite(user).id : null;
+  const mine = creditSiteLocked(user) ? userSite(user).id : null;
   res.json(
     db.credits
       .map((c: any) => ({ c, site: creditSite(c) }))
@@ -2034,7 +2058,7 @@ apiRouter.get("/credits/debts", authenticate, (req, res) => {
 apiRouter.get("/credits/marketers", authenticate, (req, res) => {
   const user = (req as any).user as User;
   db.orders.forEach(ensureCreditForOrder);
-  const mine = cashSiteLocked(user) ? userSite(user).id : null;
+  const mine = creditSiteLocked(user) ? userSite(user).id : null;
   const marketerMap: Record<string, any> = {};
   db.credits.forEach((c) => {
     if (((c as any).remaining ?? (c as any).balance ?? 0) <= 0) return;
@@ -2061,7 +2085,7 @@ apiRouter.get("/credits/receivables", authenticate, (req, res) => {
   const user = (req as any).user as User;
   db.orders.forEach(ensureCreditForOrder);
   // Mêmes dettes et même site que le module Crédits (/credits/debts) ; limité au site d'affectation si besoin
-  const mine = cashSiteLocked(user) ? userSite(user).id : null;
+  const mine = creditSiteLocked(user) ? userSite(user).id : null;
   const rows = db.credits
     .map((c: any) => {
       const remaining = Number(c.remaining ?? c.balance ?? c.initial_amount ?? 0) || 0;
@@ -2189,15 +2213,15 @@ apiRouter.get("/dashboard", authenticate, (req, res) => {
   const isToday = (d?: string) => !!d && new Date(d).toDateString() === today;
   // Indicateurs limités au périmètre de l'utilisateur (sites et départements)
   const live = db.orders.filter(
-    (o) => o.status !== "cancelled" && (o.status as string) !== "rejected" && inSiteScope(me, orderLocation(o).site_id) && orderInCategoryScope(me, o)
+    (o) => o.status !== "cancelled" && (o.status as string) !== "rejected" && inSiteScope(me, orderLocation(o).site_id, "indicators") && orderInCategoryScope(me, o, "indicators")
   );
   const salesToday = live.filter((o) => isToday(o.approved_at || o.created_at));
   const usd = (o: any) => Number(o.amount_usd) || (o.currency === "USD" ? Number(o.amount) || 0 : (Number(o.amount) || 0) / (o.exchange_rate || 2500));
   const sessionSite = new Map(db.cash_sessions.map((x) => [x.id, sessionSiteId(x)]));
-  const opsToday = db.cash_operations.filter((o: any) => isToday(o.created_at) && inSiteScope(me, sessionSite.get(o.session_id) || null));
+  const opsToday = db.cash_operations.filter((o: any) => isToday(o.created_at) && inSiteScope(me, sessionSite.get(o.session_id) || null, "indicators"));
   const cashIn = opsToday.filter((o) => o.type === "in").reduce((t, o) => t + usd(o), 0);
   const cashOut = opsToday.filter((o) => o.type === "out").reduce((t, o) => t + usd(o), 0);
-  const openDebts = db.credits.filter((c: any) => c.status !== "cancelled" && (Number(c.remaining ?? c.balance ?? 0) || 0) > 0 && inSiteScope(me, creditSite(c).site_id));
+  const openDebts = db.credits.filter((c: any) => c.status !== "cancelled" && (Number(c.remaining ?? c.balance ?? 0) || 0) > 0 && inSiteScope(me, creditSite(c).site_id, "indicators"));
   const r2 = (n: number) => Math.round(n * 100) / 100;
   res.json({
     sales: { today_total: r2(salesToday.reduce((t, o) => t + (Number(o.total) || 0), 0)), today_count: salesToday.length },
@@ -2214,7 +2238,7 @@ apiRouter.get("/dashboard", authenticate, (req, res) => {
 
 apiRouter.get("/reports/summary", authenticate, (req, res) => {
   const me = (req as any).user as User;
-  const scoped = db.orders.filter((o) => o.status !== "cancelled" && inSiteScope(me, orderLocation(o).site_id) && orderInCategoryScope(me, o));
+  const scoped = db.orders.filter((o) => o.status !== "cancelled" && inSiteScope(me, orderLocation(o).site_id, "indicators") && orderInCategoryScope(me, o, "indicators"));
   const totalSales = scoped.reduce((s, o) => s + o.total, 0);
   const totalPaid = scoped.reduce((s, o) => s + o.amount_paid, 0);
   res.json({

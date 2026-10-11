@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { seedData } from "./src/server/db";
 import { apiRouter } from "./src/server/api";
+import { flushOnExit, loadDatabase, persistAfterResponse, scheduleSave } from "./src/server/persistence";
 
 const app = express();
 const PORT = 3000;
@@ -10,11 +11,13 @@ const PORT = 3000;
 app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ limit: "100mb", extended: true }));
 
-// Initialize in-memory seed data
+// Base de départ, puis base enregistrée (si elle existe) : les données survivent aux redémarrages
 seedData();
+if (!loadDatabase()) scheduleSave();
+flushOnExit();
 
-// Mount API router
-app.use("/api", apiRouter);
+// Mount API router (enregistrement durable après chaque requête)
+app.use("/api", persistAfterResponse, apiRouter);
 
 // Deux applications, une seule API et une seule base (en mémoire, partagée) :
 //  - Gestion commerciale sur PORT (3000)        → dist/
@@ -59,7 +62,7 @@ async function start() {
     const logistics = express();
     logistics.use(express.json({ limit: "100mb" }));
     logistics.use(express.urlencoded({ limit: "100mb", extended: true }));
-    logistics.use("/api", apiRouter);
+    logistics.use("/api", persistAfterResponse, apiRouter);
     await mountFrontend(logistics, "logistique");
     listen(logistics, LOGISTICS_PORT, "Stock & Livraison");
   }
