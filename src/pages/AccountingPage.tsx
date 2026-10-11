@@ -184,6 +184,7 @@ export default function AccountingPage() {
         subtitle="Traçabilité des opérations, réconciliation et synchronisation financière"
         right={
           <div className="flex gap-2">
+            {has("accounting.export") && (
             <Button
               size="sm"
               variant="outline"
@@ -193,6 +194,7 @@ export default function AccountingPage() {
             >
               {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileText className="h-4 w-4 mr-1 text-rose-600" />} Export PDF
             </Button>
+            )}
           </div>
         }
       />
@@ -383,6 +385,7 @@ export default function AccountingPage() {
               movement={selectedMovement}
               onClose={() => setSelectedMovement(null)}
               onToggleRecord={handleToggleRecord}
+              canToggleRecord={has("accounting.record")}
               isToggling={togglingId === selectedMovement?.id}
             />
           </div>

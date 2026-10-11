@@ -51,6 +51,10 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config || {};
     const status = error.response?.status;
+    // Action refusée par le serveur : les droits ont peut-être changé, l'interface les recharge
+    if (status === 403 && error.response?.data?.code === "PERMISSION_DENIED" && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("erp:permission-denied"));
+    }
     const url = original.url || "";
     if (status === 401 && !original._retry && !url.includes("/auth/login") && !url.includes("/auth/refresh")) {
       original._retry = true;

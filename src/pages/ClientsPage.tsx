@@ -829,6 +829,7 @@ export default function ClientsPage() {
         subtitle="Portefeuille clients rattachés par Business Unit, plafonds de crédit et conformité documentaire"
         right={
           <div className="flex items-center gap-2">
+            {has("crm.export") && (
             <Button
               size="sm"
               variant="outline"
@@ -841,7 +842,8 @@ export default function ClientsPage() {
               <span>Exporter PDF</span>
               <ChevronDown className="h-3.5 w-3.5 ml-1 text-slate-400" />
             </Button>
-            {has("crm.write") && (
+            )}
+            {has("crm.create") && (
               <Button
                 size="sm"
                 onClick={openCreateModal}
@@ -854,6 +856,7 @@ export default function ClientsPage() {
         }
       />
 
+      {has("crm.filter") && (
       <div className="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-xs space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           <div className="relative md:col-span-4">
@@ -952,6 +955,7 @@ export default function ClientsPage() {
           )}
         </div>
       </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-20">
@@ -1140,6 +1144,7 @@ export default function ClientsPage() {
                           openEditModal(client);
                         }
                       }}
+                      hidden={!hasDoc && !has("crm.documents")}
                       className={`h-8 rounded-xl text-xs px-2.5 flex-1 font-semibold transition-colors ${
                         hasDoc
                           ? "border-sky-200 text-[#0F3D68] bg-sky-50/70 hover:bg-sky-100"
@@ -1149,6 +1154,7 @@ export default function ClientsPage() {
                       <ExternalLink className="h-3.5 w-3.5 mr-1 text-[#0F3D68] shrink-0" />
                       <span>{hasDoc ? "Vérifier Doc" : "Ajouter Doc"}</span>
                     </Button>
+                    {has("crm.account") && (
                     <Button
                       size="sm"
                       onClick={() => setViewingClientId(client.id)}
@@ -1157,7 +1163,8 @@ export default function ClientsPage() {
                       <FileText className="h-3.5 w-3.5 mr-1" />
                       Visualiser
                     </Button>
-                    {has("crm.write") && (
+                    )}
+                    {has("crm.update") && (
                       <Button
                         size="sm"
                         variant="outline"

@@ -1,3 +1,4 @@
+import { can, PERM_BY_CODE } from "./permissions";
 import { v4 as uuidv4 } from "uuid";
 import { db, type Order, type Product, type User } from "./db";
 import {
@@ -679,6 +680,9 @@ export function mountDeliveryRoutes(router: any, authenticate: any) {
     if (!order) return res.status(404).json({ detail: "Commande introuvable" });
     const step = STAGE_FLOW[order.status];
     if (!step) return res.status(400).json({ detail: order.status === "pending_approval" ? "Approuvez d'abord la commande" : "Cette commande est déjà livrée" });
+    // Chaque étape a sa permission : préparer, expédier (chargement camion), confirmer la livraison
+    const stepPerm = step.next === "prepared" ? "delivery.create" : step.next === "shipped" ? "delivery.dispatch" : "delivery.confirm";
+    if (!can(u, stepPerm)) return res.status(403).json({ detail: `Permission requise : ${PERM_BY_CODE.get(stepPerm)?.label}`, code: "PERMISSION_DENIED" });
     const now = nowIso();
     order.status = step.next;
     order.updated_at = now;

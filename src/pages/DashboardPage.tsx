@@ -43,8 +43,10 @@ function Tile({
     green: "bg-emerald-50 text-emerald-700 border border-emerald-100",
     amber: "bg-amber-50 text-amber-700 border border-amber-100",
   };
-  const Wrapper = enabled ? Link : ("div" as any);
-  const props = enabled ? { to } : {};
+  // Module non autorisé : la tuile n'existe pas (rien à griser ni à deviner)
+  if (!enabled) return null;
+  const Wrapper = Link;
+  const props = { to };
   return (
     <Wrapper
       {...props}
@@ -120,8 +122,8 @@ export default function DashboardPage() {
   useEffect(() => {
     let ok = true;
     Promise.all([
-      api
-        .get("/dashboard")
+      // Indicateurs : uniquement avec la permission « Voir les indicateurs »
+      (has("dashboard.read") ? api.get("/dashboard") : Promise.resolve({ data: null }))
         .then((r) => r.data)
         .catch((e) => {
           toast.error(extractErrorMessage(e, "KPI indisponibles"));

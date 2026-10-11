@@ -159,7 +159,7 @@ export default function SalesSheets({
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, has } = useAuth();
   // « Prepared by » : l'utilisateur qui établit / exporte la fiche
   const preparedBy = user?.full_name || "Utilisateur";
   // Fiches = catégories créées dans Stock › Catégories
@@ -482,9 +482,9 @@ export default function SalesSheets({
             <input aria-label="Mois de la fiche" type="month" value={month} max={todayKey().slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className="h-9 rounded-xl border border-slate-200 px-2.5 text-xs" />
           )}
         </label>
-        <Button size="sm" onClick={exportPdf} disabled={exporting} className="ml-auto rounded-xl bg-[#0F3D68] text-xs text-white hover:bg-[#0B2F52]">
+        {has("reports.export") && <Button size="sm" onClick={exportPdf} disabled={exporting} className="ml-auto rounded-xl bg-[#0F3D68] text-xs text-white hover:bg-[#0B2F52]">
           {exporting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileText className="mr-1.5 h-4 w-4" />} Exporter la fiche en PDF
-        </Button>
+        </Button>}
       </div>
 
       {/* La fiche, au format papier */}

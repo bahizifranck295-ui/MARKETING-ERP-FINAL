@@ -105,7 +105,7 @@ interface CashOperation {
 }
 
 export default function CashPage() {
-  const { user } = useAuth();
+  const { user, has } = useAuth();
 
   // Navigation tabs (sessions replaced with rates)
   const [activeTab, setActiveTab] = useState<"journal" | "marketers" | "closing" | "rates">("journal");
@@ -711,6 +711,7 @@ export default function CashPage() {
                 </Badge>
 
                 {/* 1. Bouton Enregistrer une entrée (Modal Inflow d'origine avec les 4 types d'encaissement) */}
+                {has("cash.create") && (
                 <Button
                   variant="outline"
                   onClick={() => setIsInflowOpen(true)}
@@ -719,8 +720,10 @@ export default function CashPage() {
                   <ArrowDownLeft className="w-4 h-4 mr-1.5 text-emerald-600" />
                   Enregistrer une entrée
                 </Button>
+                )}
 
                 {/* 2. Bouton Enregistrer une sortie (Modal Outflow avec formulaire complet, justificatif, recherche utilisateurs) */}
+                {has("cash.create") && (
                 <Button
                   onClick={() => setIsOutflowOpen(true)}
                   className="bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-xs"
@@ -728,7 +731,9 @@ export default function CashPage() {
                   <ArrowUpRight className="w-4 h-4 mr-1.5" />
                   Enregistrer une sortie
                 </Button>
+                )}
 
+                {has("cash.close") && (
                 <Button
                   variant="outline"
                   onClick={() => setActiveTab("closing")}
@@ -737,8 +742,9 @@ export default function CashPage() {
                   <Lock className="w-4 h-4 mr-1.5 text-slate-500" />
                   Clôturer
                 </Button>
+                )}
               </>
-            ) : (
+            ) : !has("cash.open") ? null : (
               <Button
                 onClick={() => setIsOpenSessionOpen(true)}
                 className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-medium shadow-xs"
@@ -921,6 +927,7 @@ export default function CashPage() {
           )}
         </button>
 
+        {has("cash.close") && (
         <button
           onClick={() => setActiveTab("closing")}
           className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
@@ -932,7 +939,9 @@ export default function CashPage() {
           <Coins className="w-4 h-4" />
           Clôture Journalière & Billetage
         </button>
+        )}
 
+        {has("cash.rates") && (
         <button
           onClick={() => setActiveTab("rates")}
           className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
@@ -944,6 +953,7 @@ export default function CashPage() {
           <TrendingUp className="w-4 h-4" />
           Taux
         </button>
+        )}
       </div>
 
       {/* ========================================================================= */}
@@ -953,7 +963,7 @@ export default function CashPage() {
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
           {/* Filters Bar */}
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className={`flex flex-wrap items-center gap-2 ${has("cash.filter") ? "" : "hidden"}`}>
               <div className="relative w-72">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -1185,6 +1195,7 @@ export default function CashPage() {
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </Button>
+                            {has("cash.export") && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1194,6 +1205,7 @@ export default function CashPage() {
                             >
                               <Printer className="w-3.5 h-3.5" />
                             </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1294,6 +1306,7 @@ export default function CashPage() {
                   </div>
                 </div>
 
+                {has("cash.deposits") && (
                 <Button
                   size="sm"
                   disabled={!m.pending_orders_count}
@@ -1319,6 +1332,7 @@ export default function CashPage() {
                   <Coins className="w-3.5 h-3.5 mr-1.5" />
                   Encaisser versement
                 </Button>
+                )}
               </div>
             ))}
             {!marketerDeposits.some((m: any) => m.pending_orders_count > 0) && (
@@ -1406,7 +1420,7 @@ export default function CashPage() {
       {/* ========================================================================= */}
       {/* TAB 3: CLÔTURE JOURNALIÈRE ET BILLETAGE PHYSIQUE                          */}
       {/* ========================================================================= */}
-      {activeTab === "closing" && (
+      {activeTab === "closing" && has("cash.close") && (
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
           <div className="flex items-center justify-between border-b pb-4">
             <div>
@@ -1552,7 +1566,7 @@ export default function CashPage() {
       {/* ========================================================================= */}
       {/* TAB 4: GESTION DES TAUX (REMPLACE HISTORIQUE DES SESSIONS)                */}
       {/* ========================================================================= */}
-      {activeTab === "rates" && (
+      {activeTab === "rates" && has("cash.rates") && (
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
           {/* Header of Rates sub-module */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
@@ -2144,6 +2158,7 @@ export default function CashPage() {
             </div>
 
             <DialogFooter className="gap-2">
+              {has("cash.export") && (
               <Button
                 variant="outline"
                 onClick={() => handlePrintReceipt(selectedOperation)}
@@ -2152,6 +2167,7 @@ export default function CashPage() {
                 <Printer className="w-4 h-4 text-slate-500" />
                 Imprimer le Reçu
               </Button>
+              )}
               <Button variant="ghost" onClick={() => setSelectedOperation(null)} className="text-xs">
                 Fermer
               </Button>

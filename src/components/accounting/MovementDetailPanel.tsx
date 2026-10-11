@@ -29,11 +29,13 @@ export default function MovementDetailPanel({
   movement,
   onClose,
   onToggleRecord,
+  canToggleRecord = true,
   isToggling = false,
 }: {
   movement: any;
   onClose?: () => void;
   onToggleRecord: (id: string) => void;
+  canToggleRecord?: boolean;
   isToggling?: boolean;
 }) {
   const [showDocModal, setShowDocModal] = useState(false);
@@ -314,6 +316,7 @@ export default function MovementDetailPanel({
             </Button>
           )}
 
+          {canToggleRecord && (
           <Button
             type="button"
             onClick={() => onToggleRecord(movement.id)}
@@ -336,6 +339,7 @@ export default function MovementDetailPanel({
               </>
             )}
           </Button>
+          )}
         </div>
       </div>
 

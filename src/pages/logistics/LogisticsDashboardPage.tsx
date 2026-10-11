@@ -34,6 +34,8 @@ function Kpi({ label, value, sub, tone = "slate" }: { label: string; value: stri
 }
 
 function Tile({ icon: Icon, title, subtitle, to, enabled = true, badge }: any) {
+  // Module non autorisé : la tuile n'existe pas
+  if (!enabled) return null;
   const Wrapper = enabled ? Link : ("div" as any);
   return (
     <Wrapper

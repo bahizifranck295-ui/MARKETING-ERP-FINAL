@@ -222,7 +222,7 @@ export default function StockStateReport({
   siteKey?: string;
   historyFilter?: { site: string; depot: string; category: string } | null;
 }) {
-  const { user } = useAuth() as any;
+  const { user, has } = useAuth() as any;
   const restrictedSite = user && !ADMIN_ROLES.includes(user.role_code) && !user.is_transversal && user.site_id ? user.site_id : null;
 
   const [sites, setSites] = useState<any[]>([]);
@@ -455,7 +455,7 @@ export default function StockStateReport({
           {generating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CalendarDays className="mr-1.5 h-4 w-4" />}
           Générer le rapport
         </Button>
-        {current && (
+        {current && has("stock.export") && (
           <>
             <Button variant="outline" onClick={() => preview(current)} className="rounded-xl text-xs">
               <Eye className="mr-1.5 h-4 w-4" /> Prévisualiser

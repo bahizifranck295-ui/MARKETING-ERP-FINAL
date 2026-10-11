@@ -12,9 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
+import { KeyRound } from "lucide-react";
 
 export default function UsersPage() {
-  const { has } = useAuth();
+  const { has, user: me } = useAuth();
+  const navigate = useNavigate();
+  // Actions distinctes : créer, modifier le profil, périmètre (sites / départements), désactiver, permissions
+  const canEditRow = has("users.update") || has("users.scope");
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,10 +84,10 @@ export default function UsersPage() {
       email: form.elements.email.value.trim(),
       role_code: form.elements.role_code.value,
       phone: form.elements.phone.value.trim(),
-      all_categories: allCategories,
-      categories: allCategories ? [] : userCategories,
-      site_id: form.elements.site_id?.value || "",
-      is_active: form.elements.is_active.checked,
+      ...(has("users.scope")
+        ? { all_categories: allCategories, categories: allCategories ? [] : userCategories, site_id: form.elements.site_id?.value || "" }
+        : {}),
+      ...(form.elements.is_active ? { is_active: form.elements.is_active.checked } : {}),
     };
     if (form.elements.password?.value) {
       payload.password = form.elements.password.value;
@@ -111,7 +116,7 @@ export default function UsersPage() {
         title="Gestion des Utilisateurs"
         subtitle="Comptes d'accès, affectations de rôles et départements"
         right={
-          has("users.write") && (
+          has("users.create") && (
             <Button
               size="sm"
               onClick={() => {
@@ -141,7 +146,7 @@ export default function UsersPage() {
                   <th className="p-3.5">Département</th>
                   <th className="p-3.5">Site d'affectation</th>
                   <th className="p-3.5 text-center">Statut</th>
-                  {has("users.write") && <th className="p-3.5 text-center">Action</th>}
+                  {(canEditRow || has("users.permissions")) && <th className="p-3.5 text-center">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -169,8 +174,9 @@ export default function UsersPage() {
                         {u.is_active ? "Actif" : "Inactif"}
                       </span>
                     </td>
-                    {has("users.write") && (
-                      <td className="p-3.5 text-center">
+                    {(canEditRow || has("users.permissions")) && (
+                      <td className="p-3.5 text-center whitespace-nowrap">
+                        {canEditRow && (u.role_code !== "super_admin" || me?.role_code === "super_admin") && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -182,6 +188,19 @@ export default function UsersPage() {
                         >
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
+                        )}
+                        {has("users.permissions") && u.id !== me?.id && (u.role_code !== "super_admin" || me?.role_code === "super_admin") && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Permissions et périmètre de cet utilisateur"
+                            aria-label={`Permissions de ${u.full_name}`}
+                            onClick={() => navigate(`/admin/roles?user=${u.id}`)}
+                            className="h-7 w-7 p-0 rounded-lg text-slate-500 hover:text-[#0F3D68]"
+                          >
+                            <KeyRound className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -251,7 +270,7 @@ export default function UsersPage() {
                     defaultValue={editingUser?.role_code || "commercial"}
                     className="w-full mt-1 h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs"
                   >
-                    {roles.map((r) => (
+                    {roles.filter((r) => r.is_active !== false || r.code === editingUser?.role_code).map((r) => (
                       <option key={r.code} value={r.code}>
                         {r.name}
                       </option>
@@ -259,6 +278,8 @@ export default function UsersPage() {
                   </select>
                 </div>
               </div>
+              {has("users.scope") && (
+              <>
               <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2" data-dept-section>
                 <Label className="text-xs font-semibold">Département (catégories de produits)</Label>
                 <div role="group" aria-label="Accès aux catégories" className="grid grid-cols-2 gap-2">
@@ -326,6 +347,9 @@ export default function UsersPage() {
                   Une caissière gère les entrées et sorties de caisse de son site d'affectation.
                 </p>
               </div>
+              </>
+              )}
+              {has("users.delete") && (
               <div className="flex items-center gap-2 pt-2">
                 <input
                   type="checkbox"
@@ -338,6 +362,7 @@ export default function UsersPage() {
                   Compte actif et autorisé à se connecter
                 </label>
               </div>
+              )}
               <DialogFooter className="gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setUserModal(false)}>
                   Annuler

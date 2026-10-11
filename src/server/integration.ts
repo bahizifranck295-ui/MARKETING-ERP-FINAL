@@ -1,6 +1,7 @@
 import type express from "express";
 import { db } from "./db";
 import { ensureStockStructure } from "./stockStructure";
+import { inCategoryScope } from "./permissions";
 
 /*
  * Séparation des deux applications (même API, même base de données) :
@@ -87,10 +88,11 @@ export function mountIntegrationRoutes(router: express.Router, authenticate: any
   });
 
   /* Catalogue de vente pour la Gestion commerciale : prix et disponibilité, sans quantités de stock */
-  router.get("/integration/catalog", authenticate, (_req: any, res: any) => {
+  router.get("/integration/catalog", authenticate, (req: any, res: any) => {
     res.json(
       db.products
-        .filter((p) => p.is_active !== false)
+        // Départements de l'utilisateur : seuls les produits de ses catégories
+        .filter((p) => p.is_active !== false && inCategoryScope(req.user, p.category))
         .map((p: any) => ({
           id: p.id,
           code: p.code,

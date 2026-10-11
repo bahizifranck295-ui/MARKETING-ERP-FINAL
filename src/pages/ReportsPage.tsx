@@ -46,7 +46,10 @@ import {
 } from "@/components/ui/dialog";
 
 export default function ReportsPage() {
-  const { user } = useAuth();
+  const { user, has } = useAuth();
+  // Données du Livre de caisse : uniquement avec la permission correspondante (sinon jamais chargées)
+  const canCash = has("reports.cash") || has("cash.read");
+  const none = Promise.resolve({ data: [] as any });
   const [data, setData] = useState<any>(null);
   // Rapport des créances clients (une ligne par dette restante)
   const [receivables, setReceivables] = useState<any[]>([]);
@@ -80,11 +83,11 @@ export default function ReportsPage() {
       const [repRes, ordRes, cashRes, crdRes, prdRes, sessRes, actSessRes] = await Promise.all([
         api.get("/reports/summary", { params: { period } }),
         api.get("/orders"),
-        api.get("/cash/operations"),
+        canCash ? api.get("/cash/operations") : none,
         api.get("/credits"),
         api.get("/integration/catalog"),
-        api.get("/cash/sessions"),
-        api.get("/cash/active-session"),
+        canCash ? api.get("/cash/sessions") : none,
+        canCash ? api.get("/cash/active-session") : Promise.resolve({ data: null as any }),
       ]);
       setData(repRes.data);
       setOrders(Array.isArray(ordRes.data) ? ordRes.data : []);
@@ -795,10 +798,10 @@ export default function ReportsPage() {
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
         {[
           { id: "overview", label: "Vue d'ensemble", icon: BarChart3 },
-          { id: "sales", label: "Rapport des Ventes", icon: ShoppingCart },
-          { id: "cash", label: "Livre de Caisse", icon: Wallet },
-          { id: "credits", label: "Créances & Marketeurs", icon: Users },
-        ].map((t) => {
+          { id: "sales", label: "Rapport des Ventes", icon: ShoppingCart, perm: "reports.sales" },
+          { id: "cash", label: "Livre de Caisse", icon: Wallet, perm: "reports.cash" },
+          { id: "credits", label: "Créances & Marketeurs", icon: Users, perm: "reports.credits" },
+        ].filter((t: any) => !t.perm || has(t.perm)).map((t) => {
           const Icon = t.icon;
           const isActive = activeTab === t.id;
           return (
@@ -835,7 +838,7 @@ export default function ReportsPage() {
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
-      ) : activeTab === "cash" ? (
+      ) : activeTab === "cash" && has("reports.cash") ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
             <div className="flex items-center gap-2">
@@ -891,6 +894,7 @@ export default function ReportsPage() {
               <div className="text-xs text-slate-500 font-medium">
                 Solde Actuel : <strong className="text-emerald-700">{fmtMoney(currentCashUSD, "USD")}</strong> | <strong className="text-blue-700">{fmtMoney(currentCashCDF, "CDF")}</strong>
               </div>
+              {has("reports.export") && (
               <Button
                 size="sm"
                 onClick={handleExportCash}
@@ -900,6 +904,7 @@ export default function ReportsPage() {
                 {exportingCash ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
                 Exporter en PDF
               </Button>
+              )}
             </div>
           </div>
 
@@ -1050,9 +1055,9 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
-      ) : activeTab === "sales" ? (
+      ) : activeTab === "sales" && has("reports.sales") ? (
         <SalesSheets search={search} period={period} includeOrder={(o: any) => inSite("orders", o.id)} siteKey={selectedSite} siteLabel={siteName} />
-      ) : activeTab === "credits" ? (
+      ) : activeTab === "credits" && has("reports.credits") ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
             <div>
@@ -1061,6 +1066,7 @@ export default function ReportsPage() {
                 {filteredReceivables.length} créance(s) · {new Set(filteredReceivables.map((r) => r.client_id || r.client_name)).size} client(s) débiteur(s) · total dû {fmtMoney(receivablesTotal)}
               </p>
             </div>
+            {has("reports.export") && (
             <Button
               size="sm"
               onClick={handleExportReceivables}
@@ -1070,6 +1076,7 @@ export default function ReportsPage() {
               {exportingReceivables ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
               Exporter en PDF
             </Button>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">

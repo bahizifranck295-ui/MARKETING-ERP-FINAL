@@ -29,7 +29,7 @@ import NewProductDialog from "@/components/stock/NewProductDialog";
 import { CategoriesPanel } from "@/components/stock/categories";
 
 export default function BoutiquePage() {
-  const { user, has } = useAuth();
+  const { user, has, hasAny } = useAuth();
   // Mêmes formulaires que le module Stock : nouveau produit et catégories
   const [newProductOpen, setNewProductOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -74,8 +74,8 @@ export default function BoutiquePage() {
     try {
       const [prodRes, myOrdersRes, clientsRes, marketersRes, ratesRes] = await Promise.all([
         api.get("/boutique/products"),
-        api.get("/boutique/my-orders"),
-        api.get("/clients").catch(() => ({ data: [] })),
+        has("boutique.orders_history") ? api.get("/boutique/my-orders") : Promise.resolve({ data: [] }),
+        has("boutique.order") ? api.get("/clients").catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
         api.get("/boutique/marketers").catch(() => ({ data: [] })),
         api.get("/cash/rates").catch(() => ({ data: null })),
       ]);
@@ -205,8 +205,8 @@ export default function BoutiquePage() {
       setCartDrawerOpen(false);
       setOrderNotes("");
       loadData();
-      setTab("my-orders");
-      if (res.data) {
+      if (has("boutique.orders_history")) setTab("my-orders");
+      if (res.data && has("orders.print")) {
         setViewingOrder(res.data);
       }
     } catch (err) {
@@ -237,14 +237,18 @@ export default function BoutiquePage() {
         title="Boutique"
         subtitle="Catalogue produits, vente directe & suivi de mes commandes"
         right={
-          has("stock.write") && (
+          (hasAny(["categories.manage", "products.availability", "products.delete"]) || has("products.create")) && (
             <div className="flex flex-wrap items-center gap-2" data-boutique-stock-actions>
-              <Button size="sm" variant="outline" onClick={openCategories} className="h-9 rounded-xl border-slate-200 font-bold text-[#0F3D68]">
-                <Shapes className="mr-1.5 h-4 w-4" /> Catégories
-              </Button>
-              <Button size="sm" onClick={() => setNewProductOpen(true)} className="h-9 rounded-xl bg-[#0F3D68] font-bold text-white hover:bg-[#0B2F52]">
-                <Plus className="mr-1.5 h-4 w-4" /> Nouveau produit
-              </Button>
+              {hasAny(["categories.manage", "products.availability", "products.delete"]) && (
+                <Button size="sm" variant="outline" onClick={openCategories} className="h-9 rounded-xl border-slate-200 font-bold text-[#0F3D68]">
+                  <Shapes className="mr-1.5 h-4 w-4" /> Catégories
+                </Button>
+              )}
+              {has("products.create") && (
+                <Button size="sm" onClick={() => setNewProductOpen(true)} className="h-9 rounded-xl bg-[#0F3D68] font-bold text-white hover:bg-[#0B2F52]">
+                  <Plus className="mr-1.5 h-4 w-4" /> Nouveau produit
+                </Button>
+              )}
             </div>
           )
         }
@@ -290,7 +294,7 @@ export default function BoutiquePage() {
       )}
 
       {/* Navigation Tabs */}
-      <div className="grid grid-cols-2 gap-2 p-1 bg-white border border-slate-200 rounded-2xl">
+      <div className={`grid ${has("boutique.orders_history") ? "grid-cols-2" : "grid-cols-1"} gap-2 p-1 bg-white border border-slate-200 rounded-2xl`}>
         <button
           onClick={() => setTab("catalog")}
           className={`py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
@@ -302,6 +306,7 @@ export default function BoutiquePage() {
           <Store className="h-4 w-4" />
           <span>Produit & Vente</span>
         </button>
+        {has("boutique.orders_history") && (
         <button
           onClick={() => setTab("my-orders")}
           className={`py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all relative ${
@@ -322,6 +327,7 @@ export default function BoutiquePage() {
             </span>
           )}
         </button>
+        )}
       </div>
 
       {loading ? (
@@ -332,6 +338,7 @@ export default function BoutiquePage() {
         <>
           {tab === "catalog" && (
             <div className="space-y-4">
+              {has("boutique.search") && (
               <div className="space-y-2">
                 <div className="relative">
                   <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -358,6 +365,7 @@ export default function BoutiquePage() {
                   ))}
                 </div>
               </div>
+              )}
 
               {filteredProducts.length === 0 ? (
                 <EmptyState
@@ -447,7 +455,7 @@ export default function BoutiquePage() {
                               </div>
                             </div>
 
-                            {inStock ? (
+                            {!has("boutique.order") ? null : inStock ? (
                               qtyInCart > 0 ? (
                                 <div className="flex items-center gap-1.5 bg-purple-50 border border-purple-200 rounded-xl p-1 shrink-0">
                                   <button
@@ -528,7 +536,7 @@ export default function BoutiquePage() {
                   {filteredOrders.map((ord) => (
                     <div
                       key={ord.id}
-                      onClick={() => setViewingOrder(ord)}
+                      onClick={() => has("orders.print") && setViewingOrder(ord)}
                       className="p-4 hover:bg-slate-50/80 transition-colors cursor-pointer space-y-2.5"
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -581,6 +589,7 @@ export default function BoutiquePage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-slate-400">{ord.items?.length || 0} art.</span>
+                          {has("orders.print") && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -592,6 +601,7 @@ export default function BoutiquePage() {
                           >
                             <FileText className="h-3 w-3 mr-1 text-[#0F3D68]" /> Voir la facture
                           </Button>
+                          )}
                         </div>
                       </div>
                     </div>

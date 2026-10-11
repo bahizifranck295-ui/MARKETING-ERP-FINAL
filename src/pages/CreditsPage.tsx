@@ -26,6 +26,8 @@ import CompteClientView from "@/components/CompteClientView";
 
 export default function CreditsPage() {
   const { has, user } = useAuth();
+  // Encaisser un remboursement : permission Crédits ou paiement client (vérifiée aussi par le serveur)
+  const canCollect = has("credits.manage") || has("crm.payments");
   const [activeTab, setActiveTab] = useState<"clients" | "marketers">("clients");
   const [debts, setDebts] = useState<any[]>([]);
   const [allMarketers, setMarketers] = useState<any[]>([]);
@@ -355,7 +357,7 @@ export default function CreditsPage() {
                       </td>
                       <td className="p-3.5 text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          {remainingOf(d) > 0 && (
+                          {remainingOf(d) > 0 && canCollect && (
                             <Button
                               size="sm"
                               onClick={() => openPaymentModal(d)}
@@ -364,6 +366,7 @@ export default function CreditsPage() {
                               <DollarSign className="h-3.5 w-3.5 mr-1" /> Encaisser
                             </Button>
                           )}
+                          {has("crm.account") && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -372,6 +375,7 @@ export default function CreditsPage() {
                           >
                             <FileText className="h-3.5 w-3.5 mr-1" /> Relevé
                           </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -457,6 +461,7 @@ export default function CreditsPage() {
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5">
+                            {canCollect && (
                             <Button
                               size="sm"
                               onClick={() =>
@@ -470,6 +475,8 @@ export default function CreditsPage() {
                             >
                               <DollarSign className="h-3.5 w-3.5 mr-1" /> Encaisser
                             </Button>
+                            )}
+                            {has("crm.account") && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -478,6 +485,7 @@ export default function CreditsPage() {
                             >
                               <FileText className="h-3.5 w-3.5 mr-1" /> Compte
                             </Button>
+                            )}
                           </div>
                         </div>
                       </div>

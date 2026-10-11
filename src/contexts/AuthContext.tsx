@@ -17,10 +17,19 @@ interface Role {
   permissions: string[];
 }
 
+export interface DataScope {
+  all_sites: boolean;
+  site_ids: string[];
+  all_categories: boolean;
+  categories: string[];
+}
+
 interface AuthContextType {
   user: User | null;
   role: Role | null;
   permissions: string[];
+  scope: DataScope | null;
+  hasAny: (perms: string[]) => boolean;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -34,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [scope, setScope] = useState<DataScope | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   const reloadUser = async () => {
@@ -49,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       setRole(data.role);
       setPermissions(data.permissions || []);
+      setScope(data.scope || null);
     } catch {
       tokenStore.clear();
       setUser(null);
@@ -61,6 +72,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     reloadUser();
+  }, []);
+
+  // Droits toujours à jour : rechargés au retour sur l'onglet, chaque minute, et dès qu'une action est refusée
+  // (une permission retirée par l'administrateur s'applique sans reconnexion)
+  useEffect(() => {
+    const refresh = () => {
+      if (tokenStore.access) reloadUser();
+    };
+    const iv = setInterval(refresh, 60000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("erp:permission-denied", refresh);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("erp:permission-denied", refresh);
+    };
   }, []);
 
   const login = async (email: string, pass: string) => {
@@ -77,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setRole(null);
     setPermissions([]);
+    setScope(null);
   };
 
   const has = (perm: string | null): boolean => {
@@ -84,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user?.role_code === "super_admin") return true;
     return permissions.includes(perm);
   };
+  const hasAny = (perms: string[]) => perms.some((p) => has(p));
 
   return (
     <AuthContext.Provider
@@ -91,6 +120,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         role,
         permissions,
+        scope,
+        hasAny,
         loading,
         login,
         logout,

@@ -316,6 +316,8 @@ export default function ObjectivesPage() {
                       <td className="p-3.5 text-center">
                         {isPaid ? (
                           <span className="text-[11px] text-slate-400 font-medium">Encaissé</span>
+                        ) : !has("objectives.claim") ? (
+                          <span className="text-[11px] text-slate-400 font-medium">En attente</span>
                         ) : (
                           <Button
                             size="sm"
@@ -349,6 +351,7 @@ export default function ObjectivesPage() {
         title="Objectifs Commerciaux & Primes"
         subtitle="Quotas par département (Business Unit), validation des seuils et encaissement des primes"
         right={
+          has("objectives.manage") && (
           <Button
             size="sm"
             onClick={() => setIsCreateModalOpen(true)}
@@ -356,6 +359,7 @@ export default function ObjectivesPage() {
           >
             <Plus className="h-4 w-4 mr-1.5" /> Nouvel Objectif
           </Button>
+          )
         }
       />
 

@@ -142,7 +142,7 @@ export function DeliveryHistorySection({ onInvoice, scope }: { onInvoice: (o: an
 }
 
 /* ---------- Configuration : départements + camions & chauffeurs ---------- */
-export function DeliveryConfigSection({ canManage, onChanged }: { canManage: boolean; onChanged: () => void }) {
+export function DeliveryConfigSection({ canManage, canVehicles = canManage, onChanged }: { canManage: boolean; canVehicles?: boolean; onChanged: () => void }) {
   const [depts, setDepts] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,7 +273,7 @@ export function DeliveryConfigSection({ canManage, onChanged }: { canManage: boo
         </GlassCard>
 
         <GlassCard title={`Camions & chauffeurs (${vehicles.length})`} icon={Truck}>
-          {canManage && (
+          {canVehicles && (
             <form onSubmit={addVehicle} className="mb-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-5">
               <input name="veh_plate" required placeholder="Plaque *" aria-label="Plaque" className={`${selectCls} mt-0 font-mono uppercase`} />
               <input name="veh_driver" required placeholder="Chauffeur *" aria-label="Chauffeur" className={`${selectCls} mt-0`} />
@@ -297,7 +297,7 @@ export function DeliveryConfigSection({ canManage, onChanged }: { canManage: boo
                   <th className="px-2.5 py-2 font-semibold">Chauffeur</th>
                   <th className="px-2.5 py-2 font-semibold">Affecté à</th>
                   <th className="px-2.5 py-2 text-right font-semibold">Chargement</th>
-                  {canManage && <th className="px-2.5 py-2" />}
+                  {canVehicles && <th className="px-2.5 py-2" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -315,7 +315,7 @@ export function DeliveryConfigSection({ canManage, onChanged }: { canManage: boo
                     <td className="px-2.5 py-2 text-right tabular-nums">
                       {fmtNum(v.load)}{v.capacity ? ` / ${fmtNum(v.capacity)}` : ""}
                     </td>
-                    {canManage && (
+                    {canVehicles && (
                       <td className="px-2.5 py-2 text-right">
                         {confirmDel === v.id ? (
                           <span role="alertdialog" className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] text-red-800">

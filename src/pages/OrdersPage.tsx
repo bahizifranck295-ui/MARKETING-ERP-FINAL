@@ -48,13 +48,10 @@ export default function OrdersPage() {
     });
   };
 
-  const canApprove =
-    has("orders.approve") ||
-    has("orders.validate") ||
-    user?.role_code === "super_admin" ||
-    user?.role_code === "chef_dept" ||
-    user?.role_code === "dg" ||
-    user?.is_transversal;
+  // Approuver et rejeter sont deux permissions distinctes (vérifiées aussi par le serveur)
+  const canApproveOnly = has("orders.approve");
+  const canReject = has("orders.reject");
+  const canApprove = canApproveOnly || canReject;
 
   // Tri par site ; un utilisateur rattaché à un site ne voit que son site
   const ALL = "all";
@@ -173,6 +170,7 @@ export default function OrdersPage() {
         title="Gestion des Commandes"
         subtitle="Validation, suivi des ventes terrain et historique des commandes"
         right={
+          has("orders.filter") && (
           <div className="flex flex-wrap items-center gap-2" data-orders-scope>
             <select
               aria-label="Site"
@@ -189,6 +187,7 @@ export default function OrdersPage() {
               ))}
             </select>
           </div>
+          )
         }
       />
 
@@ -214,6 +213,7 @@ export default function OrdersPage() {
       )}
 
       {/* Filter and Search Bar */}
+      {has("orders.filter") && (
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -259,6 +259,7 @@ export default function OrdersPage() {
           )}
         </div>
       </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-16">
@@ -346,7 +347,7 @@ export default function OrdersPage() {
                   <div className="flex items-center gap-1.5">
                     {ord.status === "pending_approval" && canApprove && (
                       <>
-                        {isExceeded ? (
+                        {!canApproveOnly ? null : isExceeded ? (
                           <Button
                             size="sm"
                             onClick={() => {
@@ -368,6 +369,7 @@ export default function OrdersPage() {
                             <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approuver
                           </Button>
                         )}
+                        {canReject && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -384,8 +386,10 @@ export default function OrdersPage() {
                         >
                           <XCircle className="h-3.5 w-3.5 mr-1" /> Rejeter
                         </Button>
+                        )}
                       </>
                     )}
+                    {has("orders.print") && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -395,6 +399,7 @@ export default function OrdersPage() {
                     >
                       <FileText className="h-3.5 w-3.5 mr-1 text-[#0F3D68]" /> Voir la facture
                     </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -418,8 +423,6 @@ export default function OrdersPage() {
           creditCheck?.projected_balance ?? (isCredit ? currentBalance + (selectedOrder.total || 0) : currentBalance);
         const creditRemainingAfter =
           creditCheck?.credit_remaining_after ?? Math.max(0, creditLimit - projectedBalance);
-        const isSuperAdminOrDG =
-          user?.role_code === "super_admin" || user?.role_code === "dg" || Boolean(user?.is_transversal);
 
         return (
           <Dialog open onOpenChange={() => setSelectedOrder(null)}>
@@ -603,6 +606,7 @@ export default function OrdersPage() {
                 <Button variant="outline" size="sm" onClick={() => setSelectedOrder(null)} className="h-7.5 px-2.5 text-xs">
                   Fermer
                 </Button>
+                {has("orders.print") && (
                 <Button
                   size="sm"
                   onClick={() => handleViewInvoice(selectedOrder)}
@@ -610,8 +614,10 @@ export default function OrdersPage() {
                 >
                   <FileText className="h-3.5 w-3.5 mr-1" /> Voir la facture
                 </Button>
+                )}
                 {selectedOrder.status === "pending_approval" && canApprove && (
                   <>
+                    {canReject && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -627,7 +633,8 @@ export default function OrdersPage() {
                     >
                       <XCircle className="h-3.5 w-3.5 mr-1" /> Rejeter
                     </Button>
-                    {isExceeded ? (
+                    )}
+                    {!canApproveOnly ? null : isExceeded ? (
                       <div className="flex items-center gap-1">
                         <Button
                           disabled
@@ -637,7 +644,7 @@ export default function OrdersPage() {
                           <AlertCircle className="h-3 w-3 mr-1 text-red-500" />
                           Bloquée (Plafond dépassé)
                         </Button>
-                        {isSuperAdminOrDG && (
+                        {has("orders.override_credit") && (
                           <Button
                             size="sm"
                             onClick={() => handleApprove(selectedOrder.id, true)}

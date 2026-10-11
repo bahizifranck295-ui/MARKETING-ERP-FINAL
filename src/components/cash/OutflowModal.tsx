@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,7 @@ export default function OutflowModal({
     "Autre sortie",
   ]);
   const [showNewCatModal, setShowNewCatModal] = useState(false);
+  const { has } = useAuth();
   const [newCatName, setNewCatName] = useState("");
   const [savingCat, setSavingCat] = useState(false);
 
@@ -252,6 +254,7 @@ export default function OutflowModal({
                 <Label className="text-xs font-semibold text-slate-700">
                   Catégorie de Dépense <span className="text-rose-500">*</span>
                 </Label>
+                {has("cash.expense_categories") && (
                 <Button
                   type="button"
                   size="sm"
@@ -261,6 +264,7 @@ export default function OutflowModal({
                 >
                   <Plus className="h-3 w-3" /> + Créer une catégorie
                 </Button>
+                )}
               </div>
               <select
                 value={form.category}

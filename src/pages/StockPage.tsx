@@ -95,6 +95,9 @@ function TreeButton({ active, onClick, children }: any) {
 
 export default function StockPage() {
   const { has } = useAuth();
+  // Sous-modules : historique (transferts, mouvements) et sites & dépôts selon les permissions
+  const tabAllowed = (id: string) =>
+    id === "transfers" ? has("stock.history") || has("stock.transfer") : id === "movements" ? has("stock.history") : id === "sites" ? has("warehouse.read") : id === "categories" ? has("stock.read") : true;
   const [products, setProducts] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -512,7 +515,7 @@ export default function StockPage() {
               <CalendarDays className="h-4 w-4 text-cyan-200" />
               {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
             </span>
-            {has("stock.write") && (
+            {has("stock.create") && (
               <Button
                 size="sm"
                 onClick={openNewModal}
@@ -524,7 +527,7 @@ export default function StockPage() {
           </div>
         </div>
         <nav aria-label="Sous-modules du stock" className="relative -mx-1 mt-5 flex gap-1 overflow-x-auto px-1 pb-1">
-          {TABS.map((t) => {
+          {TABS.filter((t) => tabAllowed(t.id)).map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
@@ -1001,7 +1004,7 @@ export default function StockPage() {
                     <th className="px-2.5 py-3 font-semibold">{prodScoped ? "Stock (site / dépôt)" : "Stock global"}</th>
                     <th className="px-2.5 py-3 text-right font-semibold">Valeur</th>
                     <th className="px-2.5 py-3 text-center font-semibold">Statut</th>
-                    {has("stock.write") && <th className="px-2.5 py-3 text-center font-semibold">Actions</th>}
+                    {(has("stock.update") || has("stock.adjust")) && <th className="px-2.5 py-3 text-center font-semibold">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1071,9 +1074,10 @@ export default function StockPage() {
                         <td className="px-2.5 py-3 text-center">
                           <StatusPill status={st} />
                         </td>
-                        {has("stock.write") && (
+                        {(has("stock.update") || has("stock.adjust")) && (
                           <td className="px-2.5 py-3 text-center">
                             <div className="flex items-center justify-center gap-1.5">
+                              {has("stock.update") && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1083,6 +1087,8 @@ export default function StockPage() {
                               >
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
+                              )}
+                              {has("stock.adjust") && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1091,6 +1097,7 @@ export default function StockPage() {
                               >
                                 <Sliders className="mr-1 h-3.5 w-3.5" /> Ajuster
                               </Button>
+                              )}
                             </div>
                           </td>
                         )}

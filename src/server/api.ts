@@ -16,12 +16,12 @@ import {
   type Delivery,
   type Credit,
   type Objective,
-  PERMISSION_CATALOG,
-  ALL_PERMISSION_CODES,
 } from "./db";
 import { ensureStockStructure, mountStockStructureRoutes, orderLocation, userSite } from "./stockStructure";
 import { mountStockReportRoutes } from "./stockReport";
 import { appScopeGuard, mountIntegrationRoutes } from "./integration";
+import { installSecurity, mountAuditRoutes, recordAudit, auditNote, cleanGrant } from "./audit";
+import { can, effectivePermissions, isSuperAdmin, scopeOf, inSiteScope, inCategoryScope, orderInCategoryScope, PERM_BY_CODE } from "./permissions";
 import { applyOrderStockOut, mountDeliveryRoutes, restoreOrderStock, tagOrderStockSource } from "./delivery";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "erp_secret_jwt_key_2026";
@@ -48,6 +48,18 @@ export function authenticate(req: Request, res: Response, next: Function) {
 export const apiRouter = express.Router();
 // Deux applications sur la même API : chacune n'accède qu'aux routes de ses modules (voir integration.ts)
 apiRouter.use(appScopeGuard);
+// Permissions (garde de chaque route) et journal d'audit automatique : voir permissions.ts et audit.ts
+installSecurity(apiRouter, (req: any) => {
+  const auth = String(req.headers?.authorization || "");
+  if (!auth.startsWith("Bearer ")) return null;
+  try {
+    const payload = jwt.verify(auth.slice(7), JWT_SECRET) as any;
+    const u = db.users.find((x) => x.id === payload.sub);
+    return u && u.is_active ? u : null;
+  } catch {
+    return null;
+  }
+});
 
 apiRouter.get("/", (req, res) => {
   res.json({ service: "ERP Distribution", status: "ok", version: "0.1.0" });
@@ -69,19 +81,31 @@ apiRouter.post("/auth/login", (req, res) => {
       password === "Admin@2026" ||
       password === "password123");
 
+  const loginCtx = {
+    ip: String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip || "aperçu navigateur",
+    user_agent: String(req.headers["user-agent"] || "").slice(0, 160) || undefined,
+    app: req.headers["x-erp-app"] || undefined,
+    module: "Authentification",
+  };
   if (!user || !isMatch) {
-    db.audit_logs.push({
-      id: uuidv4(),
+    // Échec rattaché au compte visé (s'il existe) : visible dans son cahier d'audit
+    recordAudit({
+      ...loginCtx,
       action: "auth.login",
+      action_type: "security",
+      security: true,
+      actor_id: user?.id,
+      actor_name: user?.full_name,
       actor_email: normalizedEmail,
+      role_code: user?.role_code,
       summary: "Échec de connexion (identifiants invalides)",
       success: false,
-      at: new Date().toISOString(),
     });
     return res.status(401).json({ detail: "Email ou mot de passe incorrect" });
   }
 
   if (!user.is_active) {
+    recordAudit({ ...loginCtx, action: "auth.login", action_type: "security", security: true, actor_id: user.id, actor_name: user.full_name, actor_email: user.email, role_code: user.role_code, summary: "Connexion refusée : compte désactivé", success: false });
     return res.status(403).json({ detail: "Compte désactivé" });
   }
 
@@ -97,15 +121,16 @@ apiRouter.post("/auth/login", (req, res) => {
     { expiresIn: "7d" }
   );
 
-  db.audit_logs.push({
-    id: uuidv4(),
+  recordAudit({
+    ...loginCtx,
     actor_id: user.id,
     actor_name: user.full_name,
     actor_email: user.email,
+    role_code: user.role_code,
     action: "auth.login",
+    action_type: "login",
     summary: `Connexion réussie (${user.email})`,
     success: true,
-    at: new Date().toISOString(),
   });
 
   const { password_hash, ...userPublic } = user;
@@ -141,22 +166,21 @@ apiRouter.post("/auth/logout", (req, res) => {
 apiRouter.get("/auth/me", authenticate, (req, res) => {
   const user = (req as any).user as User;
   const role = db.roles.find((r) => r.code === user.role_code);
-  const permissions =
-    user.role_code === "super_admin"
-      ? ALL_PERMISSION_CODES
-      : role?.permissions || [];
+  // Droits effectifs = modèle du rôle + exceptions individuelles (les retraits l'emportent)
+  const permissions = effectivePermissions(user);
   const { password_hash, ...userPublic } = user;
   res.json({
     user: userPublic,
     role: role || null,
     permissions,
+    scope: scopeOf(user),
   });
 });
 
+// JOURNAL D'AUDIT, catalogue des permissions, rôles (catégories d'utilisateurs) et permissions individuelles
+mountAuditRoutes(apiRouter, authenticate);
+
 // ROLES
-apiRouter.get("/roles/catalog", authenticate, (req, res) => {
-  res.json(PERMISSION_CATALOG);
-});
 
 apiRouter.get("/roles", authenticate, (req, res) => {
   res.json(db.roles);
@@ -169,14 +193,27 @@ apiRouter.get("/roles/:code", authenticate, (req, res) => {
 });
 
 apiRouter.put("/roles/:code", authenticate, (req, res) => {
+  const actor = (req as any).user as User;
   const role = db.roles.find((r) => r.code === req.params.code);
   if (!role) return res.status(404).json({ detail: "Rôle introuvable" });
+  // Le super administrateur garde toujours tous les droits
+  if (role.code === "super_admin") return res.status(403).json({ detail: "Le rôle Super Administrateur est protégé : il conserve tous les droits" });
   if (req.body.name) role.name = req.body.name;
   if (req.body.description !== undefined) role.description = req.body.description;
   if (Array.isArray(req.body.permissions)) {
-    role.permissions = req.body.permissions;
+    const g = cleanGrant(actor, req.body.permissions);
+    if (g.error) return res.status(403).json({ detail: g.error });
+    role.permissions = g.codes;
   }
   role.updated_at = new Date().toISOString();
+  auditNote(req, {
+    action: "permission.role.update",
+    action_type: "permission",
+    security: true,
+    summary: Array.isArray(req.body.permissions)
+      ? `Modèle de permissions du rôle « ${role.name} » modifié (${role.permissions.length} permission(s))`
+      : `Catégorie d'utilisateurs « ${role.name} » modifiée`,
+  });
   res.json(role);
 });
 
@@ -241,8 +278,34 @@ function categoryAccess(body: any) {
   return { all_categories: all, categories, department: all ? "Toutes les catégories" : categories.join(", ") };
 }
 
+/*
+ * Protection des comptes : seul un super administrateur crée, modifie ou désactive un super administrateur ;
+ * un administrateur ne peut attribuer qu'un rôle dont il possède lui-même tous les droits (pas d'élévation).
+ */
+function roleAssignError(actor: User, roleCode?: string) {
+  if (!roleCode || isSuperAdmin(actor)) return null;
+  if (roleCode === "super_admin") return "Seul un super administrateur peut attribuer le rôle Super Administrateur";
+  const role: any = db.roles.find((r) => r.code === roleCode);
+  if (!role) return "Rôle introuvable";
+  if (role.is_active === false) return `Le rôle « ${role.name} » est désactivé`;
+  const mine = new Set(effectivePermissions(actor));
+  const over = (role.permissions || []).filter((c: string) => !mine.has(c));
+  return over.length ? `Vous ne pouvez pas attribuer le rôle « ${role.name} » : il donne des droits que vous ne possédez pas (${over.length})` : null;
+}
+const scopeFieldsChanged = (u: any, body: any) => {
+  const cats = (x: any) => JSON.stringify([...(x || [])].map(String).sort());
+  return (
+    (body.site_id !== undefined && (body.site_id || undefined) !== (u.site_id || undefined)) ||
+    (body.all_categories !== undefined && (body.all_categories === true) !== (u.all_categories === true || !(u.categories || []).length)) ||
+    (body.categories !== undefined && body.all_categories !== true && cats(body.categories) !== cats(u.categories))
+  );
+};
+
 apiRouter.post("/users", authenticate, (req, res) => {
+  const actor = (req as any).user as User;
   const { email, full_name, phone, department, role_code, warehouse_id, site_id, password } = req.body;
+  const roleErr = roleAssignError(actor, role_code || "marketeur");
+  if (roleErr) return res.status(403).json({ detail: roleErr });
   const access = categoryAccess(req.body);
   if (access && !access.all_categories && !access.categories.length) return res.status(400).json({ detail: "Choisissez au moins une catégorie, ou donnez l'accès à toutes les catégories" });
   if (!email || !password) return res.status(400).json({ detail: "Email et mot de passe requis" });
@@ -271,8 +334,24 @@ apiRouter.post("/users", authenticate, (req, res) => {
 });
 
 apiRouter.put("/users/:id", authenticate, (req, res) => {
+  const actor = (req as any).user as User;
   const user = db.users.find((u) => u.id === req.params.id);
   if (!user) return res.status(404).json({ detail: "Utilisateur introuvable" });
+  if (isSuperAdmin(user) && !isSuperAdmin(actor)) return res.status(403).json({ detail: "Le super administrateur est protégé : seul un super administrateur peut le modifier" });
+  const touchesProfile = ["full_name", "phone", "email", "role_code", "password", "is_active", "warehouse_id"].some((k) => req.body[k] !== undefined && (k === "password" ? !!req.body.password : req.body[k] !== (user as any)[k]));
+  if (touchesProfile && !can(actor, "users.update")) return res.status(403).json({ detail: "Permission requise : Modifier un utilisateur", code: "PERMISSION_DENIED" });
+  if (req.body.is_active === false && user.is_active && !can(actor, "users.delete"))
+    return res.status(403).json({ detail: "Permission requise : Désactiver un utilisateur", code: "PERMISSION_DENIED" });
+  if (user.id === actor.id && req.body.is_active === false) return res.status(409).json({ detail: "Vous ne pouvez pas désactiver votre propre compte" });
+  if (scopeFieldsChanged(user, req.body) && !can(actor, "users.scope")) return res.status(403).json({ detail: "Permission requise : Attribuer les sites et départements", code: "PERMISSION_DENIED" });
+  if (req.body.role_code && req.body.role_code !== user.role_code) {
+    const roleErr = roleAssignError(actor, req.body.role_code);
+    if (roleErr) return res.status(403).json({ detail: roleErr });
+  }
+  if (isSuperAdmin(user) && (req.body.is_active === false || (req.body.role_code && req.body.role_code !== "super_admin"))) {
+    const others = db.users.filter((u) => u.id !== user.id && isSuperAdmin(u) && u.is_active).length;
+    if (!others) return res.status(409).json({ detail: "Impossible : c'est le dernier super administrateur actif" });
+  }
   if (req.body.full_name) user.full_name = req.body.full_name;
   if (req.body.phone !== undefined) user.phone = req.body.phone;
   if (req.body.department !== undefined) user.department = req.body.department;
@@ -290,8 +369,13 @@ apiRouter.put("/users/:id", authenticate, (req, res) => {
 });
 
 apiRouter.delete("/users/:id", authenticate, (req, res) => {
+  const actor = (req as any).user as User;
   const user = db.users.find((u) => u.id === req.params.id);
   if (!user) return res.status(404).json({ detail: "Utilisateur introuvable" });
+  if (user.id === actor.id) return res.status(409).json({ detail: "Vous ne pouvez pas désactiver votre propre compte" });
+  if (isSuperAdmin(user) && !isSuperAdmin(actor)) return res.status(403).json({ detail: "Le super administrateur est protégé" });
+  if (isSuperAdmin(user) && !db.users.some((u) => u.id !== user.id && isSuperAdmin(u) && u.is_active))
+    return res.status(409).json({ detail: "Impossible : c'est le dernier super administrateur actif" });
   user.is_active = false;
   user.updated_at = new Date().toISOString();
   res.json({ ok: true });
@@ -474,7 +558,12 @@ export function sessionSiteId(s: CashSession) {
   return s.site_id || userSite(null).id;
 }
 export function cashSiteFor(user?: User | null, requested?: any): string | null {
-  if (cashSiteLocked(user)) return userSite(user).id;
+  if (cashSiteLocked(user)) {
+    // Utilisateur rattaché à plusieurs sites : il choisit parmi ses sites uniquement
+    const r = typeof requested === "string" ? requested : "";
+    const mine = scopeOf(user).site_ids;
+    return r && mine.includes(r) ? r : userSite(user).id;
+  }
   const r = typeof requested === "string" ? requested : "";
   return (r && r !== "all" ? r : null) || userSite(user).id;
 }
@@ -750,9 +839,17 @@ export function getClientFinancialSnapshot(clientId: string, orderTotalUSD: numb
   };
 }
 
+// Périmètre CRM : un client rattaché à un site ou à un département hors périmètre n'est pas visible
+function clientInScope(u: User, c: any) {
+  if (c.site_id && !inSiteScope(u, c.site_id) && ((db as any).sites || []).some((s: any) => s.id === c.site_id)) return false;
+  const bu = c.business_unit;
+  if (bu && db.product_categories.some((x) => x.toLowerCase() === String(bu).toLowerCase()) && !inCategoryScope(u, bu)) return false;
+  return true;
+}
+
 apiRouter.get("/clients", authenticate, (req, res) => {
   const q = ((req.query.q as string) || "").toLowerCase();
-  let list = db.clients;
+  let list = db.clients.filter((c) => clientInScope((req as any).user, c));
   if (q) {
     list = list.filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || (c.phone && c.phone.includes(q)));
   }
@@ -947,7 +1044,7 @@ apiRouter.post("/clients/:id/transactions/:txId/reverse", authenticate, (req, re
 // ORDERS
 apiRouter.get("/orders", authenticate, (req, res) => {
   const user = (req as any).user as User;
-  const canSeeAll = user.role_code === "super_admin" || user.role_code === "chef_dept" || user.is_transversal;
+  const canSeeAll = user.role_code === "super_admin" || user.role_code === "chef_dept" || user.is_transversal || can(user, "orders.all") || can(user, "orders.approve");
   let list = db.orders;
   if (!canSeeAll) list = list.filter((o) => o.marketer_id === user.id);
   const q = ((req.query.q as string) || "").toLowerCase();
@@ -959,6 +1056,8 @@ apiRouter.get("/orders", authenticate, (req, res) => {
   const siteLocked = !!user.site_id && !["super_admin", "dg"].includes(user.role_code) && !user.is_transversal;
   let located = list.map((ord) => ({ ...ord, ...orderLocation(ord) }));
   if (siteLocked) located = located.filter((o) => o.site_id === user.site_id);
+  // Périmètre : sites et départements (catégories de produits) attribués à l'utilisateur
+  located = located.filter((o) => inSiteScope(user, o.site_id) && orderInCategoryScope(user, o));
   const siteQ = req.query.site_id as string;
   const depotQ = req.query.warehouse_id as string;
   if (siteQ && siteQ !== "all") located = located.filter((o) => o.site_id === siteQ);
@@ -966,15 +1065,23 @@ apiRouter.get("/orders", authenticate, (req, res) => {
   res.json(located.map((ord) => ({ ...ord, credit_check: getClientFinancialSnapshot(ord.client_id, ord.total, ord.payment_method) })));
 });
 
+// Une commande hors du périmètre de l'utilisateur est traitée comme introuvable (pas de fuite par identifiant)
+function orderVisibleTo(u: User, o: any) {
+  const loc = orderLocation(o);
+  const own = o.marketer_id === u.id;
+  const all = u.role_code === "super_admin" || u.role_code === "chef_dept" || u.is_transversal || can(u, "orders.all") || can(u, "orders.approve");
+  return (own || all) && inSiteScope(u, loc.site_id) && orderInCategoryScope(u, o);
+}
+
 apiRouter.get("/orders/:id", authenticate, (req, res) => {
   const order = db.orders.find((o) => o.id === req.params.id);
-  if (!order) return res.status(404).json({ detail: "Commande introuvable" });
+  if (!order || !orderVisibleTo((req as any).user, order)) return res.status(404).json({ detail: "Commande introuvable" });
   res.json({ ...order, credit_check: getClientFinancialSnapshot(order.client_id, order.total, order.payment_method) });
 });
 
 apiRouter.get("/orders/:id/credit-check", authenticate, (req, res) => {
   const order = db.orders.find((o) => o.id === req.params.id);
-  if (!order) return res.status(404).json({ detail: "Commande introuvable" });
+  if (!order || !orderVisibleTo((req as any).user, order)) return res.status(404).json({ detail: "Commande introuvable" });
   res.json(getClientFinancialSnapshot(order.client_id, order.total, order.payment_method));
 });
 
@@ -1003,6 +1110,22 @@ apiRouter.post("/orders", authenticate, (req, res) => {
   }
 
   if (!client) return res.status(400).json({ detail: "Client introuvable" });
+
+  // Une commande hors Boutique est créée directement « validée » : elle exige le droit « Créer une commande »,
+  // sinon elle passerait outre l'approbation
+  if (source !== "boutique" && !can(user, "orders.create"))
+    return res.status(403).json({ detail: "Permission requise : Créer une commande (hors Boutique, sans approbation)", code: "PERMISSION_DENIED" });
+  if (source === "boutique" && !can(user, "boutique.order"))
+    return res.status(403).json({ detail: "Permission requise : Passer une commande (panier)", code: "PERMISSION_DENIED" });
+  // Départements de l'utilisateur : il ne commande que les produits de ses catégories
+  const outOfScope = (items || [])
+    .map((it: any) => db.products.find((p) => p.id === it.product_id))
+    .filter((p: any) => p && !inCategoryScope(user, p.category));
+  if (outOfScope.length)
+    return res.status(403).json({
+      detail: `Produit hors de vos départements : ${outOfScope.map((p: any) => p.name).join(", ")}`,
+      code: "SCOPE_DENIED",
+    });
 
   // Produit marqué « Indisponible » (Boutique › Catégories) : la commande est refusée avec un message clair
   const unavailable = (items || [])
@@ -1130,18 +1253,21 @@ function cancelCreditForOrder(order: Order) {
   cr.balance = 0;
 }
 
-// Même règle que l'écran Commandes : seuls les profils autorisés approuvent ou rejettent
-function canApproveOrders(user: User) {
-  if (user.role_code === "super_admin" || user.role_code === "chef_dept" || user.role_code === "dg" || (user as any).is_transversal) return true;
-  const perms = db.roles.find((r) => r.code === user.role_code)?.permissions || [];
-  return perms.includes("orders.approve") || perms.includes("orders.validate");
+// Approbation / rejet : permission (contrôlée par la garde des routes) + périmètre de la commande
+function canApproveOrders(user: User, action: "orders.approve" | "orders.reject" = "orders.approve") {
+  return can(user, action);
 }
 
 apiRouter.post("/orders/:id/approve", authenticate, (req, res) => {
   const user = (req as any).user as User;
   if (!canApproveOrders(user)) return res.status(403).json({ detail: "Vous n'avez pas la permission d'approuver les commandes" });
   const order = db.orders.find((o) => o.id === req.params.id);
-  if (!order) return res.status(404).json({ detail: "Commande introuvable" });
+  if (!order || !orderVisibleTo(user, order)) return res.status(404).json({ detail: "Commande introuvable" });
+  if (req.body?.override_credit_limit === true) {
+    if (!can(user, "orders.override_credit"))
+      return res.status(403).json({ detail: "Permission requise : Approuver en dérogation au plafond de crédit", code: "PERMISSION_DENIED" });
+    auditNote(req, { action: "orders.override_credit", action_type: "approve", security: true, summary: `Commande ${order.code} approuvée en dérogation au plafond de crédit` });
+  }
   // Une commande n'est approuvée (et déstockée) qu'une seule fois
   if (order.status !== "pending_approval")
     return res.status(409).json({ detail: `La commande ${order.code} a déjà été traitée (statut : ${order.status}) : aucun nouveau retrait de stock` });
@@ -1160,9 +1286,9 @@ apiRouter.post("/orders/:id/approve", authenticate, (req, res) => {
 });
 
 apiRouter.post("/orders/:id/reject", authenticate, (req, res) => {
-  if (!canApproveOrders((req as any).user as User)) return res.status(403).json({ detail: "Vous n'avez pas la permission de rejeter les commandes" });
+  if (!canApproveOrders((req as any).user as User, "orders.reject")) return res.status(403).json({ detail: "Vous n'avez pas la permission de rejeter les commandes" });
   const order = db.orders.find((o) => o.id === req.params.id);
-  if (!order) return res.status(404).json({ detail: "Commande introuvable" });
+  if (!order || !orderVisibleTo((req as any).user, order)) return res.status(404).json({ detail: "Commande introuvable" });
   if (order.status === "cancelled") return res.json(order);
   // Commande déjà déstockée : les quantités retournent dans le stock d'origine
   restoreOrderStock(order, (req as any).user as User, "Rejet");
@@ -1174,12 +1300,12 @@ apiRouter.post("/orders/:id/reject", authenticate, (req, res) => {
 });
 
 // BOUTIQUE
-apiRouter.get("/boutique/products", authenticate, (_req, res) => {
+apiRouter.get("/boutique/products", authenticate, (req, res) => {
   // Catalogue de vente (Gestion commerciale) : prix et disponibilité, sans quantités de stock.
   // La source (camion / dépôt) d'une ligne vendue reste décidée par le serveur à la commande.
   res.json(
     db.products
-      .filter((p) => p.is_active)
+      .filter((p) => p.is_active && inCategoryScope((req as any).user, p.category))
       .map((p: any) => {
         const { stock, current_stock, low_stock_threshold, alert_threshold, warehouse_id, ...rest } = p;
         return { ...rest, available: p.available !== false };
@@ -1189,12 +1315,12 @@ apiRouter.get("/boutique/products", authenticate, (_req, res) => {
 
 apiRouter.get("/boutique/my-orders", authenticate, (req, res) => {
   const user = (req as any).user as User;
-  const canSeeAll = user.role_code === "super_admin" || user.is_transversal;
+  const canSeeAll = user.role_code === "super_admin" || user.is_transversal || can(user, "orders.all");
   let orders = db.orders;
   if (!canSeeAll || req.query.only_mine === "true") {
     orders = orders.filter((o) => o.marketer_id === user.id);
   }
-  res.json(orders);
+  res.json(orders.filter((o) => o.marketer_id === user.id || (inSiteScope(user, orderLocation(o).site_id) && orderInCategoryScope(user, o))));
 });
 
 apiRouter.get("/boutique/marketers", authenticate, (req, res) => {
@@ -1279,16 +1405,7 @@ apiRouter.post("/cash/sessions/open", authenticate, (req, res) => {
   };
   db.cash_sessions.unshift(newSession);
 
-  db.audit_logs.push({
-    id: uuidv4(),
-    actor_id: user.id,
-    actor_name: user.full_name,
-    actor_email: user.email,
-    action: "cash.session.open",
-    summary: `Ouverture caisse ${siteNameOf(siteId)} : Initial $${initialUSD} + ${initialCDF} FC (Taux: ${rate})`,
-    success: true,
-    at: new Date().toISOString(),
-  });
+  auditNote(req, { action: "cash.session.open", action_type: "execute", summary: `Ouverture caisse ${siteNameOf(siteId)} : Initial $${initialUSD} + ${initialCDF} FC (Taux: ${rate})` });
 
   res.status(201).json(newSession);
 });
@@ -1366,16 +1483,7 @@ apiRouter.post("/cash/sessions/:id/close", authenticate, (req, res) => {
   active.closing_document_name = closing_document_name || `Bordereau_Cloture_${active.id}.pdf`;
   active.notes = notes || "";
 
-  db.audit_logs.push({
-    id: uuidv4(),
-    actor_id: user.id,
-    actor_name: user.full_name,
-    actor_email: user.email,
-    action: "cash.session.close",
-    summary: `Clôture de session par ${user.full_name}. Réel USD: $${active.actual_balance_usd} (Écart: $${diffUSD}), Réel CDF: ${active.actual_balance_cdf} FC (Écart: ${diffCDF} FC). Motif: ${discrepancy_reason || "Aucun"}`,
-    success: true,
-    at: new Date().toISOString(),
-  });
+  auditNote(req, { action: "cash.session.close", action_type: "execute", summary: `Clôture de session par ${user.full_name}. Réel USD: $${active.actual_balance_usd} (Écart: $${diffUSD}), Réel CDF: ${active.actual_balance_cdf} FC (Écart: ${diffCDF} FC). Motif: ${discrepancy_reason || "Aucun"}` });
 
   res.json(active);
 });
@@ -1536,14 +1644,10 @@ apiRouter.post("/cash/rates", authenticate, (req, res) => {
   db.rates_config.updated_at = new Date().toISOString();
   db.rates_config.updated_by = user.full_name;
 
-  db.audit_logs.unshift({
-    id: uuidv4(),
-    user_id: user.id,
-    user_name: user.full_name,
+  auditNote(req, {
     action: "cash.rates.update",
-    entity: "rates_config",
-    details: `Mise à jour des taux : Général ${db.rates_config.general_rate} FC, Sortie ${db.rates_config.outflow_rate} FC`,
-    at: new Date().toISOString(),
+    action_type: "update",
+    summary: `Mise à jour des taux : Général ${db.rates_config.general_rate} FC, Sortie ${db.rates_config.outflow_rate} FC`,
   });
 
   const productCats = Array.from(new Set(db.products.map((p) => p.category).filter((c): c is string => Boolean(c))));
@@ -2021,12 +2125,18 @@ apiRouter.post("/accounting/movements/:id/toggle-record", authenticate, (req, re
 });
 
 // NOTIFICATIONS
+// Une notification ciblée (utilisateur ou permission, ex. alertes de sécurité) n'est vue que par ses destinataires
+const notificationFor = (u: User) => (n: any) => (!n.user_id || n.user_id === u.id) && (!n.perm || can(u, n.perm));
+
 apiRouter.get("/notifications", authenticate, (req, res) => {
-  res.json(db.notifications);
+  const u = (req as any).user as User;
+  let list = db.notifications.filter(notificationFor(u));
+  if (req.query.unread_only === "true") list = list.filter((n: any) => !n.read && !n.is_read);
+  res.json([...list].sort((a: any, b: any) => String(b.at || "").localeCompare(String(a.at || ""))).slice(0, Number(req.query.limit) || 200));
 });
 
 apiRouter.post("/notifications/mark-all-read", authenticate, (req, res) => {
-  db.notifications.forEach((n) => {
+  db.notifications.filter(notificationFor((req as any).user)).forEach((n) => {
     n.read = true;
     n.is_read = true;
   });
@@ -2070,22 +2180,24 @@ apiRouter.post("/objectives/:id/claim-bonus", authenticate, (req, res) => {
 });
 
 // AUDIT
-apiRouter.get("/audit/logs", authenticate, (req, res) => {
-  res.json(db.audit_logs);
-});
 
 // DASHBOARD & REPORTS
 // Tableau de bord de la Gestion commerciale : chiffres du jour, créances et commandes (aucune donnée de stock)
 apiRouter.get("/dashboard", authenticate, (req, res) => {
+  const me = (req as any).user as User;
   const today = new Date().toDateString();
   const isToday = (d?: string) => !!d && new Date(d).toDateString() === today;
-  const live = db.orders.filter((o) => o.status !== "cancelled" && (o.status as string) !== "rejected");
+  // Indicateurs limités au périmètre de l'utilisateur (sites et départements)
+  const live = db.orders.filter(
+    (o) => o.status !== "cancelled" && (o.status as string) !== "rejected" && inSiteScope(me, orderLocation(o).site_id) && orderInCategoryScope(me, o)
+  );
   const salesToday = live.filter((o) => isToday(o.approved_at || o.created_at));
   const usd = (o: any) => Number(o.amount_usd) || (o.currency === "USD" ? Number(o.amount) || 0 : (Number(o.amount) || 0) / (o.exchange_rate || 2500));
-  const opsToday = db.cash_operations.filter((o) => isToday(o.created_at));
+  const sessionSite = new Map(db.cash_sessions.map((x) => [x.id, sessionSiteId(x)]));
+  const opsToday = db.cash_operations.filter((o: any) => isToday(o.created_at) && inSiteScope(me, sessionSite.get(o.session_id) || null));
   const cashIn = opsToday.filter((o) => o.type === "in").reduce((t, o) => t + usd(o), 0);
   const cashOut = opsToday.filter((o) => o.type === "out").reduce((t, o) => t + usd(o), 0);
-  const openDebts = db.credits.filter((c: any) => c.status !== "cancelled" && (Number(c.remaining ?? c.balance ?? 0) || 0) > 0);
+  const openDebts = db.credits.filter((c: any) => c.status !== "cancelled" && (Number(c.remaining ?? c.balance ?? 0) || 0) > 0 && inSiteScope(me, creditSite(c).site_id));
   const r2 = (n: number) => Math.round(n * 100) / 100;
   res.json({
     sales: { today_total: r2(salesToday.reduce((t, o) => t + (Number(o.total) || 0), 0)), today_count: salesToday.length },
@@ -2095,20 +2207,22 @@ apiRouter.get("/dashboard", authenticate, (req, res) => {
       count: openDebts.length,
       clients: new Set(openDebts.map((c: any) => c.client_id || c.client_name)).size,
     },
-    orders: { pending_approval: db.orders.filter((o) => o.status === "pending_approval").length },
+    orders: { pending_approval: live.filter((o) => o.status === "pending_approval").length },
     objectives: { active: db.objectives.filter((o: any) => o.status !== "completed").length },
   });
 });
 
 apiRouter.get("/reports/summary", authenticate, (req, res) => {
-  const totalSales = db.orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
-  const totalPaid = db.orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.amount_paid, 0);
+  const me = (req as any).user as User;
+  const scoped = db.orders.filter((o) => o.status !== "cancelled" && inSiteScope(me, orderLocation(o).site_id) && orderInCategoryScope(me, o));
+  const totalSales = scoped.reduce((s, o) => s + o.total, 0);
+  const totalPaid = scoped.reduce((s, o) => s + o.amount_paid, 0);
   res.json({
     total: totalSales,
     total_sales: totalSales,
     paid: totalPaid,
     outstanding: Math.max(0, totalSales - totalPaid),
-    count: db.orders.length,
+    count: scoped.length,
   });
 });
 

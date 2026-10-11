@@ -56,7 +56,7 @@ export default function DeliveryPage() {
   const formAnchor = useRef<HTMLDivElement>(null);
 
   // Tri par site et par dépôt des commandes (en-tête) ; un utilisateur rattaché à un site reste sur son site
-  const { user } = useAuth();
+  const { user, has } = useAuth();
   const ALL = "all";
   const siteLocked = !!(user as any)?.site_id && !["super_admin", "dg"].includes(user?.role_code || "") && !(user as any)?.is_transversal;
   const [sites, setSites] = useState<any[]>([]);
@@ -167,7 +167,7 @@ export default function DeliveryPage() {
 
       {/* Sous-sections du module */}
       <nav aria-label="Sections du module Livraison" className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-xs">
-        {SECTIONS.map((s) => {
+        {SECTIONS.filter((s) => s.id !== "config" || has("delivery.config") || has("delivery.vehicles")).map((s) => {
           const Icon = s.icon;
           const active = section === s.id;
           return (
@@ -188,14 +188,14 @@ export default function DeliveryPage() {
 
       {overview &&
         (section === "embarked" ? (
-          <EmbarkedSection canManage={!!overview.can_see_all} onChanged={changed} formAnchor={formAnchor} onInvoice={openInvoice} />
+          <EmbarkedSection canManage={!!overview.can_see_all && has("delivery.embarked")} onChanged={changed} formAnchor={formAnchor} onInvoice={openInvoice} />
         ) : section === "orders" ? (
           <OrdersSection key={`o-${siteFilter}-${depotFilter}`} scope={scope} onChanged={changed} onInvoice={openInvoice} onShowHistory={() => setSection("history")} />
         ) : section === "history" ? (
           <DeliveryHistorySection key={`h-${siteFilter}-${depotFilter}`} scope={scope} onInvoice={openInvoice} />
-        ) : (
-          <DeliveryConfigSection canManage={!!overview.can_see_all} onChanged={changed} />
-        ))}
+        ) : has("delivery.config") || has("delivery.vehicles") ? (
+          <DeliveryConfigSection canManage={!!overview.can_see_all && has("delivery.config")} canVehicles={has("delivery.vehicles")} onChanged={changed} />
+        ) : null)}
 
       {/* FACTURE UNIFIÉE */}
       <InvoiceModal isOpen={Boolean(invoiceOrder)} order={invoiceOrder} onClose={() => setInvoiceOrder(null)} />

@@ -73,6 +73,17 @@ function AvailabilityToggle({ product, canEdit, onChanged }: { product: any; can
       setBusy(false);
     }
   };
+  // Sans la permission : simple indication de l'état (aucun bouton)
+  if (!canEdit)
+    return (
+      <span
+        data-availability={available ? "on" : "off"}
+        className={`inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[10px] font-bold ${available ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}
+      >
+        <span className={`h-1.5 w-1.5 rounded-full ${available ? "bg-emerald-500" : "bg-red-500"}`} />
+        {available ? "Disponible" : "Indisponible"}
+      </span>
+    );
   return (
     <button
       type="button"
@@ -92,7 +103,7 @@ function AvailabilityToggle({ product, canEdit, onChanged }: { product: any; can
 }
 
 /* Produits d'une catégorie (photo, code, stock ou prix) avec suppression confirmée de chaque produit */
-function CategoryProducts({ items, canEdit, onDeleted }: { items: any[]; canEdit: boolean; onDeleted: () => void }) {
+function CategoryProducts({ items, canEdit, canAvailability, onDeleted }: { items: any[]; canEdit: boolean; canAvailability: boolean; onDeleted: () => void }) {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (!items.length) return <p className="px-1 py-2 text-[11px] text-slate-500">Aucun produit dans cette catégorie : elle peut être supprimée.</p>;
@@ -137,7 +148,7 @@ function CategoryProducts({ items, canEdit, onDeleted }: { items: any[]; canEdit
             {IS_COMMERCIAL && (
               <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
                 <span className="text-[10px] font-semibold text-slate-500">Vente</span>
-                <AvailabilityToggle product={p} canEdit={canEdit} onChanged={onDeleted} />
+                <AvailabilityToggle product={p} canEdit={canAvailability} onChanged={onDeleted} />
               </div>
             )}
             {confirm === p.id && (
@@ -335,7 +346,10 @@ export function CategoryPicker({ name, defaultValue = "" }: { name: string; defa
 /* Onglet « Catégories » du module Stock (et Boutique › Catégories en Gestion commerciale) */
 export function CategoriesPanel({ products, onChanged }: { products: any[]; onChanged?: () => void }) {
   const { has } = useAuth();
-  const canEdit = has("stock.create") || has("stock.update") || has("stock.write");
+  // Permissions distinctes : catégories, suppression de produit, disponibilité à la vente
+  const canEdit = has("categories.manage");
+  const canDeleteProduct = has("products.delete");
+  const canAvailability = has("products.availability");
   const { categories, loading, create, remove, reload } = useCategories();
   const [creating, setCreating] = useState(false);
   const [confirm, setConfirm] = useState<string | null>(null);
@@ -453,7 +467,8 @@ export function CategoriesPanel({ products, onChanged }: { products: any[]; onCh
                       )}
                       <CategoryProducts
                         items={productsOf(c.name)}
-                        canEdit={canEdit}
+                        canEdit={canDeleteProduct}
+                        canAvailability={canAvailability}
                         onDeleted={() => {
                           reload();
                           onChanged?.();

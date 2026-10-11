@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { saveFile } from "@/lib/documentViewer";
 import StockReportDashboard from "@/components/reports/StockReportDashboard";
 import StockStateReport from "@/components/reports/StockStateReport";
+import { useAuth } from "@/contexts/AuthContext";
 
 /*
  * Rapports du projet « Stock & Livraison » : état des stocks, livraisons et stock embarqué.
@@ -48,6 +49,7 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone: strin
 }
 
 export default function LogisticsReportsPage() {
+  const { has } = useAuth();
   const [tab, setTab] = useState<Tab>("stock");
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
@@ -166,9 +168,9 @@ export default function LogisticsReportsPage() {
                 </button>
               ))}
             </div>
-            <Button size="sm" onClick={exportDeliveries} disabled={!delivered.length} className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs">
+            {has("stock.export") && <Button size="sm" onClick={exportDeliveries} disabled={!delivered.length} className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs">
               <Download className="h-4 w-4 mr-1.5" /> Exporter (CSV)
-            </Button>
+            </Button>}
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

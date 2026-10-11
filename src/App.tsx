@@ -162,7 +162,7 @@ export default function App() {
             <Route
               path="/admin/roles"
               element={
-                <ProtectedRoute permission="roles.read">
+                <ProtectedRoute anyOf={["roles.read", "users.permissions"]}>
                   <RolesPage />
                 </ProtectedRoute>
               }

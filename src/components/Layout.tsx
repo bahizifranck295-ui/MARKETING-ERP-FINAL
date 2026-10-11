@@ -38,13 +38,13 @@ import {
 
 const BOTTOM_NAV = IS_LOGISTICS
   ? [
-      { to: "/dashboard", label: "Accueil", icon: Home, perm: "dashboard.read" },
+      { to: "/dashboard", label: "Accueil", icon: Home, perm: null },
       { to: "/stock", label: "Stock", icon: Package, perm: "stock.read" },
       { to: "/delivery", label: "Livraisons", icon: Truck, perm: "delivery.read" },
       { to: "/reports", label: "Rapports", icon: BarChart3, perm: "reports.read" },
     ]
   : [
-      { to: "/dashboard", label: "Accueil", icon: Home, perm: "dashboard.read" },
+      { to: "/dashboard", label: "Accueil", icon: Home, perm: null },
       { to: "/boutique", label: "Boutique", icon: Store, perm: "boutique.read" },
       { to: "/clients", label: "Clients", icon: Users, perm: "crm.read" },
       { to: "/orders", label: "Ventes", icon: ShoppingCart, perm: "orders.read" },
@@ -53,7 +53,7 @@ const BOTTOM_NAV = IS_LOGISTICS
 
 // Chaque application n'affiche que ses propres modules (voir src/app/edition.ts)
 const DESKTOP_NAV = [
-  { to: "/dashboard", label: "Tableau de bord", icon: Home, perm: "dashboard.read" },
+  { to: "/dashboard", label: "Tableau de bord", icon: Home, perm: null },
   { to: "/boutique", label: "Boutique / Ventes", icon: Store, perm: "boutique.read" },
   { to: "/orders", label: "Commandes", icon: ShoppingCart, perm: "orders.read" },
   { to: "/clients", label: "Clients (CRM)", icon: Users, perm: "crm.read" },
@@ -75,6 +75,7 @@ export default function Layout() {
   const [online, setOnline] = useState(navigator.onLine);
   const [unread, setUnread] = useState(2);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [openAlerts, setOpenAlerts] = useState(0);
 
   useEffect(() => {
     const up = () => setOnline(true);
@@ -96,6 +97,12 @@ export default function Layout() {
           if (alive && r.data) setUnread(r.data.length || 0);
         })
         .catch(() => {});
+      // Alertes de sécurité ouvertes : uniquement pour les administrateurs autorisés
+      if (inThisApp("/admin/audit") && has("audit.alerts"))
+        api
+          .get("/audit/stats")
+          .then((r) => alive && setOpenAlerts(r.data?.open_alerts || 0))
+          .catch(() => {});
     };
     load();
     const iv = setInterval(load, 30000);
@@ -113,6 +120,10 @@ export default function Layout() {
     .toUpperCase() || "CD";
 
   const isFullWidthPage = location.pathname.startsWith("/accounting");
+  const bottomItems = [
+    ...BOTTOM_NAV,
+    ...(inThisApp("/accounting") ? [{ to: "/accounting", label: "Compta", icon: Calculator, perm: "accounting.read" }] : []),
+  ].filter((item) => !item.perm || has(item.perm));
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] text-slate-900 flex flex-col lg:flex-row">
@@ -249,7 +260,7 @@ export default function Layout() {
                 <DropdownMenuItem onClick={() => navigate("/profile")}>
                   Mon profil
                 </DropdownMenuItem>
-                {inThisApp("/accounting") && (
+                {inThisApp("/accounting") && has("accounting.read") && (
                   <DropdownMenuItem onClick={() => navigate("/accounting")}>
                     Comptabilité
                   </DropdownMenuItem>
@@ -259,7 +270,7 @@ export default function Layout() {
                     Utilisateurs
                   </DropdownMenuItem>
                 )}
-                {has("roles.read") && inThisApp("/admin/roles") && (
+                {(has("roles.read") || has("users.permissions")) && inThisApp("/admin/roles") && (
                   <DropdownMenuItem onClick={() => navigate("/admin/roles")}>
                     Rôles & permissions
                   </DropdownMenuItem>
@@ -287,6 +298,16 @@ export default function Layout() {
           </div>
         </header>
 
+        {openAlerts > 0 && has("audit.alerts") && location.pathname !== "/admin/audit" && (
+          <NavLink
+            to="/admin/audit"
+            data-security-alert
+            className="flex items-center justify-center gap-2 bg-red-600 px-4 py-1.5 text-center text-xs font-bold text-white hover:bg-red-700"
+          >
+            <Bell className="h-3.5 w-3.5" /> {openAlerts} alerte(s) de sécurité à traiter dans le Journal d'audit
+          </NavLink>
+        )}
+
         {/* MAIN BODY */}
         <main
           className={`flex-1 ${
@@ -299,24 +320,14 @@ export default function Layout() {
         </main>
 
         {/* MOBILE BOTTOM NAV (< lg) */}
-        <nav className={`lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 grid ${IS_LOGISTICS ? "grid-cols-4" : "grid-cols-6"} z-40 shadow-lg`}>
-          {BOTTOM_NAV.map((item) => (
-            <BottomLink
-              key={item.to}
-              to={item.to}
-              icon={item.icon}
-              label={item.label}
-              enabled={has(item.perm)}
-            />
+        {/* Modules non autorisés : absents (et non simplement grisés) */}
+        <nav
+          className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 grid z-40 shadow-lg"
+          style={{ gridTemplateColumns: `repeat(${bottomItems.length}, minmax(0, 1fr))` }}
+        >
+          {bottomItems.map((item) => (
+            <BottomLink key={item.to} to={item.to} icon={item.icon} label={item.label} enabled />
           ))}
-          {inThisApp("/accounting") && (
-            <BottomLink
-              to="/accounting"
-              icon={Calculator}
-              label="Compta"
-              enabled={has("accounting.read")}
-            />
-          )}
         </nav>
       </div>
     </div>

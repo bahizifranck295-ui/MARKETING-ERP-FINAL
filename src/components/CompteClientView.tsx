@@ -66,7 +66,7 @@ export default function CompteClientView({
   onBack: () => void;
   onEditClient: (client: any) => void;
 }) {
-  const { user } = useAuth();
+  const { user, has } = useAuth();
   const [accountData, setAccountData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("transactions");
@@ -458,7 +458,7 @@ export default function CompteClientView({
                     <Maximize2 className="h-4 w-4 mr-1.5 text-[#0F3D68]" />
                     Visualiser Doc
                   </Button>
-                ) : (
+                ) : has("crm.documents") && (
                   <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer shadow-xs">
                     <Upload className="h-3.5 w-3.5 text-slate-500" />
                     <span>Uploader Document PDF</span>
@@ -470,6 +470,7 @@ export default function CompteClientView({
                     />
                   </label>
                 )}
+                {has("crm.credit_limit") && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -479,6 +480,8 @@ export default function CompteClientView({
                   <Sliders className="h-4 w-4 mr-1.5 text-slate-500" />
                   Ajuster Plafond
                 </Button>
+                )}
+                {has("crm.update") && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -489,6 +492,7 @@ export default function CompteClientView({
                   <Edit2 className="h-4 w-4 mr-1.5 text-[#0F3D68]" />
                   Modifier Client
                 </Button>
+                )}
               </div>
             </div>
           </div>
@@ -745,6 +749,7 @@ export default function CompteClientView({
                 >
                   {sortOrder === "asc" ? "Chronologique" : "Plus récents"}
                 </Button>
+                {has("crm.export") && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -759,6 +764,7 @@ export default function CompteClientView({
                   )}
                   <span>Export PDF ({filteredTransactions.length})</span>
                 </Button>
+                )}
               </div>
             </div>
 
@@ -861,7 +867,7 @@ export default function CompteClientView({
                           </td>
                           <td className="px-4 py-3 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
-                              {isOrder && (
+                              {isOrder && has("orders.print") && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -872,7 +878,7 @@ export default function CompteClientView({
                                   <FileText className="h-3 w-3 mr-1 text-[#0F3D68]" /> Facture
                                 </Button>
                               )}
-                              {!isOrder && (
+                              {!isOrder && has("cash.export") && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -884,7 +890,7 @@ export default function CompteClientView({
                                   Visualiser le bordereau
                                 </Button>
                               )}
-                              {tx.status !== "cancelled" && (
+                              {tx.status !== "cancelled" && has("crm.reverse") && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
