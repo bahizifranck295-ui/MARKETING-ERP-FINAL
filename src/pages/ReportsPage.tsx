@@ -49,6 +49,8 @@ import { LOGO_ALT, LOGO_SRC } from "@/app/brand";
 
 export default function ReportsPage() {
   const { user, has } = useAuth();
+  // Total des créances (module Crédits) : visible avec un droit sur les créances
+  const canSeeReceivables = has("credits.read") || has("reports.credits");
   // Données du Livre de caisse : uniquement avec la permission correspondante (sinon jamais chargées)
   const canCash = has("reports.cash") || has("cash.read");
   const none = Promise.resolve({ data: [] as any });
@@ -725,7 +727,7 @@ export default function ReportsPage() {
           { key: "receivables", label: "Total créances accumulées", icon: Layers, tone: "blue", badge: `${filteredReceivables.length} dette(s)`, sub: "Créances en cours (module Crédits)", goodUp: false },
           { key: "expenses", label: "Dépenses de caisse", icon: Wallet, tone: "amber", badge: null, sub: "Sorties de caisse de la période", goodUp: false },
           { key: "net", label: "Bénéfice net réel", icon: TrendingUp, tone: "purple", badge: null, sub: "Bénéfice brut − dépenses de caisse", goodUp: true },
-        ] as const).map((k) => {
+        ] as const).filter((k) => k.key !== "receivables" || canSeeReceivables).map((k) => {
           const Icon = k.icon;
           // Créances : total en cours, identique au module Crédits (pas de comparaison de période)
           const cur = k.key === "receivables" ? receivablesTotal : kpiCur[k.key];

@@ -44,7 +44,7 @@ const P = (
 export const PERMISSIONS: PermDef[] = [
   // ---------------- Gestion commerciale ----------------
   ...P("commercial", "Tableau de bord", "Indicateurs", [
-    ["dashboard.read", "Voir les indicateurs (ventes, caisse, créances)", "view", { legacy: ["*"] }],
+    ["dashboard.read", "Voir le tableau de bord (chiffre d'affaires, bénéfice net, créances, ventes, clients, caisse, graphiques)", "view", { legacy: ["*"] }],
   ]),
   ...P("commercial", "Boutique", "Catalogue", [
     ["boutique.read", "Consulter la boutique et le catalogue", "view", { legacy: ["boutique.read"] }],
@@ -107,7 +107,7 @@ export const PERMISSIONS: PermDef[] = [
     ["accounting.export", "Exporter les écritures (PDF)", "export", { legacy: ["accounting.read"], requires: ["accounting.read"], ui_only: true }],
   ]),
   ...P("commercial", "Rapports", "Rapports commerciaux", [
-    ["reports.read", "Consulter les rapports (vue d'ensemble)", "view", { legacy: ["reports.read"] }],
+    ["reports.read", "Consulter les rapports (vue d'ensemble, par jour, semaine, mois ou année)", "view", { legacy: ["reports.read"] }],
     ["reports.sales", "Rapport des ventes (fiches par catégorie)", "view", { legacy: ["reports.read"], requires: ["reports.read"] }],
     ["reports.cash", "Livre de caisse", "view", { legacy: ["reports.read"], requires: ["reports.read"] }],
     ["reports.credits", "Créances & marketeurs", "view", { legacy: ["reports.read"], requires: ["reports.read"] }],
@@ -123,7 +123,7 @@ export const PERMISSIONS: PermDef[] = [
     ["users.create", "Créer un utilisateur", "create", { legacy: ["users.create"], requires: ["users.read"], sensitive: true }],
     ["users.update", "Modifier un utilisateur (profil, rôle, mot de passe)", "update", { legacy: ["users.update"], requires: ["users.read"], sensitive: true }],
     ["users.delete", "Désactiver un utilisateur", "delete", { legacy: ["users.delete"], requires: ["users.read"], sensitive: true }],
-    ["users.scope", "Attribuer les sites et départements (périmètre)", "manage", { legacy: ["users.update"], requires: ["users.read"], sensitive: true }],
+    ["users.scope", "Attribuer les départements (périmètre)", "manage", { legacy: ["users.update"], requires: ["users.read"], sensitive: true }],
   ]),
   ...P("commercial", "Rôles & permissions", "Rôles & modèles de permissions", [
     ["roles.read", "Consulter les rôles et leurs modèles de permissions", "view", { legacy: ["roles.read"] }],
@@ -137,7 +137,7 @@ export const PERMISSIONS: PermDef[] = [
     ["audit.read", "Consulter le journal d'audit et les cahiers des utilisateurs", "view", { legacy: ["audit.read"] }],
     ["audit.details", "Voir les détails sensibles (anciennes / nouvelles valeurs, IP, session)", "view", { legacy: ["audit.read"], requires: ["audit.read"], sensitive: true }],
     ["audit.alerts", "Recevoir et traiter les alertes de sécurité", "manage", { legacy: ["audit.read"], requires: ["audit.read"], sensitive: true }],
-    ["audit.export", "Exporter le journal d'audit (CSV)", "export", { legacy: ["audit.read"], requires: ["audit.read"], ui_only: true }],
+    ["audit.export", "Exporter le journal d'audit et les cahiers (PDF)", "export", { legacy: ["audit.read"], requires: ["audit.read"], ui_only: true }],
   ]),
   // ---------------- Stock & Livraison ----------------
   ...P("logistique", "Stock", "Produits & dépôts", [
@@ -147,8 +147,8 @@ export const PERMISSIONS: PermDef[] = [
     ["stock.adjust", "Ajuster le stock (inventaire)", "update", { legacy: ["stock.adjust"], requires: ["stock.read"], sensitive: true }],
     ["stock.transfer", "Transférer du stock entre dépôts", "execute", { legacy: ["stock.transfer"], requires: ["stock.read"], sensitive: true }],
     ["stock.history", "Consulter l'historique des mouvements et transferts", "view", { legacy: ["stock.read"], requires: ["stock.read"] }],
-    ["warehouse.read", "Consulter les sites et dépôts", "view", { legacy: ["warehouse.read", "stock.read"] }],
-    ["warehouse.manage", "Créer / modifier les sites et dépôts", "manage", { legacy: ["warehouse.manage"], requires: ["warehouse.read"], sensitive: true }],
+    ["warehouse.read", "Consulter les dépôts", "view", { legacy: ["warehouse.read", "stock.read"] }],
+    ["warehouse.manage", "Créer / modifier les dépôts", "manage", { legacy: ["warehouse.manage"], requires: ["warehouse.read"], sensitive: true }],
   ]),
   ...P("logistique", "Stock", "Rapports d'état de stock", [
     ["stock.reports", "Générer et consulter les rapports d'état de stock", "view", { legacy: ["stock.read"] }],
