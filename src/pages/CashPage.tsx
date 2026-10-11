@@ -583,7 +583,9 @@ export default function CashPage() {
         marketerName: ord.marketer_name,
         clientName: ord.client_name,
         orderCode: ord.code,
-        reason: `Versement espèces commande ${ord.code} pour ${ord.client_name} (Marketeur: ${ord.marketer_name || "Ventes"})`,
+        reason: Array.isArray((ord as any).order_ids)
+          ? `Versement espèces de ${ord.marketer_name} · commandes ${ord.code}`
+          : `Versement espèces commande ${ord.code} pour ${ord.client_name} (Marketeur: ${ord.marketer_name || "Ventes"})`,
         billetage: billetData,
       };
 
@@ -591,6 +593,8 @@ export default function CashPage() {
 
       await api.post("/cash/marketer-deposits/approve", {
         order_id: ord.id,
+        // Versement d'un marketeur : toutes ses ventes au comptant en attente en une seule fois
+        ...(Array.isArray((ord as any).order_ids) ? { order_ids: (ord as any).order_ids } : {}),
         amount: ord.total,
         currency: "USD",
         exchange_rate: orderFx,
@@ -600,7 +604,11 @@ export default function CashPage() {
         billetage: billetData,
       });
 
-      toast.success(`Commande ${ord.code} encaissée avec succès !`);
+      toast.success(
+        Array.isArray((ord as any).order_ids)
+          ? `Versement de ${ord.marketer_name} encaissé (${(ord as any).order_ids.length} commande(s)) !`
+          : `Commande ${ord.code} encaissée avec succès !`
+      );
       setSelectedOrderForBilletage(null);
       setSlipModalData({
         receiptData,
@@ -1291,7 +1299,23 @@ export default function CashPage() {
                 <Button
                   size="sm"
                   disabled={!m.pending_orders_count}
-                  onClick={() => setIsInflowOpen(true)}
+                  onClick={() => {
+                    // Ouvre directement le billetage (USD / FC) de toutes les ventes en attente du marketeur
+                    const pending = (m.orders || []).filter((o: any) => (o.cash_deposit_status || "pending_deposit") === "pending_deposit");
+                    if (!pending.length) return;
+                    setSelectedOrderForBilletage({
+                      id: pending[0].id,
+                      order_ids: pending.map((o: any) => o.id),
+                      code: pending.map((o: any) => o.code).join(", "),
+                      client_name: Array.from(new Set(pending.map((o: any) => o.client_name))).join(", "),
+                      marketer_name: m.marketer_name,
+                      total: Math.round(pending.reduce((t: number, o: any) => t + (Number(o.total) || 0), 0) * 100) / 100,
+                      fx_rate: pending[0].fx_rate,
+                      fx_category: pending[0].fx_category,
+                    });
+                    setOrderBilletUSD({ "100": 0, "50": 0, "20": 0, "10": 0, "5": 0, "1": 0 });
+                    setOrderBilletCDF({ "20000": 0, "10000": 0, "5000": 0, "1000": 0, "500": 0 });
+                  }}
                   className="w-full h-8 text-xs bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-medium"
                 >
                   <Coins className="w-3.5 h-3.5 mr-1.5" />
@@ -1823,14 +1847,21 @@ export default function CashPage() {
           <DialogContent className="max-w-xl">
             <DialogHeader>
               <DialogTitle className="text-base font-bold flex items-center justify-between">
-                <span>Encaissement Commande : {selectedOrderForBilletage.code}</span>
+                <span>
+                  {Array.isArray(selectedOrderForBilletage.order_ids)
+                    ? `Versement de ${selectedOrderForBilletage.marketer_name} · ${selectedOrderForBilletage.order_ids.length} commande(s)`
+                    : `Encaissement Commande : ${selectedOrderForBilletage.code}`}
+                </span>
                 <span className="text-sm font-bold text-emerald-600">
                   {fmtMoney(selectedOrderForBilletage.total, "USD")}
                 </span>
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
-                Client : <strong>{selectedOrderForBilletage.client_name}</strong> | Marketeur :{" "}
-                <strong>{selectedOrderForBilletage.marketer_name || "Ventes"}</strong>
+                {Array.isArray(selectedOrderForBilletage.order_ids) && (
+                  <span className="block mb-1" data-no-translate>Commandes : {selectedOrderForBilletage.code}</span>
+                )}
+                Client : <strong data-no-translate>{selectedOrderForBilletage.client_name}</strong> | Marketeur :{" "}
+                <strong data-no-translate>{selectedOrderForBilletage.marketer_name || "Ventes"}</strong>
               </DialogDescription>
             </DialogHeader>
 
