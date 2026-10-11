@@ -165,7 +165,7 @@ export default function AuditPage() {
             key={p.id}
             type="button"
             onClick={() => setPeriod(p.id)}
-            className={`h-8 rounded-xl border px-3 text-xs font-semibold ${period === p.id ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+            className={`h-8 rounded-xl border px-3 text-xs font-semibold ${period === p.id ? "border-brand bg-brand text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
           >
             {p.label}
           </button>
@@ -180,7 +180,7 @@ export default function AuditPage() {
 
       {/* Indicateurs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5" data-audit-kpis>
-        <Kpi icon={Users} label="Utilisateurs" value={stats?.users_total} tone="text-[#0F3D68] bg-[#0F3D68]/10" />
+        <Kpi icon={Users} label="Utilisateurs" value={stats?.users_total} tone="text-brand bg-brand/10" />
         <Kpi icon={UserCheck} label="Comptes actifs" value={stats?.users_active} tone="text-emerald-700 bg-emerald-50" />
         <Kpi icon={Clock} label="Connectés (24 h)" value={stats?.users_recent} tone="text-sky-700 bg-sky-50" />
         <Kpi icon={Activity} label="Actions sur la période" value={stats?.actions} tone="text-violet-700 bg-violet-50" />
@@ -196,7 +196,7 @@ export default function AuditPage() {
               type="button"
               onClick={() => setTab(t.id)}
               aria-current={tab === t.id ? "page" : undefined}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold ${tab === t.id ? "bg-[#0F3D68] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold ${tab === t.id ? "bg-brand text-white" : "text-slate-600 hover:bg-slate-100"}`}
             >
               <Icon className="h-4 w-4" /> {t.label}
               {!!(t as any).badge && <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white">{(t as any).badge}</span>}
@@ -304,7 +304,7 @@ export default function AuditPage() {
           <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
             <span className="font-bold text-slate-700">Journal global</span>
             {role !== "all" && (
-              <span className="rounded-full bg-[#0F3D68]/10 px-2 py-0.5 font-semibold text-[#0F3D68]">
+              <span className="rounded-full bg-brand/10 px-2 py-0.5 font-semibold text-brand">
                 Catégorie : {roles.find((r) => r.code === role)?.name || role}
                 <button type="button" onClick={() => setRole("all")} className="ml-1 font-bold" aria-label="Retirer le filtre de catégorie">
                   ×
@@ -339,7 +339,7 @@ function Avatar({ u, size = "h-12 w-12 text-sm" }: { u: any; size?: string }) {
   const [broken, setBroken] = useState(false);
   const photo = u.photo_url || u.avatar_url || u.image_url;
   if (photo && !broken) return <img src={photo} alt="" onError={() => setBroken(true)} className={`${size} shrink-0 rounded-full object-cover`} />;
-  return <span className={`${size} grid shrink-0 place-items-center rounded-full bg-[#0F3D68] font-bold text-white`}>{initials(u.full_name)}</span>;
+  return <span className={`${size} grid shrink-0 place-items-center rounded-full bg-brand font-bold text-white`}>{initials(u.full_name)}</span>;
 }
 
 function UserCard({ u, sites, onOpen }: { u: any; sites: any[]; onOpen: () => void }) {
@@ -352,7 +352,7 @@ function UserCard({ u, sites, onOpen }: { u: any; sites: any[]; onOpen: () => vo
           <div className="truncate text-sm font-bold text-slate-900" data-no-translate>{u.full_name}</div>
           <div className="truncate text-[11px] text-slate-500" data-no-translate>{u.email}</div>
           <div className="mt-1 flex flex-wrap gap-1">
-            <span className="rounded-full bg-[#0F3D68]/10 px-2 py-0.5 text-[10px] font-bold text-[#0F3D68]">{u.role_name}</span>
+            <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">{u.role_name}</span>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${u.is_active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{u.is_active ? "Actif" : "Inactif"}</span>
             {u.exceptions > 0 && <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">{u.exceptions} exception(s)</span>}
           </div>
@@ -380,7 +380,7 @@ function UserCard({ u, sites, onOpen }: { u: any; sites: any[]; onOpen: () => vo
             <ShieldAlert className="h-3.5 w-3.5" /> {u.denied_count} refus
           </span>
         ) : (
-          <span className="font-semibold text-[#0F3D68] opacity-0 transition group-hover:opacity-100">Ouvrir le cahier →</span>
+          <span className="font-semibold text-brand opacity-0 transition group-hover:opacity-100">Ouvrir le cahier →</span>
         )}
       </div>
     </button>
@@ -416,7 +416,7 @@ function Notebook({ u, range, modules, sites, onClose }: { u: any; range: any; m
               )}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-[#0F3D68]/10 px-2 py-0.5 text-[10px] font-bold text-[#0F3D68]">{u.role_name}</span>
+              <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">{u.role_name}</span>
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${u.is_active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{u.is_active ? "Actif" : "Inactif"}</span>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">Sites : {u.sites}</span>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600" data-no-translate>Départements : {u.departments}</span>
@@ -426,7 +426,7 @@ function Notebook({ u, range, modules, sites, onClose }: { u: any; range: any; m
             </div>
           </div>
           {has("users.permissions") && u.role_code !== "super_admin" && (
-            <Link to={`/admin/roles?user=${u.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-[#0F3D68]">
+            <Link to={`/admin/roles?user=${u.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-brand">
               <KeyRound className="h-4 w-4" /> Permissions
             </Link>
           )}
@@ -455,7 +455,7 @@ function Categories({ roles, users, onChanged, onUsers, onActivity }: { roles: a
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500">Les catégories d'utilisateurs sont les rôles de l'administration : un seul référentiel, partagé avec le module Permissions.</p>
         {has("roles.manage") && (
-          <Button size="sm" onClick={() => setEditing({})} className="h-9 rounded-xl bg-[#0F3D68] text-xs text-white hover:bg-[#0B2F52]">
+          <Button size="sm" onClick={() => setEditing({})} className="h-9 rounded-xl bg-brand text-xs text-white hover:bg-brand-strong">
             <Plus className="mr-1.5 h-4 w-4" /> Nouvelle catégorie
           </Button>
         )}
@@ -553,7 +553,7 @@ function CategoryDialog({ role, onClose, onSaved }: { role: any; onClose: () => 
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit" disabled={saving || !name.trim()} className="bg-[#0F3D68] text-white">
+            <Button type="submit" disabled={saving || !name.trim()} className="bg-brand text-white">
               Enregistrer
             </Button>
           </DialogFooter>

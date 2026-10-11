@@ -65,10 +65,10 @@ export default function PremidisLogo({
       </svg>
       {showText && (
         <div className="flex flex-col">
-          <span className="font-black text-sm tracking-widest text-[#211A5C] leading-none">
+          <span className="font-black text-sm tracking-widest text-ink leading-none">
             PREMIDIS
           </span>
-          <span className="text-[10px] font-black tracking-[0.28em] text-[#211A5C] leading-tight">
+          <span className="text-[10px] font-black tracking-[0.28em] text-ink leading-tight">
             S.A.R.L
           </span>
         </div>

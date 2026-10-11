@@ -283,7 +283,7 @@ export function DeliveryConfigSection({ canManage, canVehicles = canManage, onCh
               </select>
               <div className="col-span-2 flex gap-2 md:col-span-1">
                 <input name="veh_capacity" type="number" min={1} placeholder="Capacité" aria-label="Capacité (unités)" className={`${selectCls} mt-0`} />
-                <Button type="submit" size="sm" className="h-9 rounded-xl bg-[#0F3D68] px-2.5 text-white" aria-label="Ajouter le camion">
+                <Button type="submit" size="sm" className="h-9 rounded-xl bg-brand px-2.5 text-white" aria-label="Ajouter le camion">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>

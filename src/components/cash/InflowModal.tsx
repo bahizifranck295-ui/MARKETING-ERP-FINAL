@@ -357,7 +357,7 @@ export default function InflowModal({
                 setVerseurName("");
                 setMotif("");
               }}
-              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold shadow-xs focus:border-[#0F3D68] focus:outline-none"
+              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold shadow-xs focus:border-brand focus:outline-none"
             >
               <option value="Versement journalier de marketeur dans les différents comptes clients">
                 1. Versement journalier de marketeur dans les différents comptes clients
@@ -386,7 +386,7 @@ export default function InflowModal({
               <select
                 value={department}
                 onChange={(e) => handleDepartmentChange(e.target.value)}
-                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs shadow-xs focus:border-[#0F3D68] focus:outline-none"
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs shadow-xs focus:border-brand focus:outline-none"
               >
                 {availableDepartments.map((dept) => (
                   <option key={dept} value={dept}>
@@ -407,7 +407,7 @@ export default function InflowModal({
                 <select
                   value={marketerName}
                   onChange={(e) => handleMarketerChange(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium shadow-xs focus:border-[#0F3D68] focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium shadow-xs focus:border-brand focus:outline-none"
                 >
                   <option value="">-- Choisir un marketeur --</option>
                   {marketers.map((m) => (
@@ -429,14 +429,14 @@ export default function InflowModal({
                         Cliquez sur <strong>"Encaisser"</strong> pour ouvrir le billetage physique et valider la commande.
                       </p>
                     </div>
-                    <span className="text-xs font-bold bg-[#0F3D68]/10 text-[#0F3D68] px-2.5 py-1 rounded-md">
+                    <span className="text-xs font-bold bg-brand/10 text-brand px-2.5 py-1 rounded-md">
                       {marketerOrders.length} commande(s)
                     </span>
                   </div>
 
                   {loadingOrders ? (
                     <div className="py-8 text-center text-slate-400">
-                      <Loader2 className="h-5 w-5 animate-spin mx-auto mb-1 text-[#0F3D68]" />
+                      <Loader2 className="h-5 w-5 animate-spin mx-auto mb-1 text-brand" />
                       Recherche des commandes...
                     </div>
                   ) : marketerOrders.length === 0 ? (
@@ -491,7 +491,7 @@ export default function InflowModal({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                    <Users className="h-4 w-4 text-[#0F3D68]" /> CLIENTS AYANT UNE DETTE
+                    <Users className="h-4 w-4 text-brand" /> CLIENTS AYANT UNE DETTE
                   </h4>
                   <span className="text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-lg">
                     {filteredDebtors.length} débiteur(s)
@@ -523,7 +523,7 @@ export default function InflowModal({
                         });
                       }}
                       className={`p-3 flex items-center justify-between cursor-pointer transition-all ${
-                        isSelected ? "bg-blue-50/80 border-l-4 border-l-[#0F3D68]" : "hover:bg-slate-50"
+                        isSelected ? "bg-blue-50/80 border-l-4 border-l-brand" : "hover:bg-slate-50"
                       }`}
                     >
                       <div>

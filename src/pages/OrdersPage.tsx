@@ -232,7 +232,7 @@ export default function OrdersPage() {
                 onClick={() => setStatusFilter(st)}
                 className={`px-3 py-2 rounded-xl font-medium border whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                   statusFilter === st
-                    ? "bg-[#0F3D68] text-white border-[#0F3D68]"
+                    ? "bg-brand text-white border-brand"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                 }`}
               >
@@ -248,7 +248,7 @@ export default function OrdersPage() {
                 {st === "pending_approval" && pendingCount > 0 && (
                   <span
                     className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${
-                      statusFilter === st ? "bg-white text-[#0F3D68]" : "bg-amber-500 text-white"
+                      statusFilter === st ? "bg-white text-brand" : "bg-amber-500 text-white"
                     }`}
                   >
                     {pendingCount}
@@ -394,10 +394,10 @@ export default function OrdersPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleViewInvoice(ord)}
-                      className="h-8 rounded-xl border-slate-200 text-slate-700 hover:text-[#0F3D68] hover:bg-slate-50 text-xs px-2.5 font-semibold"
+                      className="h-8 rounded-xl border-slate-200 text-slate-700 hover:text-brand hover:bg-slate-50 text-xs px-2.5 font-semibold"
                       title="Voir la facture officielle"
                     >
-                      <FileText className="h-3.5 w-3.5 mr-1 text-[#0F3D68]" /> Voir la facture
+                      <FileText className="h-3.5 w-3.5 mr-1 text-brand" /> Voir la facture
                     </Button>
                     )}
                   </div>
@@ -469,7 +469,7 @@ export default function OrdersPage() {
               </div>
 
               <div className="rounded-lg border border-slate-200 overflow-hidden shadow-2xs shrink-0">
-                <div className="bg-[#0F3D68] text-white px-2.5 py-1 flex items-center justify-between">
+                <div className="bg-brand text-white px-2.5 py-1 flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <ShieldAlert className="h-3 w-3 text-amber-300" />
                     <span className="font-bold text-[10.5px] uppercase tracking-wide">
@@ -595,7 +595,7 @@ export default function OrdersPage() {
                 <div className="bg-slate-50 border-t border-slate-200 px-2.5 py-1 flex items-center justify-between">
                   <span className="font-bold text-[10px] text-slate-700 uppercase">Total Commande :</span>
                   <div className="text-right">
-                    <span className="text-xs sm:text-sm font-black text-[#0F3D68] font-mono">
+                    <span className="text-xs sm:text-sm font-black text-brand font-mono">
                       {fmtMoney(selectedOrder.total, selectedOrder.currency || "USD")}
                     </span>
                   </div>
@@ -610,7 +610,7 @@ export default function OrdersPage() {
                 <Button
                   size="sm"
                   onClick={() => handleViewInvoice(selectedOrder)}
-                  className="h-7.5 px-2.5 bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs font-semibold"
+                  className="h-7.5 px-2.5 bg-brand hover:bg-brand-strong text-white text-xs font-semibold"
                 >
                   <FileText className="h-3.5 w-3.5 mr-1" /> Voir la facture
                 </Button>

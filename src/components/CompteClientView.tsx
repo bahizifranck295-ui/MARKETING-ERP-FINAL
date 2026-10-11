@@ -292,7 +292,7 @@ export default function CompteClientView({
   if (loading && !accountData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-3">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0F3D68]" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
         <p className="text-sm text-slate-500 font-medium">Chargement du compte client...</p>
       </div>
     );
@@ -304,7 +304,7 @@ export default function CompteClientView({
         <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-2" />
         <h3 className="text-lg font-semibold text-slate-800">Compte introuvable</h3>
         <p className="text-sm text-slate-500 mt-1">Impossible de charger les données du client.</p>
-        <Button onClick={onBack} className="mt-4 bg-[#0F3D68]">
+        <Button onClick={onBack} className="mt-4 bg-brand">
           <ArrowLeft className="h-4 w-4 mr-1" /> Retour
         </Button>
       </div>
@@ -352,7 +352,7 @@ export default function CompteClientView({
               <div className="flex items-start md:items-center gap-4">
                 <div className="relative group shrink-0">
                   <div
-                    className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#0F3D68] to-[#1E62A0] text-white flex items-center justify-center font-bold text-2xl shadow-md overflow-hidden border-2"
+                    className="h-20 w-20 rounded-2xl bg-gradient-to-br from-brand to-brand text-white flex items-center justify-center font-bold text-2xl shadow-md overflow-hidden border-2"
                     style={{ borderColor: prodStyle.cardBorderHex }}
                   >
                     {client?.photo_url ? (
@@ -372,7 +372,7 @@ export default function CompteClientView({
                   </div>
                   <button
                     onClick={() => setPhotoModalOpen(true)}
-                    className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white border border-slate-200 shadow-xs flex items-center justify-center text-slate-600 hover:text-[#0F3D68] transition-colors"
+                    className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white border border-slate-200 shadow-xs flex items-center justify-center text-slate-600 hover:text-brand transition-colors"
                     title="Changer la photo"
                   >
                     <Camera className="h-3.5 w-3.5" />
@@ -389,7 +389,7 @@ export default function CompteClientView({
                     >
                       {client?.code}
                     </Badge>
-                    <Badge className="bg-[#0F3D68]/10 text-[#0F3D68] border-0 text-xs px-2 py-0.5 font-medium">
+                    <Badge className="bg-brand/10 text-brand border-0 text-xs px-2 py-0.5 font-medium">
                       {client?.type || "Client"}
                     </Badge>
                     {client?.product_name ? (
@@ -414,7 +414,7 @@ export default function CompteClientView({
                     {client?.phone && (
                       <a
                         href={`tel:${client.phone}`}
-                        className="flex items-center gap-1 hover:text-[#0F3D68] transition-colors font-medium text-slate-700"
+                        className="flex items-center gap-1 hover:text-brand transition-colors font-medium text-slate-700"
                       >
                         <Phone className="h-3.5 w-3.5 text-slate-400" />
                         <span>{client.phone}</span>
@@ -424,7 +424,7 @@ export default function CompteClientView({
                     {client?.secondary_phone && (
                       <a
                         href={`tel:${client.secondary_phone}`}
-                        className="flex items-center gap-1 hover:text-[#0F3D68] transition-colors font-medium text-slate-700"
+                        className="flex items-center gap-1 hover:text-brand transition-colors font-medium text-slate-700"
                       >
                         <Phone className="h-3.5 w-3.5 text-slate-400 opacity-70" />
                         <span>{client.secondary_phone}</span>
@@ -452,10 +452,10 @@ export default function CompteClientView({
                         client?.id
                       )
                     }
-                    className="rounded-xl border border-sky-300 text-[#0F3D68] bg-sky-50/70 hover:bg-sky-100 text-xs font-bold shadow-xs"
+                    className="rounded-xl border border-sky-300 text-brand bg-sky-50/70 hover:bg-sky-100 text-xs font-bold shadow-xs"
                     title="Consulter le document en plein écran dans le visualiseur natif"
                   >
-                    <Maximize2 className="h-4 w-4 mr-1.5 text-[#0F3D68]" />
+                    <Maximize2 className="h-4 w-4 mr-1.5 text-brand" />
                     Visualiser Doc
                   </Button>
                 ) : has("crm.documents") && (
@@ -486,10 +486,10 @@ export default function CompteClientView({
                   variant="outline"
                   size="sm"
                   onClick={() => onEditClient && client && onEditClient(client)}
-                  className="rounded-xl border-[#0F3D68]/30 hover:bg-sky-50 text-[#0F3D68] text-xs font-bold shadow-xs cursor-pointer"
+                  className="rounded-xl border-brand/30 hover:bg-sky-50 text-brand text-xs font-bold shadow-xs cursor-pointer"
                   title="Modifier les informations du client"
                 >
-                  <Edit2 className="h-4 w-4 mr-1.5 text-[#0F3D68]" />
+                  <Edit2 className="h-4 w-4 mr-1.5 text-brand" />
                   Modifier Client
                 </Button>
                 )}
@@ -639,7 +639,7 @@ export default function CompteClientView({
               onClick={() => setActiveTab("transactions")}
               className={`pb-3 px-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
                 activeTab === "transactions"
-                  ? "border-[#0F3D68] text-[#0F3D68]"
+                  ? "border-brand text-brand"
                   : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
@@ -650,7 +650,7 @@ export default function CompteClientView({
               onClick={() => setActiveTab("products")}
               className={`pb-3 px-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
                 activeTab === "products"
-                  ? "border-[#0F3D68] text-[#0F3D68]"
+                  ? "border-brand text-brand"
                   : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
@@ -699,7 +699,7 @@ export default function CompteClientView({
                     onClick={() => setTxTypeFilter("all")}
                     className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
                       txTypeFilter === "all"
-                        ? "bg-[#0F3D68] text-white"
+                        ? "bg-brand text-white"
                         : "text-slate-600 hover:bg-slate-50"
                     }`}
                   >
@@ -755,12 +755,12 @@ export default function CompteClientView({
                   size="sm"
                   onClick={handleExportPdf}
                   disabled={exportingPdf}
-                  className="h-8 text-xs rounded-lg border-[#0F3D68]/30 bg-sky-50/60 hover:bg-sky-100 text-[#0F3D68] font-bold shadow-2xs"
+                  className="h-8 text-xs rounded-lg border-brand/30 bg-sky-50/60 hover:bg-sky-100 text-brand font-bold shadow-2xs"
                 >
                   {exportingPdf ? (
                     <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                   ) : (
-                    <FileDown className="h-3.5 w-3.5 mr-1 text-[#0F3D68]" />
+                    <FileDown className="h-3.5 w-3.5 mr-1 text-brand" />
                   )}
                   <span>Export PDF ({filteredTransactions.length})</span>
                 </Button>
@@ -872,10 +872,10 @@ export default function CompteClientView({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => setInvoiceOrder(tx)}
-                                  className="h-7 px-2 text-[11px] rounded-lg border-slate-200 text-slate-700 hover:text-[#0F3D68] hover:bg-slate-50 font-semibold"
+                                  className="h-7 px-2 text-[11px] rounded-lg border-slate-200 text-slate-700 hover:text-brand hover:bg-slate-50 font-semibold"
                                   title="Voir la facture officielle"
                                 >
-                                  <FileText className="h-3 w-3 mr-1 text-[#0F3D68]" /> Facture
+                                  <FileText className="h-3 w-3 mr-1 text-brand" /> Facture
                                 </Button>
                               )}
                               {!isOrder && has("cash.export") && (
@@ -883,10 +883,10 @@ export default function CompteClientView({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleViewPaymentReceipt(tx)}
-                                  className="h-7 px-2.5 text-[11px] rounded-lg border-[#0F3D68]/30 text-[#0F3D68] bg-[#0F3D68]/5 hover:bg-[#0F3D68]/15 font-semibold"
+                                  className="h-7 px-2.5 text-[11px] rounded-lg border-brand/30 text-brand bg-brand/5 hover:bg-brand/15 font-semibold"
                                   title="Visualiser le bordereau officiel de paiement dans le navigateur"
                                 >
-                                  <FileText className="h-3.5 w-3.5 mr-1 text-[#0F3D68]" />
+                                  <FileText className="h-3.5 w-3.5 mr-1 text-brand" />
                                   Visualiser le bordereau
                                 </Button>
                               )}
@@ -971,7 +971,7 @@ export default function CompteClientView({
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base">
-                <Sliders className="h-4 w-4 text-[#0F3D68]" />
+                <Sliders className="h-4 w-4 text-brand" />
                 Ajuster le Plafond de Crédit
               </DialogTitle>
             </DialogHeader>
@@ -1012,7 +1012,7 @@ export default function CompteClientView({
                 >
                   Annuler
                 </Button>
-                <Button type="submit" className="bg-[#0F3D68] text-white">
+                <Button type="submit" className="bg-brand text-white">
                   Mettre à jour
                 </Button>
               </DialogFooter>
@@ -1027,7 +1027,7 @@ export default function CompteClientView({
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base">
-                <Camera className="h-4 w-4 text-[#0F3D68]" />
+                <Camera className="h-4 w-4 text-brand" />
                 Photo du Client
               </DialogTitle>
             </DialogHeader>
@@ -1065,7 +1065,7 @@ export default function CompteClientView({
                 >
                   Annuler
                 </Button>
-                <Button type="submit" className="bg-[#0F3D68] text-white">
+                <Button type="submit" className="bg-brand text-white">
                   Enregistrer
                 </Button>
               </DialogFooter>
@@ -1084,7 +1084,7 @@ export default function CompteClientView({
                 <Button
                   size="sm"
                   onClick={() => window.print()}
-                  className="bg-[#0F3D68] text-white"
+                  className="bg-brand text-white"
                 >
                   <Printer className="h-4 w-4 mr-1.5" /> Imprimer
                 </Button>
@@ -1099,7 +1099,7 @@ export default function CompteClientView({
                     className="h-10 w-auto object-contain"
                   />
                   <div>
-                    <h1 className="text-xl font-black text-[#211A5C]">PREMIDIS SARL</h1>
+                    <h1 className="text-xl font-black text-ink">PREMIDIS SARL</h1>
                     <p className="text-xs text-slate-500">Distribution & Commerce Général</p>
                   </div>
                 </div>
@@ -1116,7 +1116,7 @@ export default function CompteClientView({
                 </div>
                 <div className="text-right">
                   <p className="text-slate-400 font-semibold">Solde Actuel :</p>
-                  <p className="text-xl font-bold text-[#0F3D68]">{fmtMoney(soldeActuel)}</p>
+                  <p className="text-xl font-bold text-brand">{fmtMoney(soldeActuel)}</p>
                 </div>
               </div>
             </div>

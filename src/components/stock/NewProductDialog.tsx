@@ -71,7 +71,7 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base flex items-center gap-2">
-            <Package className="w-5 h-5 text-[#0F3D68]" />
+            <Package className="w-5 h-5 text-brand" />
             Nouveau Produit
           </DialogTitle>
         </DialogHeader>
@@ -109,7 +109,7 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
                 </div>
               )}
               <div className="flex-1 space-y-2">
-                <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 hover:border-[#0F3D68] hover:text-[#0F3D68] rounded-xl cursor-pointer text-xs font-semibold text-slate-700 transition-colors shadow-2xs">
+                <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 hover:border-brand hover:text-brand rounded-xl cursor-pointer text-xs font-semibold text-slate-700 transition-colors shadow-2xs">
                   <Upload className="w-4 h-4 text-slate-500" />
                   <span>Téléverser depuis l'ordinateur</span>
                   <input
@@ -192,7 +192,7 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit" disabled={saving} className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white">
+            <Button type="submit" disabled={saving} className="bg-brand hover:bg-brand-strong text-white">
               {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
               Enregistrer Produit
             </Button>

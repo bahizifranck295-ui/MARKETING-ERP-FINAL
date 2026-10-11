@@ -11,7 +11,7 @@ export function GlassCard({ title, icon: Icon, children, right }: any) {
           {title && (
             <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
               {Icon && (
-                <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-cyan-50 to-blue-100 text-[#0F3D68]">
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-cyan-50 to-blue-100 text-brand">
                   <Icon className="h-4 w-4" />
                 </span>
               )}
@@ -75,7 +75,7 @@ export function ActivePill({ active }: { active: boolean }) {
 }
 
 export const fieldCls =
-  "mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25";
+  "mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs focus:outline-none focus:ring-2 focus:ring-brand/25";
 
 export function fmtDateTime(s?: string) {
   if (!s) return "-";

@@ -4,8 +4,9 @@ import { toast } from "sonner";
 import { AlertTriangle, ArrowRight, BarChart3, Bell, ClipboardList, Loader2, Package, ShieldCheck, Truck, Warehouse } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { fmtMoney, fmtNum, StatusBadge } from "@/components/erp-ui";
+import { fmtMoney, fmtNum, KpiCard, StatusBadge } from "@/components/erp-ui";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { APP_INFO } from "@/app/edition";
 
 /*
@@ -17,21 +18,6 @@ import { APP_INFO } from "@/app/edition";
 const stockOf = (p: any) => Number(p.stock ?? p.current_stock ?? 0) || 0;
 const thresholdOf = (p: any) => Number(p.low_stock_threshold ?? 0) || 0;
 
-function Kpi({ label, value, sub, tone = "slate" }: { label: string; value: string; sub?: string; tone?: "blue" | "green" | "red" | "slate" }) {
-  const tones = {
-    blue: "bg-[#0F3D68] text-white",
-    green: "bg-emerald-600 text-white",
-    red: "bg-red-600 text-white",
-    slate: "bg-white text-slate-900 border border-slate-200 shadow-xs",
-  };
-  return (
-    <div className={`rounded-2xl p-4 ${tones[tone]}`}>
-      <div className={`text-[11px] uppercase tracking-wider font-semibold ${tone === "slate" ? "text-slate-500" : "text-white/70"}`}>{label}</div>
-      <div className="text-2xl font-bold mt-1 tracking-tight">{value}</div>
-      {sub && <div className={`text-xs mt-0.5 ${tone === "slate" ? "text-slate-500" : "text-white/80"}`}>{sub}</div>}
-    </div>
-  );
-}
 
 function Tile({ icon: Icon, title, subtitle, to, enabled = true, badge }: any) {
   // Module non autorisé : la tuile n'existe pas
@@ -44,7 +30,7 @@ function Tile({ icon: Icon, title, subtitle, to, enabled = true, badge }: any) {
         enabled ? "" : "opacity-45 pointer-events-none"
       }`}
     >
-      <div className="h-11 w-11 rounded-xl flex items-center justify-center bg-[#0F3D68] text-white">
+      <div className="h-11 w-11 rounded-xl flex items-center justify-center bg-brand text-white">
         <Icon className="h-5 w-5" />
       </div>
       <div>
@@ -54,7 +40,7 @@ function Tile({ icon: Icon, title, subtitle, to, enabled = true, badge }: any) {
       {badge ? (
         <span className="absolute top-3 right-3 h-5 min-w-[20px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">{badge}</span>
       ) : (
-        enabled && <ArrowRight className="h-4 w-4 text-slate-300 absolute top-4 right-4 group-hover:text-[#0F3D68] transition-colors" />
+        enabled && <ArrowRight className="h-4 w-4 text-slate-300 absolute top-4 right-4 group-hover:text-brand transition-colors" />
       )}
     </Wrapper>
   );
@@ -108,11 +94,12 @@ export default function LogisticsDashboardPage() {
 
   return (
     <div className="space-y-5" data-logistics-dashboard>
-      <div className="rounded-2xl bg-gradient-to-br from-[#0F3D68] to-[#0B2F52] text-white p-5 shadow-sm">
+      <div className="rounded-2xl hero-surface p-5 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="text-white/80 text-sm">Bienvenue,</div>
           <div className="flex items-center gap-2 shrink-0">
             <LanguageSwitcher variant="dark" />
+            <ThemeToggle variant="hero" />
             <Link
               to="/notifications"
               title="Notifications"
@@ -144,20 +131,20 @@ export default function LogisticsDashboardPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Kpi label="Valeur du stock (coût)" value={fmtMoney(stockValue)} sub={`${fmtNum(active.length)} produit(s) · ${fmtNum(depots.length)} dépôt(s)`} tone="blue" />
-            <Kpi
+            <KpiCard label="Valeur du stock (coût)" value={fmtMoney(stockValue)} sub={`${fmtNum(active.length)} produit(s) · ${fmtNum(depots.length)} dépôt(s)`} tone="blue" />
+            <KpiCard
               label="Stock en alerte"
               value={fmtNum(lowStock.length)}
               sub={`${fmtNum(lowStock.filter((p) => stockOf(p) <= 0).length)} en rupture`}
               tone={lowStock.length ? "red" : "slate"}
             />
-            <Kpi
+            <KpiCard
               label="Unités en dépôts / camions"
               value={`${fmtNum(overview?.depot_units ?? embarked?.totals?.depots ?? 0)} / ${fmtNum(overview?.embarked_units ?? embarked?.totals?.embarked ?? 0)}`}
               sub={`${fmtNum(trucks.length)} camion(s) chargé(s)`}
               tone="slate"
             />
-            <Kpi
+            <KpiCard
               label="Livrées aujourd'hui"
               value={fmtNum(overview?.delivered_today ?? 0)}
               sub={`${fmtNum(overview?.shipping_now ?? 0)} en route · ${fmtNum(toPrepare.length)} à préparer`}
@@ -171,7 +158,7 @@ export default function LogisticsDashboardPage() {
                 <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
                   <AlertTriangle className="h-4 w-4 text-amber-500" /> Produits en alerte stock
                 </h2>
-                <Link to="/stock" className="text-[11px] font-semibold text-[#0F3D68] hover:underline">
+                <Link to="/stock" className="text-[11px] font-semibold text-brand hover:underline">
                   Voir le stock
                 </Link>
               </div>
@@ -196,9 +183,9 @@ export default function LogisticsDashboardPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
-                  <ClipboardList className="h-4 w-4 text-[#0F3D68]" /> Commandes à préparer / expédier
+                  <ClipboardList className="h-4 w-4 text-brand" /> Commandes à préparer / expédier
                 </h2>
-                <Link to="/delivery" className="text-[11px] font-semibold text-[#0F3D68] hover:underline">
+                <Link to="/delivery" className="text-[11px] font-semibold text-brand hover:underline">
                   Ouvrir la Livraison
                 </Link>
               </div>
@@ -237,14 +224,14 @@ export default function LogisticsDashboardPage() {
       {trucks.length > 0 && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <h2 className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
-            <Warehouse className="h-4 w-4 text-[#0F3D68]" /> Stock embarqué par camion
+            <Warehouse className="h-4 w-4 text-brand" /> Stock embarqué par camion
           </h2>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {trucks.map((t: any) => (
               <div key={t.id} className="rounded-xl border border-slate-200 p-3 text-xs" data-no-translate>
                 <div className="font-bold text-slate-900">{t.marketer_name}</div>
                 <div className="text-slate-500">{[t.vehicle_plate, t.driver_name].filter(Boolean).join(" · ") || "Sans camion assigné"}</div>
-                <div className="mt-1 font-semibold tabular-nums text-[#0F3D68]">
+                <div className="mt-1 font-semibold tabular-nums text-brand">
                   {fmtNum(t.units)} unité(s) · {fmtMoney(t.value)}
                 </div>
               </div>

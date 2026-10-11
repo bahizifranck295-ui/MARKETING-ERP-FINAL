@@ -35,6 +35,22 @@ export function PageHeader({
   );
 }
 
+/*
+ * Carte indicateur (KPI) du design system : surface + fine bande verticale.
+ * blue = indicateur principal (violet en clair / bleu électrique en sombre), slate = secondaire (cyan),
+ * green / red = statut (succès / alerte) : le sens des couleurs de statut est conservé dans les deux thèmes.
+ */
+export function KpiCard({ label, value, sub, tone = "blue" }: { label: string; value: string; sub?: string; tone?: "blue" | "green" | "red" | "slate" }) {
+  const band = { blue: "var(--accent-primary)", slate: "var(--accent-secondary)", green: "var(--color-emerald-500)", red: "var(--color-red-500)" }[tone];
+  return (
+    <div className="kpi-card rounded-2xl p-4 pl-5" data-band={tone === "blue" ? "brand" : tone} style={{ ["--kpi-band" as any]: band }}>
+      <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">{label}</div>
+      <div className={`text-2xl font-bold mt-1 tracking-tight tabular-nums ${tone === "red" ? "text-red-600" : "text-slate-900"}`}>{value}</div>
+      {sub && <div className="text-xs mt-0.5 text-slate-500">{sub}</div>}
+    </div>
+  );
+}
+
 export function EmptyState({
   icon: Icon,
   title,
@@ -76,7 +92,7 @@ export function StatCard({
   className?: string;
 }) {
   const tones = {
-    blue: "bg-[#0F3D68] text-white",
+    blue: "bg-brand text-white",
     green: "bg-emerald-600 text-white",
     amber: "bg-amber-500 text-white",
     red: "bg-red-600 text-white",
@@ -168,7 +184,7 @@ export function StatusBadge({ status }: { status: string }) {
   const m = map[shown] || { fr: status, tone: "slate" };
   const tones = {
     slate: "bg-slate-100 text-slate-700",
-    blue: "bg-[#0F3D68]/10 text-[#0F3D68]",
+    blue: "bg-brand/10 text-brand",
     green: "bg-emerald-50 text-emerald-700 border border-emerald-100",
     amber: "bg-amber-50 text-amber-700 border border-amber-100",
     red: "bg-red-50 text-red-700 border border-red-100",

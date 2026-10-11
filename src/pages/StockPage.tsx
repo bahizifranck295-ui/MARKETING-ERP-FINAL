@@ -85,7 +85,7 @@ function TreeButton({ active, onClick, children }: any) {
       type="button"
       onClick={onClick}
       className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${
-        active ? "bg-gradient-to-r from-cyan-50 to-blue-50 font-semibold text-[#0F3D68] ring-1 ring-cyan-200" : "text-slate-700 hover:bg-slate-50"
+        active ? "bg-gradient-to-r from-cyan-50 to-blue-50 font-semibold text-brand ring-1 ring-cyan-200" : "text-slate-700 hover:bg-slate-50"
       }`}
     >
       {children}
@@ -489,7 +489,7 @@ export default function StockPage() {
   return (
     <div className="space-y-4">
       {/* En-tête + navigation du module Stock */}
-      <section className="relative overflow-clip rounded-3xl bg-gradient-to-br from-[#081A30] via-[#0F3D68] to-[#0C5A86] p-5 text-white shadow-[0_20px_50px_-25px_rgba(15,61,104,0.8)] sm:p-6">
+      <section className="relative overflow-clip rounded-3xl bg-gradient-to-br from-brand-deep via-brand to-brand-deep p-5 text-white shadow-[0_20px_50px_-25px_rgba(15,61,104,0.8)] sm:p-6">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.12]"
@@ -538,7 +538,7 @@ export default function StockPage() {
                 aria-current={active ? "page" : undefined}
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all ${
                   active
-                    ? "bg-white text-[#0F3D68] shadow-[0_0_18px_-4px_rgba(103,232,249,0.9)]"
+                    ? "bg-white text-brand shadow-[0_0_18px_-4px_rgba(103,232,249,0.9)]"
                     : "text-blue-100/85 hover:bg-white/10 hover:text-white"
                 }`}
               >
@@ -565,7 +565,7 @@ export default function StockPage() {
                 <select
                   value={dashSite}
                   onChange={(e) => { setDashSite(e.target.value); setDashDepot(ALL); setDashPage(1); }}
-                  className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                  className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand/25"
                 >
                   <option value={ALL}>Tous les sites</option>
                   {sites.map((s) => (
@@ -578,7 +578,7 @@ export default function StockPage() {
                 <select
                   value={dashDepot}
                   onChange={(e) => { setDashDepot(e.target.value); setDashPage(1); }}
-                  className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                  className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand/25"
                 >
                   <option value={ALL}>Tous les dépôts</option>
                   {warehouses
@@ -593,7 +593,7 @@ export default function StockPage() {
                 <select
                   value={dashCat}
                   onChange={(e) => { setDashCat(e.target.value); setDashPage(1); }}
-                  className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                  className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand/25"
                 >
                   <option value={ALL}>Toutes les catégories</option>
                   {allCategories.map((c) => (
@@ -609,7 +609,7 @@ export default function StockPage() {
                     value={dashSearch}
                     onChange={(e) => { setDashSearch(e.target.value); setDashPage(1); }}
                     placeholder="Rechercher un produit…"
-                    className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                    className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-brand/25"
                   />
                 </span>
               </label>
@@ -622,7 +622,7 @@ export default function StockPage() {
               <KpiTile icon={WarehouseIcon} glow="from-cyan-500 to-sky-600" label="Dépôts" value={fmtNum(scopeDepotCount)} hint="Voir les dépôts" onClick={() => openSites(dashSite !== ALL ? dashSite : undefined, dashDepot !== ALL ? dashDepot : undefined)} />
               <KpiTile
                 icon={Database}
-                glow="from-[#0F3D68] to-[#1D6FB8]"
+                glow="from-brand to-brand"
                 label="Valeur totale du stock"
                 value={fmtMoney(totalValue)}
                 hint={isGlobalScope ? "Au prix d'achat · dépôts + camions" : "Au prix d'achat · périmètre filtré"}
@@ -632,7 +632,7 @@ export default function StockPage() {
               <KpiTile icon={AlertTriangle} glow="from-amber-400 to-orange-500" label="Stock faible" value={fmtNum(lowCount)} hint="Voir les produits" onClick={showLowStock} className="col-span-2 xl:col-span-1" />
             </div>
             <div className="flex flex-wrap items-center gap-2 text-[11px]" aria-live="polite">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 font-semibold text-[#0F3D68]">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 font-semibold text-brand">
                 <MapPin className="h-3 w-3" /> Périmètre : {scopeLabel}
                 {filterLabel ? ` · ${filterLabel}` : ""}
               </span>
@@ -749,7 +749,7 @@ export default function StockPage() {
                                 <button
                                   type="button"
                                   onClick={() => openSites(single.site_id, single.id)}
-                                  className="rounded-lg px-2 py-1 text-[11px] font-semibold text-[#0F3D68] hover:bg-cyan-50 hover:underline"
+                                  className="rounded-lg px-2 py-1 text-[11px] font-semibold text-brand hover:bg-cyan-50 hover:underline"
                                   title="Ouvrir ce dépôt"
                                 >
                                   {single.name}
@@ -782,7 +782,7 @@ export default function StockPage() {
                         key={n}
                         type="button"
                         onClick={() => setDashPage(n)}
-                        className={`h-7 min-w-7 rounded-lg px-2 font-semibold ${n === dashCurPage ? "bg-[#0F3D68] text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                        className={`h-7 min-w-7 rounded-lg px-2 font-semibold ${n === dashCurPage ? "bg-brand text-white" : "border border-slate-200 bg-white text-slate-700"}`}
                       >
                         {n}
                       </button>
@@ -800,7 +800,7 @@ export default function StockPage() {
               title="Stock par site"
               icon={MapPin}
               right={
-                <button type="button" onClick={() => openSites()} className="text-[11px] font-semibold text-[#0F3D68] hover:underline">
+                <button type="button" onClick={() => openSites()} className="text-[11px] font-semibold text-brand hover:underline">
                   Voir tous les sites
                 </button>
               }
@@ -818,7 +818,7 @@ export default function StockPage() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-2">
-                          <MapPin className="h-4 w-4 shrink-0 text-[#0F3D68]" />
+                          <MapPin className="h-4 w-4 shrink-0 text-brand" />
                           <span className="truncate font-bold text-slate-900">{s.name}</span>
                         </span>
                         {s.is_active === false && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Inactif</span>}
@@ -831,7 +831,7 @@ export default function StockPage() {
                       </div>
                       <div className="mt-2 flex items-center gap-2">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-[#1D6FB8]" style={{ width: `${pct}%` }} />
+                          <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-brand" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="w-9 text-right text-[11px] font-semibold tabular-nums text-slate-700">{pct} %</span>
                       </div>
@@ -865,7 +865,7 @@ export default function StockPage() {
                   {scopeEmbarked.stocks.map((e: any) => (
                     <div key={e.id} className="rounded-2xl border border-slate-200 bg-white p-3">
                       <div className="flex items-center gap-2">
-                        <Truck className="h-4 w-4 shrink-0 text-[#0F3D68]" />
+                        <Truck className="h-4 w-4 shrink-0 text-brand" />
                         <span className="truncate font-bold text-slate-900">{e.marketer_name}</span>
                       </div>
                       <div className="mt-0.5 text-[11px] text-slate-500">
@@ -937,7 +937,7 @@ export default function StockPage() {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                  className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-brand/25"
                 />
               </div>
             }
@@ -948,7 +948,7 @@ export default function StockPage() {
                 <select
                   value={prodSite}
                   onChange={(e) => { setProdSite(e.target.value); setProdDepot(ALL); setCategory(ALL); setPage(1); }}
-                  className="mt-1 block h-9 min-w-[150px] rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                  className="mt-1 block h-9 min-w-[150px] rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand/25"
                 >
                   <option value={ALL}>Tous les sites</option>
                   {sites.map((x: any) => (
@@ -961,7 +961,7 @@ export default function StockPage() {
                 <select
                   value={prodDepot}
                   onChange={(e) => { setProdDepot(e.target.value); setCategory(ALL); setPage(1); }}
-                  className="mt-1 block h-9 min-w-[190px] rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+                  className="mt-1 block h-9 min-w-[190px] rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand/25"
                 >
                   <option value={ALL}>Tous les dépôts</option>
                   {warehouses
@@ -983,7 +983,7 @@ export default function StockPage() {
                   onClick={() => { setStatusFilter(f.id); setPage(1); }}
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all ${
                     statusFilter === f.id
-                      ? "border-[#0F3D68] bg-[#0F3D68] text-white shadow-[0_0_14px_-4px_rgba(15,61,104,0.8)]"
+                      ? "border-brand bg-brand text-white shadow-[0_0_14px_-4px_rgba(15,61,104,0.8)]"
                       : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                   }`}
                 >
@@ -1083,7 +1083,7 @@ export default function StockPage() {
                                 variant="outline"
                                 onClick={() => openEditModal(prod)}
                                 title="Modifier produit & photo"
-                                className="h-8 w-8 rounded-lg border-slate-200 p-0 text-slate-600 hover:border-cyan-300 hover:text-[#0F3D68]"
+                                className="h-8 w-8 rounded-lg border-slate-200 p-0 text-slate-600 hover:border-cyan-300 hover:text-brand"
                               >
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
@@ -1093,7 +1093,7 @@ export default function StockPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setAdjustingProduct(prod)}
-                                className="h-8 rounded-lg border-slate-200 text-[11px] hover:border-cyan-300 hover:text-[#0F3D68]"
+                                className="h-8 rounded-lg border-slate-200 text-[11px] hover:border-cyan-300 hover:text-brand"
                               >
                                 <Sliders className="mr-1 h-3.5 w-3.5" /> Ajuster
                               </Button>
@@ -1108,7 +1108,7 @@ export default function StockPage() {
                     <tr>
                       <td colSpan={7} className="p-10 text-center text-slate-500">
                         Aucun produit ne correspond à ces filtres.{" "}
-                        <button type="button" onClick={clearFilters} className="font-semibold text-[#0F3D68] underline">
+                        <button type="button" onClick={clearFilters} className="font-semibold text-brand underline">
                           Effacer les filtres
                         </button>
                       </td>
@@ -1131,7 +1131,7 @@ export default function StockPage() {
                     key={n}
                     type="button"
                     onClick={() => setPage(n)}
-                    className={`h-7 min-w-7 rounded-lg px-2 font-semibold ${n === curPage ? "bg-[#0F3D68] text-white shadow-[0_0_12px_-4px_rgba(15,61,104,0.9)]" : "border border-slate-200 bg-white text-slate-700"}`}
+                    className={`h-7 min-w-7 rounded-lg px-2 font-semibold ${n === curPage ? "bg-brand text-white shadow-[0_0_12px_-4px_rgba(15,61,104,0.9)]" : "border border-slate-200 bg-white text-slate-700"}`}
                   >
                     {n}
                   </button>
@@ -1204,7 +1204,7 @@ export default function StockPage() {
                 <Button
                   type="submit"
                   disabled={saving}
-                  className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]"
+                  className="bg-brand text-white hover:bg-brand-strong"
                 >
                   {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
                   Valider
@@ -1224,7 +1224,7 @@ export default function StockPage() {
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-base flex items-center gap-2">
-                <Edit className="w-5 h-5 text-[#0F3D68]" />
+                <Edit className="w-5 h-5 text-brand" />
                 Modifier Produit & Photo : {editingProduct.name}
               </DialogTitle>
             </DialogHeader>
@@ -1262,7 +1262,7 @@ export default function StockPage() {
                     </div>
                   )}
                   <div className="flex-1 space-y-2">
-                    <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 hover:border-[#0F3D68] hover:text-[#0F3D68] rounded-xl cursor-pointer text-xs font-semibold text-slate-700 transition-colors shadow-2xs">
+                    <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 hover:border-brand hover:text-brand rounded-xl cursor-pointer text-xs font-semibold text-slate-700 transition-colors shadow-2xs">
                       <Upload className="w-4 h-4 text-slate-500" />
                       <span>Remplacer l'image (ordinateur)</span>
                       <input
@@ -1336,7 +1336,7 @@ export default function StockPage() {
                 <Button type="button" variant="outline" onClick={() => setEditingProduct(null)}>
                   Annuler
                 </Button>
-                <Button type="submit" disabled={saving} className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white">
+                <Button type="submit" disabled={saving} className="bg-brand hover:bg-brand-strong text-white">
                   {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
                   Enregistrer Modifications
                 </Button>

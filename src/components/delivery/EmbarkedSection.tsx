@@ -186,7 +186,7 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1">
-                    <Warehouse className="h-3.5 w-3.5 text-[#0F3D68]" /> Dépôt <strong className="text-red-600">− {fmtNum(lastLoad.qty)}</strong>
+                    <Warehouse className="h-3.5 w-3.5 text-brand" /> Dépôt <strong className="text-red-600">− {fmtNum(lastLoad.qty)}</strong>
                   </span>
                   <ArrowRight className="h-4 w-4 text-slate-400" />
                   <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1">
@@ -227,7 +227,7 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
                   <div className="text-[11px] text-slate-500">Marketeur</div>
                   {stock.vehicle ? (
                     <div className="mt-1 flex flex-wrap gap-1">
-                      <span className="rounded-md bg-[#0F3D68] px-2 py-0.5 text-[10px] font-bold text-white">{stock.vehicle.type || "Camion"} : {stock.vehicle.plate}</span>
+                      <span className="rounded-md bg-brand px-2 py-0.5 text-[10px] font-bold text-white">{stock.vehicle.type || "Camion"} : {stock.vehicle.plate}</span>
                       <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                         <User className="h-3 w-3" /> {stock.vehicle.driver_name}
                       </span>
@@ -290,7 +290,7 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
                   <span className="shrink-0 font-black tabular-nums text-slate-900">{fmtNum(m.quantity)} u.</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-slate-500">
-                  <span className="font-mono font-bold text-[#0F3D68]">{m.order_code || "—"}</span>
+                  <span className="font-mono font-bold text-brand">{m.order_code || "—"}</span>
                   <span className="font-bold tabular-nums text-slate-800">{m.amount != null ? fmtMoney(m.amount) : "—"}</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-slate-500">
@@ -306,7 +306,7 @@ export default function EmbarkedSection({ canManage, onChanged, formAnchor, onIn
                     onClick={() =>
                       onInvoice({ id: m.order_id, code: m.order_code, client_name: m.client_name, created_at: m.created_at, total: m.amount || 0, items: [] })
                     }
-                    className="inline-flex items-center gap-1 rounded-lg border border-[#0F3D68]/20 bg-[#0F3D68]/5 px-2 py-1 text-[10px] font-bold text-[#0F3D68] hover:bg-[#0F3D68]/10"
+                    className="inline-flex items-center gap-1 rounded-lg border border-brand/20 bg-brand/5 px-2 py-1 text-[10px] font-bold text-brand hover:bg-brand/10"
                     title="Ouvrir la facture dans le visualiseur du navigateur (nouvel onglet)"
                   >
                     <Eye className="h-3 w-3" /> Visualiser la facture
@@ -505,7 +505,7 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
           {kind === "adjust" && (
             <div className="flex gap-2">
               {[{ v: "out" as const, l: "Retirer (−)" }, { v: "in" as const, l: "Ajouter depuis un dépôt (+)" }].map((o) => (
-                <button key={o.v} type="button" aria-pressed={mode === o.v} onClick={() => { setMode(o.v); setProductId(""); setQty(""); }} className={`h-9 flex-1 rounded-lg border text-xs font-semibold ${mode === o.v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600"}`}>
+                <button key={o.v} type="button" aria-pressed={mode === o.v} onClick={() => { setMode(o.v); setProductId(""); setQty(""); }} className={`h-9 flex-1 rounded-lg border text-xs font-semibold ${mode === o.v ? "border-brand bg-brand text-white" : "border-slate-200 bg-white text-slate-600"}`}>
                   {o.l}
                 </button>
               ))}
@@ -567,7 +567,7 @@ function EmbarkedActionDialog({ kind, stock, depots, onClose, onDone }: { kind: 
           )}
           <DialogFooter className="gap-2 border-t border-slate-100 pt-3">
             <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={saving || tooMuch || !amount || !productId || (fromDepotIn && !vehicleId)} className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+            <Button type="submit" disabled={saving || tooMuch || !amount || !productId || (fromDepotIn && !vehicleId)} className="bg-brand text-white hover:bg-brand-strong">
               {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Valider
             </Button>
           </DialogFooter>

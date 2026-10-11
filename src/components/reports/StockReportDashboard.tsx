@@ -45,7 +45,7 @@ function Card({ title, icon: Icon, children, className = "" }: any) {
     <section className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-xs min-w-0 ${className}`}>
       {title && (
         <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-900">
-          <Icon className="h-4 w-4 text-[#0F3D68]" />
+          <Icon className="h-4 w-4 text-brand" />
           {title}
         </h3>
       )}
@@ -62,7 +62,7 @@ function Select({ label, value, onChange, options }: any) {
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-full min-w-[140px] appearance-none rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/30"
+          className="h-9 w-full min-w-[140px] appearance-none rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand/30"
         >
           {options.map((o: any) => (
             <option key={o.value} value={o.value}>
@@ -238,7 +238,7 @@ export default function StockReportDashboard({ products, orders, search, siteKey
         {/* Valeur du stock par site, avec la valeur totale du stock en tête du graphique */}
         <Card title="Valeur du stock par site" icon={Database}>
           <div className="mb-3 flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0F3D68] text-white">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand text-white">
               <Database className="h-5 w-5" />
             </span>
             <div className="min-w-0">

@@ -705,7 +705,7 @@ export default function CashPage() {
             )}
             {cashSite === ALL_CASH ? null : activeSession ? (
               <>
-                <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 px-3 py-1 font-medium flex items-center gap-1.5">
+                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 px-3 py-1 font-medium flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   Caisse Ouverte ({activeSession.opened_by_name || "En service"})
                 </Badge>
@@ -715,7 +715,7 @@ export default function CashPage() {
                 <Button
                   variant="outline"
                   onClick={() => setIsInflowOpen(true)}
-                  className="border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-medium"
+                  className="border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 font-medium"
                 >
                   <ArrowDownLeft className="w-4 h-4 mr-1.5 text-emerald-600" />
                   Enregistrer une entrée
@@ -737,7 +737,7 @@ export default function CashPage() {
                 <Button
                   variant="outline"
                   onClick={() => setActiveTab("closing")}
-                  className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                  className="border-slate-300 text-slate-700"
                 >
                   <Lock className="w-4 h-4 mr-1.5 text-slate-500" />
                   Clôturer
@@ -747,7 +747,7 @@ export default function CashPage() {
             ) : !has("cash.open") ? null : (
               <Button
                 onClick={() => setIsOpenSessionOpen(true)}
-                className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-medium shadow-xs"
+                className="bg-brand hover:bg-brand-strong text-white font-medium shadow-xs"
               >
                 <Unlock className="w-4 h-4 mr-1.5" />
                 Ouvrir la Caisse
@@ -847,10 +847,10 @@ export default function CashPage() {
       {/* Synthesis Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Solde actuel en caisse : dollars + francs convertis au taux du jour */}
-        <div data-current-cash className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+        <div data-current-cash className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Solde actuel en caisse (USD)</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+            <p className="text-2xl font-bold text-slate-900 mt-1">
               {fmtMoney(metrics.currentCashUSD, "USD")}
             </p>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -858,52 +858,52 @@ export default function CashPage() {
             </p>
             <p className="text-xs text-slate-400 mt-0.5">Francs convertis au taux : 1$ = {fmtNum(exchangeRate)} FC</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#0F3D68] dark:text-blue-400 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 text-brand flex items-center justify-center">
             <DollarSign className="w-6 h-6" />
           </div>
         </div>
 
         {/* Entrées du jour */}
-        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+            <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">
               Entrées du jour
             </p>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+            <p className="text-2xl font-bold text-emerald-600 mt-1">
               +{fmtMoney(metrics.totalInUSD, "USD")}
             </p>
             <p className="text-xs text-slate-400 mt-0.5">{fmtNum(metrics.totalInCDF)} CDF encaissés</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
             <ArrowDownLeft className="w-6 h-6" />
           </div>
         </div>
 
         {/* Sorties du jour */}
-        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+            <p className="text-xs font-medium text-rose-600 uppercase tracking-wider">
               Sorties du jour
             </p>
-            <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+            <p className="text-2xl font-bold text-rose-600 mt-1">
               -{fmtMoney(metrics.totalOutUSD, "USD")}
             </p>
             <p className="text-xs text-slate-400 mt-0.5">{fmtNum(metrics.totalOutCDF)} CDF décaissés</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
             <ArrowUpRight className="w-6 h-6" />
           </div>
         </div>
       </div>
 
       {/* Tabs Bar */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800">
+      <div className="flex border-b border-slate-200">
         <button
           onClick={() => setActiveTab("journal")}
           className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === "journal"
-              ? "border-[#0F3D68] text-[#0F3D68] dark:text-blue-400 dark:border-blue-400"
-              : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              ? "border-brand text-brand"
+              : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
           <Receipt className="w-4 h-4" />
@@ -914,8 +914,8 @@ export default function CashPage() {
           onClick={() => setActiveTab("marketers")}
           className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === "marketers"
-              ? "border-[#0F3D68] text-[#0F3D68] dark:text-blue-400 dark:border-blue-400"
-              : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              ? "border-brand text-brand"
+              : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
           <Users className="w-4 h-4" />
@@ -932,8 +932,8 @@ export default function CashPage() {
           onClick={() => setActiveTab("closing")}
           className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === "closing"
-              ? "border-[#0F3D68] text-[#0F3D68] dark:text-blue-400 dark:border-blue-400"
-              : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              ? "border-brand text-brand"
+              : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
           <Coins className="w-4 h-4" />
@@ -946,8 +946,8 @@ export default function CashPage() {
           onClick={() => setActiveTab("rates")}
           className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === "rates"
-              ? "border-[#0F3D68] text-[#0F3D68] dark:text-blue-400 dark:border-blue-400"
-              : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              ? "border-brand text-brand"
+              : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
           <TrendingUp className="w-4 h-4" />
@@ -960,9 +960,9 @@ export default function CashPage() {
       {/* TAB 1: JOURNAL DES OPÉRATIONS (LIVRE DE CAISSE)                           */}
       {/* ========================================================================= */}
       {activeTab === "journal" && (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           {/* Filters Bar */}
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className={`flex flex-wrap items-center gap-2 ${has("cash.filter") ? "" : "hidden"}`}>
               <div className="relative w-72">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -975,14 +975,14 @@ export default function CashPage() {
               </div>
 
               {/* Type Filter */}
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setTypeFilter("all")}
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                     typeFilter === "all"
-                      ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-2xs"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                      ? "bg-white text-slate-900 shadow-2xs"
+                      : "text-slate-500 hover:text-slate-900"
                   }`}
                 >
                   Tous ({operations.length})
@@ -993,7 +993,7 @@ export default function CashPage() {
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                     typeFilter === "in"
                       ? "bg-emerald-600 text-white shadow-2xs"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                      : "text-slate-500 hover:text-slate-900"
                   }`}
                 >
                   Entrées
@@ -1004,7 +1004,7 @@ export default function CashPage() {
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                     typeFilter === "out"
                       ? "bg-rose-600 text-white shadow-2xs"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                      : "text-slate-500 hover:text-slate-900"
                   }`}
                 >
                   Sorties
@@ -1015,7 +1015,7 @@ export default function CashPage() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#0F3D68]"
+                className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand"
               >
                 <option value="all">Toutes les catégories</option>
                 {existingCategories.map((c) => (
@@ -1041,7 +1041,7 @@ export default function CashPage() {
           {/* Table */}
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-[#0F3D68]" />
+              <Loader2 className="w-8 h-8 animate-spin text-brand" />
               <p className="text-xs">Chargement des opérations de caisse...</p>
             </div>
           ) : filteredOperations.length === 0 ? (
@@ -1055,7 +1055,7 @@ export default function CashPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 uppercase tracking-wider font-semibold">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
                   <tr>
                     <th className="py-3 px-4">Réf & Horodatage</th>
                     <th className="py-3 px-4">Type & Catégorie</th>
@@ -1066,7 +1066,7 @@ export default function CashPage() {
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-slate-100">
                   {filteredOperations.map((op) => {
                     const isOut = op.type === "out";
                     const hasDoc = Boolean(op.document_url);
@@ -1074,11 +1074,11 @@ export default function CashPage() {
                     return (
                       <tr
                         key={op.id}
-                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                        className="hover:bg-slate-50/80 transition-colors"
                       >
                         {/* Réf & Date */}
                         <td className="py-3 px-4">
-                          <div className="font-bold text-slate-900 dark:text-slate-100">
+                          <div className="font-bold text-slate-900">
                             {op.reference}
                           </div>
                           <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
@@ -1097,18 +1097,18 @@ export default function CashPage() {
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-1.5 mb-1">
                             {isOut ? (
-                              <Badge className="bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 text-[10px] px-2 py-0.2 font-bold flex items-center gap-1">
+                              <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] px-2 py-0.2 font-bold flex items-center gap-1">
                                 <ArrowUpRight className="w-3 h-3" />
                                 Décaissement
                               </Badge>
                             ) : (
-                              <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 text-[10px] px-2 py-0.2 font-bold flex items-center gap-1">
+                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-2 py-0.2 font-bold flex items-center gap-1">
                                 <ArrowDownLeft className="w-3 h-3" />
                                 Encaissement
                               </Badge>
                             )}
                           </div>
-                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          <span className="text-xs font-semibold text-slate-700">
                             {op.category}
                           </span>
                         </td>
@@ -1117,14 +1117,14 @@ export default function CashPage() {
                         <td className="py-3 px-4">
                           {isOut ? (
                             <div>
-                              <div className="font-semibold text-slate-800 dark:text-slate-200">
+                              <div className="font-semibold text-slate-800">
                                 {op.beneficiary || "Non précisé"}
                               </div>
                               <span className="text-[10px] text-slate-400">Bénéficiaire</span>
                             </div>
                           ) : (
                             <div>
-                              <div className="font-semibold text-slate-800 dark:text-slate-200">
+                              <div className="font-semibold text-slate-800">
                                 {op.client_name || op.marketer_name || "Client Caisse"}
                               </div>
                               <span className="text-[10px] text-slate-400">
@@ -1136,11 +1136,11 @@ export default function CashPage() {
 
                         {/* Motif & Autorisation */}
                         <td className="py-3 px-4 max-w-xs">
-                          <p className="text-xs text-slate-700 dark:text-slate-300 truncate font-medium">
+                          <p className="text-xs text-slate-700 truncate font-medium">
                             {op.reason || "—"}
                           </p>
                           {op.authorized_by && (
-                            <div className="text-[11px] text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-0.5">
+                            <div className="text-[11px] text-blue-600 flex items-center gap-1 mt-0.5">
                               <UserCheck className="w-3 h-3" />
                               <span>Autorisé par : {op.authorized_by}</span>
                             </div>
@@ -1152,8 +1152,8 @@ export default function CashPage() {
                           <div
                             className={`font-bold text-sm ${
                               isOut
-                                ? "text-rose-600 dark:text-rose-400"
-                                : "text-emerald-600 dark:text-emerald-400"
+                                ? "text-rose-600"
+                                : "text-emerald-600"
                             }`}
                           >
                             {isOut ? "-" : "+"}
@@ -1173,7 +1173,7 @@ export default function CashPage() {
                               type="button"
                               onClick={() => handleViewDocument(op)}
                               title="Ouvrir le justificatif dans Google Chrome"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-50 text-[#0F3D68] border border-blue-200 hover:bg-blue-100 transition-colors"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-50 text-brand border border-blue-200 hover:bg-blue-100 transition-colors"
                             >
                               <FileCheck className="w-3.5 h-3.5 text-blue-600" />
                               <span>Voir pièce</span>
@@ -1246,13 +1246,13 @@ export default function CashPage() {
               <div
                 key={m.marketer_id || m.marketer_name}
                 data-deposit-card
-                className={`bg-white dark:bg-slate-900 rounded-xl border p-4 space-y-3 shadow-xs ${
-                  m.pending_orders_count > 0 ? "border-amber-200" : "border-slate-200 dark:border-slate-800"
+                className={`bg-white rounded-xl border p-4 space-y-3 shadow-xs ${
+                  m.pending_orders_count > 0 ? "border-amber-200" : "border-slate-200"
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="h-11 w-11 shrink-0 rounded-full bg-[#0F3D68] text-white flex items-center justify-center font-bold text-sm">
+                    <div className="h-11 w-11 shrink-0 rounded-full bg-brand text-white flex items-center justify-center font-bold text-sm">
                       {String(m.marketer_name || "?")
                         .split(" ")
                         .map((w: string) => w[0])
@@ -1289,7 +1289,7 @@ export default function CashPage() {
                   ))}
                 </dl>
 
-                <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2.5 space-y-1 text-xs">
+                <div className="rounded-lg bg-slate-50 p-2.5 space-y-1 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Versement attendu</span>
                     <span className={`font-black text-base tabular-nums ${m.pending_total_usd > 0 ? "text-amber-700" : "text-emerald-700"}`}>
@@ -1327,7 +1327,7 @@ export default function CashPage() {
                     setOrderBilletUSD({ "100": 0, "50": 0, "20": 0, "10": 0, "5": 0, "1": 0 });
                     setOrderBilletCDF({ "20000": 0, "10000": 0, "5000": 0, "1000": 0, "500": 0 });
                   }}
-                  className="w-full h-8 text-xs bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-medium"
+                  className="w-full h-8 text-xs bg-brand hover:bg-brand-strong text-white font-medium"
                 >
                   <Coins className="w-3.5 h-3.5 mr-1.5" />
                   Encaisser versement
@@ -1351,7 +1351,7 @@ export default function CashPage() {
             const page = Math.min(depositHistoryPage, pages);
             const rows = done.slice((page - 1) * 10, page * 10);
             return (
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs" data-deposit-history>
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs" data-deposit-history>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Historique des versements encaissés</h3>
                   <span className="text-[11px] text-slate-500">
@@ -1402,7 +1402,7 @@ export default function CashPage() {
                             type="button"
                             onClick={() => setDepositHistoryPage(n)}
                             aria-current={n === page ? "page" : undefined}
-                            className={`h-7 min-w-7 rounded-lg px-2 text-xs font-bold ${n === page ? "bg-[#0F3D68] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                            className={`h-7 min-w-7 rounded-lg px-2 text-xs font-bold ${n === page ? "bg-brand text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                           >
                             {n}
                           </button>
@@ -1421,7 +1421,7 @@ export default function CashPage() {
       {/* TAB 3: CLÔTURE JOURNALIÈRE ET BILLETAGE PHYSIQUE                          */}
       {/* ========================================================================= */}
       {activeTab === "closing" && has("cash.close") && (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-6">
           <div className="flex items-center justify-between border-b pb-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -1567,15 +1567,15 @@ export default function CashPage() {
       {/* TAB 4: GESTION DES TAUX (REMPLACE HISTORIQUE DES SESSIONS)                */}
       {/* ========================================================================= */}
       {activeTab === "rates" && has("cash.rates") && (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-6">
           {/* Header of Rates sub-module */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[#0F3D68] dark:text-blue-400 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-brand flex items-center justify-center font-bold">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                <h3 className="text-base font-bold text-slate-900">
                   Configuration des Taux de Change & Devises (USD / CDF)
                 </h3>
               </div>
@@ -1593,7 +1593,7 @@ export default function CashPage() {
               <Button
                 onClick={handleSaveRates}
                 disabled={savingRates}
-                className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-bold text-xs gap-1.5 shadow-xs"
+                className="bg-brand hover:bg-brand-strong text-white font-bold text-xs gap-1.5 shadow-xs"
               >
                 {savingRates ? (
                   <>
@@ -1613,21 +1613,21 @@ export default function CashPage() {
           {/* Section 1: Taux de Sortie (le taux est géré par catégorie, section 2) */}
           <div className="grid grid-cols-1 gap-4">
             {/* 2. Taux de Sortie de Caisse */}
-            <div className="p-4 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 space-y-3">
+            <div className="p-4 rounded-xl bg-rose-50/50 border border-rose-200 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ArrowUpRight className="w-4 h-4 text-rose-600" />
-                  <Label className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  <Label className="text-xs font-bold text-slate-800">
                     Taux de Sortie de Caisse (Décaissements)
                   </Label>
                 </div>
-                <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300 text-[10px] font-bold">
+                <Badge className="bg-rose-100 text-rose-800 text-[10px] font-bold">
                   Sorties & Dépenses
                 </Badge>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-600 dark:text-slate-400">1 $ =</span>
+                <span className="text-sm font-bold text-slate-600">1 $ =</span>
                 <div className="relative flex-1">
                   <Input
                     type="number"
@@ -1635,7 +1635,7 @@ export default function CashPage() {
                     min="1"
                     value={outflowRateInput}
                     onChange={(e) => setOutflowRateInput(e.target.value)}
-                    className="h-10 text-base font-black text-rose-700 dark:text-rose-400 pr-12 bg-white dark:bg-slate-800"
+                    className="h-10 text-base font-black text-rose-700 pr-12 bg-white"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
                     CDF
@@ -1643,7 +1643,7 @@ export default function CashPage() {
                 </div>
               </div>
 
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] text-slate-500">
                 Appliqué automatiquement lors des sorties de caisse et dans le formulaire « Enregistrer une sortie ».
               </p>
             </div>
@@ -1651,9 +1651,9 @@ export default function CashPage() {
 
           {/* Section 2: Taux d'Entrée par Catégorie de Produits / Départements */}
           <div className="space-y-4 pt-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Coins className="w-4 h-4 text-emerald-600" />
                   Taux d'Entrée Fixes par Catégorie de Produits & Départements
                 </h4>
@@ -1685,22 +1685,22 @@ export default function CashPage() {
                 return (
                   <div
                     key={catName}
-                    className={`p-3.5 rounded-xl border bg-slate-50/60 dark:bg-slate-800/40 space-y-2.5 transition-all ${
+                    className={`p-3.5 rounded-xl border bg-slate-50/60 space-y-2.5 transition-all ${
                       isDifferent
-                        ? "border-blue-300 dark:border-blue-700 ring-1 ring-blue-100 dark:ring-blue-900/30"
-                        : "border-slate-200 dark:border-slate-700"
+                        ? "border-blue-300 ring-1 ring-blue-100"
+                        : "border-slate-200"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                      <span className="font-bold text-xs text-slate-900 truncate">
                         {catName}
                       </span>
                       {isDifferent ? (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
                           Taux spécifique
                         </span>
                       ) : (
-                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-600 dark:bg-slate-700 dark:text-slate-400">
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-600">
                           Taux par défaut
                         </span>
                       )}
@@ -1720,7 +1720,7 @@ export default function CashPage() {
                               [catName]: e.target.value,
                             });
                           }}
-                          className="h-8 text-xs font-bold text-slate-900 dark:text-slate-100 pr-10 bg-white dark:bg-slate-900"
+                          className="h-8 text-xs font-bold text-slate-900 pr-10 bg-white"
                         />
                         <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">
                           FC
@@ -1728,9 +1728,9 @@ export default function CashPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 border-t border-slate-200/60">
                       <span>Exemple 10 $ :</span>
-                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                      <span className="font-bold text-slate-700">
                         {Math.round(10 * (parseFloat(currentVal) || 2500)).toLocaleString("fr-FR")} FC
                       </span>
                     </div>
@@ -1741,12 +1741,12 @@ export default function CashPage() {
           </div>
 
           {/* Section 3: Règles de Gestion et Audit */}
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
-            <h5 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+            <h5 className="font-bold text-slate-800 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               Règles d'application des taux dans l'ERP
             </h5>
-            <ul className="space-y-1 text-slate-600 dark:text-slate-400 pl-6 list-disc text-[11px]">
+            <ul className="space-y-1 text-slate-600 pl-6 list-disc text-[11px]">
               <li>
                 <strong>Taux d'Entrée :</strong> chaque mouvement d'encaissement applique automatiquement le taux fixe lié à son département ou à la catégorie de produits concernée.
               </li>
@@ -1763,7 +1763,7 @@ export default function CashPage() {
           </div>
 
           {/* Bottom Save Action Bar */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
             <Button
               type="button"
               variant="outline"
@@ -1789,7 +1789,7 @@ export default function CashPage() {
             <Button
               onClick={handleSaveRates}
               disabled={savingRates}
-              className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-bold text-xs gap-1.5"
+              className="bg-brand hover:bg-brand-strong text-white font-bold text-xs gap-1.5"
             >
               {savingRates ? (
                 <>
@@ -1986,7 +1986,7 @@ export default function CashPage() {
             <div className="flex flex-col gap-2 pt-2">
               <Button
                 onClick={() => openDocumentInNativeViewer(slipModalData.url, slipModalData.title)}
-                className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-bold text-xs gap-1.5"
+                className="bg-brand hover:bg-brand-strong text-white font-bold text-xs gap-1.5"
               >
                 <Eye className="w-4 h-4" />
                 Ouvrir le Bordereau dans Google Chrome
@@ -2011,7 +2011,7 @@ export default function CashPage() {
           <form onSubmit={handleConfirmOpenSession} className="space-y-4">
             <DialogHeader>
               <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <Unlock className="w-4 h-4 text-[#0F3D68]" />
+                <Unlock className="w-4 h-4 text-brand" />
                 Ouverture de Session Caisse
               </DialogTitle>
             </DialogHeader>
@@ -2054,7 +2054,7 @@ export default function CashPage() {
               <Button type="button" variant="outline" onClick={() => setIsOpenSessionOpen(false)} disabled={submittingOpen}>
                 Annuler
               </Button>
-              <Button type="submit" disabled={submittingOpen} className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-semibold text-xs">
+              <Button type="submit" disabled={submittingOpen} className="bg-brand hover:bg-brand-strong text-white font-semibold text-xs">
                 {submittingOpen ? "Ouverture..." : "Confirmer l'Ouverture"}
               </Button>
             </DialogFooter>
@@ -2148,7 +2148,7 @@ export default function CashPage() {
                   <Button
                     size="sm"
                     onClick={() => handleViewDocument(selectedOperation)}
-                    className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs gap-1"
+                    className="bg-brand hover:bg-brand-strong text-white text-xs gap-1"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     Voir dans Chrome

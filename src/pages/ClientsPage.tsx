@@ -427,7 +427,7 @@ export default function ClientsPage() {
                   <img
                     src={formPhoto}
                     alt="Aperçu profil"
-                    className="h-16 w-16 rounded-xl object-cover border-2 border-[#0F3D68] shadow-xs"
+                    className="h-16 w-16 rounded-xl object-cover border-2 border-brand shadow-xs"
                   />
                 ) : (
                   <div className="h-16 w-16 rounded-xl bg-slate-200 text-slate-500 flex flex-col items-center justify-center border border-slate-300">
@@ -652,7 +652,7 @@ export default function ClientsPage() {
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <FileText className="h-4 w-4 text-[#0F3D68]" />
+                  <FileText className="h-4 w-4 text-brand" />
                   Document client officiel (Contrat, Accord de crédit, RCCM)
                 </Label>
                 {formDocUrl && (
@@ -702,7 +702,7 @@ export default function ClientsPage() {
                         onClick={() => {
                           openDocumentInNativeViewer(formDocUrl, formDocName || "Document_Client.pdf", editingClient?.id);
                         }}
-                        className="h-8 text-xs rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-semibold px-3 shadow-xs"
+                        className="h-8 text-xs rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold px-3 shadow-xs"
                         title="Affichage en grand dans le visualiseur de la machine"
                       >
                         <Maximize2 className="h-3.5 w-3.5 mr-1.5" />
@@ -749,13 +749,13 @@ export default function ClientsPage() {
                   onClick={() => docInputRef.current?.click()}
                   className={`p-4 rounded-xl border-2 border-dashed text-center cursor-pointer transition-all ${
                     isDocDragOver
-                      ? "border-[#0F3D68] bg-sky-50/70"
-                      : "border-slate-300 hover:border-[#0F3D68] hover:bg-slate-100/50"
+                      ? "border-brand bg-sky-50/70"
+                      : "border-slate-300 hover:border-brand hover:bg-slate-100/50"
                   }`}
                 >
                   {docLoading ? (
                     <div className="flex flex-col items-center justify-center py-2 space-y-2">
-                      <Loader2 className="h-5 w-5 animate-spin text-[#0F3D68]" />
+                      <Loader2 className="h-5 w-5 animate-spin text-brand" />
                       <span className="text-xs font-semibold text-slate-700">
                         Traitement et encodage du document...
                       </span>
@@ -789,7 +789,7 @@ export default function ClientsPage() {
               <Button
                 type="submit"
                 disabled={saving}
-                className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white rounded-xl text-xs font-semibold shadow-xs"
+                className="bg-brand hover:bg-brand-strong text-white rounded-xl text-xs font-semibold shadow-xs"
               >
                 {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                 {editingClient ? "Enregistrer les modifications" : "Créer le client"}
@@ -838,7 +838,7 @@ export default function ClientsPage() {
               className="rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs font-semibold"
               title="Exporter la liste des clients par département"
             >
-              <FileDown className="h-4 w-4 mr-1.5 text-[#0F3D68]" />
+              <FileDown className="h-4 w-4 mr-1.5 text-brand" />
               <span>Exporter PDF</span>
               <ChevronDown className="h-3.5 w-3.5 ml-1 text-slate-400" />
             </Button>
@@ -847,7 +847,7 @@ export default function ClientsPage() {
               <Button
                 size="sm"
                 onClick={openCreateModal}
-                className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white shadow-sm font-semibold"
+                className="rounded-xl bg-brand hover:bg-brand-strong text-white shadow-sm font-semibold"
               >
                 <Plus className="h-4 w-4 mr-1.5" /> Ajouter un nouveau client
               </Button>
@@ -1068,7 +1068,7 @@ export default function ClientsPage() {
                       <div className="space-y-1 text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
                         {client.phone && (
                           <div className="flex items-center gap-1.5">
-                            <Phone className="h-3.5 w-3.5 text-[#0F3D68] shrink-0" />
+                            <Phone className="h-3.5 w-3.5 text-brand shrink-0" />
                             <span className="font-semibold text-slate-800 font-mono text-[11px]">{client.phone}</span>
                             <span className="text-[10px] text-slate-400 font-normal">(Principal)</span>
                           </div>
@@ -1147,18 +1147,18 @@ export default function ClientsPage() {
                       hidden={!hasDoc && !has("crm.documents")}
                       className={`h-8 rounded-xl text-xs px-2.5 flex-1 font-semibold transition-colors ${
                         hasDoc
-                          ? "border-sky-200 text-[#0F3D68] bg-sky-50/70 hover:bg-sky-100"
+                          ? "border-sky-200 text-brand bg-sky-50/70 hover:bg-sky-100"
                           : "border-slate-200 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
-                      <ExternalLink className="h-3.5 w-3.5 mr-1 text-[#0F3D68] shrink-0" />
+                      <ExternalLink className="h-3.5 w-3.5 mr-1 text-brand shrink-0" />
                       <span>{hasDoc ? "Vérifier Doc" : "Ajouter Doc"}</span>
                     </Button>
                     {has("crm.account") && (
                     <Button
                       size="sm"
                       onClick={() => setViewingClientId(client.id)}
-                      className="h-8 rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs px-3 font-semibold shadow-xs flex-1"
+                      className="h-8 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs px-3 font-semibold shadow-xs flex-1"
                     >
                       <FileText className="h-3.5 w-3.5 mr-1" />
                       Visualiser
@@ -1190,7 +1190,7 @@ export default function ClientsPage() {
           <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl p-6">
             <DialogHeader className="space-y-1">
               <div className="flex items-center gap-2.5">
-                <div className="h-10 w-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-[#0F3D68] shrink-0">
+                <div className="h-10 w-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-brand shrink-0">
                   <FileDown className="h-5 w-5" />
                 </div>
                 <div>
@@ -1205,11 +1205,11 @@ export default function ClientsPage() {
             </DialogHeader>
 
             <div className="space-y-4 pt-2">
-              <div className="p-4 rounded-xl border-2 border-[#0F3D68]/20 bg-sky-50/40 hover:bg-sky-50/70 transition-all">
+              <div className="p-4 rounded-xl border-2 border-brand/20 bg-sky-50/40 hover:bg-sky-50/70 transition-all">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <Layers className="h-4 w-4 text-[#0F3D68]" />
+                      <Layers className="h-4 w-4 text-brand" />
                       <h4 className="font-bold text-sm text-slate-900">
                         Tous les départements (Document complet unifié)
                       </h4>
@@ -1222,7 +1222,7 @@ export default function ClientsPage() {
                     size="sm"
                     onClick={() => handleExecuteExport("all")}
                     disabled={exportingPdf}
-                    className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-semibold shrink-0 shadow-xs h-9 px-3.5"
+                    className="rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold shrink-0 shadow-xs h-9 px-3.5"
                   >
                     {exportingPdf && exportTarget === "all" ? (
                       <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -1249,7 +1249,7 @@ export default function ClientsPage() {
                     type="button"
                     onClick={handleExportAllDepartmentsSeparately}
                     disabled={exportingPdf}
-                    className="text-xs text-[#0F3D68] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-brand hover:underline font-bold flex items-center gap-1 cursor-pointer"
                   >
                     {exportingPdf && exportTarget === "all_separately" ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1269,7 +1269,7 @@ export default function ClientsPage() {
                         className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs transition-all"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 font-bold text-xs text-[#0F3D68]">
+                          <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 font-bold text-xs text-brand">
                             <Building className="h-4 w-4" />
                           </div>
                           <div className="min-w-0">
@@ -1289,9 +1289,9 @@ export default function ClientsPage() {
                           className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold h-8 px-3 shrink-0"
                         >
                           {isCurrentExporting ? (
-                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin text-[#0F3D68]" />
+                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin text-brand" />
                           ) : (
-                            <FileDown className="h-3.5 w-3.5 mr-1.5 text-[#0F3D68]" />
+                            <FileDown className="h-3.5 w-3.5 mr-1.5 text-brand" />
                           )}
                           Exporter ({count})
                         </Button>

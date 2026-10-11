@@ -48,7 +48,7 @@ export default function NotificationsPage() {
               onClick={markAllRead}
               className="rounded-xl border-slate-200 text-xs"
             >
-              <CheckCheck className="h-4 w-4 mr-1 text-[#0F3D68]" /> Tout marquer comme lu
+              <CheckCheck className="h-4 w-4 mr-1 text-brand" /> Tout marquer comme lu
             </Button>
           )
         }
@@ -77,7 +77,7 @@ export default function NotificationsPage() {
               >
                 <div
                   className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${
-                    isRead ? "bg-transparent" : "bg-[#0F3D68]"
+                    isRead ? "bg-transparent" : "bg-brand"
                   }`}
                 />
                 <div className="flex-1 min-w-0 space-y-0.5">

@@ -119,15 +119,15 @@ function Axes({ ticks, max, labels }: { ticks: number[]; max: number; labels: st
     <>
       {ticks.map((t) => (
         <g key={t}>
-          <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#e2e8f0" />
-          <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="#64748b">
+          <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="var(--color-slate-200)" />
+          <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="var(--color-slate-500)">
             {compactMoney(t)}
           </text>
         </g>
       ))}
       {labels.map((l, i) =>
         i % every === 0 || i === labels.length - 1 ? (
-          <text key={i} x={L + slot * i + slot / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="#64748b">
+          <text key={i} x={L + slot * i + slot / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="var(--color-slate-500)">
             {l}
           </text>
         ) : null
@@ -139,7 +139,7 @@ function Axes({ ticks, max, labels }: { ticks: number[]; max: number; labels: st
 function Tip({ lines }: { lines: string[] | null }) {
   if (!lines) return null;
   return (
-    <div className="pointer-events-none absolute left-14 top-0 rounded-lg bg-[#0F3D68] px-2 py-1 text-[11px] font-semibold text-white tabular-nums">
+    <div className="pointer-events-none absolute left-14 top-0 rounded-lg bg-brand px-2 py-1 text-[11px] font-semibold text-white tabular-nums">
       {lines.map((l) => (
         <div key={l}>{l}</div>
       ))}
@@ -178,7 +178,7 @@ function SalesProfitChart({ rows }: { rows: Array<{ label: string; sales: number
         {area && <path d={area} fill="url(#ov-profit-fill)" pointerEvents="none" />}
         <path d={line} fill="none" stroke={GREEN} strokeWidth={2} strokeLinejoin="round" pointerEvents="none" />
         {rows.map((r, i) => (
-          <circle key={i} cx={cx(i)} cy={y(r.profit)} r={rows.length > 40 ? 0 : 3} fill="#fff" stroke={GREEN} strokeWidth={2} pointerEvents="none" />
+          <circle key={i} cx={cx(i)} cy={y(r.profit)} r={rows.length > 40 ? 0 : 3} fill="var(--surface-primary)" stroke={GREEN} strokeWidth={2} pointerEvents="none" />
         ))}
       </svg>
     </div>
@@ -238,19 +238,19 @@ function SitesDonut({ slices, total }: { slices: Array<{ label: string; value: n
     <div className="flex flex-col items-center gap-4 @md:flex-row">
       <svg viewBox="0 0 180 180" className="h-44 w-44 shrink-0" role="img" aria-label="Répartition des ventes par site">
         {arcs.map((a, i) => (
-          <path key={a.label} d={a.d} fill={a.color} fillRule="evenodd" stroke="#fff" strokeWidth={1.5} opacity={hover === null || hover === i ? 1 : 0.45} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} />
+          <path key={a.label} d={a.d} fill={a.color} fillRule="evenodd" stroke="var(--surface-primary)" strokeWidth={1.5} opacity={hover === null || hover === i ? 1 : 0.45} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} />
         ))}
         {arcs.map((a) =>
           a.span > 0.45 ? (
-            <text key={a.label + "p"} x={a.lx} y={a.ly + 3} textAnchor="middle" fontSize={9} fontWeight={700} fill="#fff" pointerEvents="none">
+            <text key={a.label + "p"} x={a.lx} y={a.ly + 3} textAnchor="middle" fontSize={9} fontWeight={700} fill="var(--surface-primary)" pointerEvents="none">
               {pct(a.value)}
             </text>
           ) : null
         )}
-        <text x={C} y={C - 2} textAnchor="middle" fontSize={13} fontWeight={800} fill="#0f172a">
+        <text x={C} y={C - 2} textAnchor="middle" fontSize={13} fontWeight={800} fill="var(--color-slate-900)">
           {compactMoney(hover !== null ? arcs[hover].value : total)}
         </text>
-        <text x={C} y={C + 13} textAnchor="middle" fontSize={8.5} fill="#64748b">
+        <text x={C} y={C + 13} textAnchor="middle" fontSize={8.5} fill="var(--color-slate-500)">
           {hover !== null ? arcs[hover].label : "Total des ventes"}
         </text>
       </svg>

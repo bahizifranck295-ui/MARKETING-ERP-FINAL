@@ -240,12 +240,12 @@ export default function BoutiquePage() {
           (hasAny(["categories.manage", "products.availability", "products.delete"]) || has("products.create")) && (
             <div className="flex flex-wrap items-center gap-2" data-boutique-stock-actions>
               {hasAny(["categories.manage", "products.availability", "products.delete"]) && (
-                <Button size="sm" variant="outline" onClick={openCategories} className="h-9 rounded-xl border-slate-200 font-bold text-[#0F3D68]">
+                <Button size="sm" variant="outline" onClick={openCategories} className="h-9 rounded-xl border-slate-200 font-bold text-brand">
                   <Shapes className="mr-1.5 h-4 w-4" /> Catégories
                 </Button>
               )}
               {has("products.create") && (
-                <Button size="sm" onClick={() => setNewProductOpen(true)} className="h-9 rounded-xl bg-[#0F3D68] font-bold text-white hover:bg-[#0B2F52]">
+                <Button size="sm" onClick={() => setNewProductOpen(true)} className="h-9 rounded-xl bg-brand font-bold text-white hover:bg-brand-strong">
                   <Plus className="mr-1.5 h-4 w-4" /> Nouveau produit
                 </Button>
               )}
@@ -259,7 +259,7 @@ export default function BoutiquePage() {
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-base flex items-center gap-2">
-                <Shapes className="w-5 h-5 text-[#0F3D68]" /> Catégories de produits
+                <Shapes className="w-5 h-5 text-brand" /> Catégories de produits
               </DialogTitle>
             </DialogHeader>
             <CategoriesPanel products={stockProducts} onChanged={() => { loadData(); openCategories(); }} />
@@ -272,7 +272,7 @@ export default function BoutiquePage() {
         <button
           type="button"
           onClick={() => setCartDrawerOpen(true)}
-          className="fixed bottom-20 lg:bottom-8 right-4 sm:right-8 z-50 group flex flex-col items-center justify-center w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-[#0F3D68] via-[#1E70BF] to-purple-800 text-white shadow-2xl hover:shadow-purple-600/50 hover:scale-105 active:scale-95 transition-all duration-300 border-4 border-white ring-4 ring-purple-500/30 cursor-pointer select-none p-2 text-center"
+          className="fixed bottom-20 lg:bottom-8 right-4 sm:right-8 z-50 group flex flex-col items-center justify-center w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-brand via-brand to-purple-800 text-white shadow-2xl hover:shadow-purple-600/50 hover:scale-105 active:scale-95 transition-all duration-300 border-4 border-white ring-4 ring-purple-500/30 cursor-pointer select-none p-2 text-center"
           title="Ouvrir le panier pour finaliser la commande"
         >
           <span className="absolute -top-1 -right-1 bg-amber-400 text-slate-950 font-black text-xs min-w-[26px] h-6.5 px-1.5 rounded-full flex items-center justify-center border-2 border-white shadow-md">
@@ -299,7 +299,7 @@ export default function BoutiquePage() {
           onClick={() => setTab("catalog")}
           className={`py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
             tab === "catalog"
-              ? "bg-[#0F3D68] text-white shadow-xs"
+              ? "bg-brand text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -311,7 +311,7 @@ export default function BoutiquePage() {
           onClick={() => setTab("my-orders")}
           className={`py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all relative ${
             tab === "my-orders"
-              ? "bg-[#0F3D68] text-white shadow-xs"
+              ? "bg-brand text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -356,7 +356,7 @@ export default function BoutiquePage() {
                       onClick={() => setSelectedCategory(cat)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors whitespace-nowrap ${
                         selectedCategory === cat
-                          ? "bg-[#0F3D68] text-white border-[#0F3D68]"
+                          ? "bg-brand text-white border-brand"
                           : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                       }`}
                     >
@@ -478,7 +478,7 @@ export default function BoutiquePage() {
                                 <Button
                                   size="sm"
                                   onClick={() => updateCartQty(product.id, 1)}
-                                  className="h-8 rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-xs shadow-xs"
+                                  className="h-8 rounded-xl bg-brand hover:bg-brand-strong text-xs shadow-xs"
                                 >
                                   <Plus className="h-3.5 w-3.5 mr-1" /> Ajouter
                                 </Button>
@@ -597,9 +597,9 @@ export default function BoutiquePage() {
                               e.stopPropagation();
                               setViewingOrder(ord);
                             }}
-                            className="h-7 text-[11px] rounded-lg border-slate-200 text-slate-700 hover:text-[#0F3D68] hover:bg-slate-50 font-semibold px-2"
+                            className="h-7 text-[11px] rounded-lg border-slate-200 text-slate-700 hover:text-brand hover:bg-slate-50 font-semibold px-2"
                           >
-                            <FileText className="h-3 w-3 mr-1 text-[#0F3D68]" /> Voir la facture
+                            <FileText className="h-3 w-3 mr-1 text-brand" /> Voir la facture
                           </Button>
                           )}
                         </div>
@@ -690,7 +690,7 @@ export default function BoutiquePage() {
                     onClick={() => setClientType("existing")}
                     className={`py-2 px-3 rounded-xl text-xs font-medium border transition-colors ${
                       clientType === "existing"
-                        ? "bg-[#0F3D68] text-white border-[#0F3D68]"
+                        ? "bg-brand text-white border-brand"
                         : "bg-white text-slate-700 border-slate-200"
                     }`}
                   >
@@ -701,7 +701,7 @@ export default function BoutiquePage() {
                     onClick={() => setClientType("walkin")}
                     className={`py-2 px-3 rounded-xl text-xs font-medium border transition-colors ${
                       clientType === "walkin"
-                        ? "bg-[#0F3D68] text-white border-[#0F3D68]"
+                        ? "bg-brand text-white border-brand"
                         : "bg-white text-slate-700 border-slate-200"
                     }`}
                   >

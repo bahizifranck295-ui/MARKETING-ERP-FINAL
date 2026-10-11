@@ -672,7 +672,13 @@ export function mountAuditRoutes(router: any, authenticate: any) {
       denies: target.perm_denies || [],
       effective: effectivePermissions(target),
       scope: scopeOf(target),
-      raw_scope: { site_ids: target.site_ids || (target.site_id ? [target.site_id] : []), all_sites: target.all_sites === true || !!target.is_transversal, categories: target.categories || [], all_categories: target.all_categories !== false && !(target.categories || []).length ? true : target.all_categories === true },
+      // Périmètre tel qu'il s'applique réellement (même calcul que scopeOf) : sans site reconnu = tous les sites
+      raw_scope: (() => {
+        const sc = scopeOf(target);
+        const known = new Set(((db as any).sites || []).map((x: any) => x.id));
+        const siteIds = sc.site_ids.filter((id) => known.has(id));
+        return { site_ids: siteIds, all_sites: sc.all_sites || !siteIds.length, categories: sc.categories, all_categories: sc.all_categories };
+      })(),
       protected: isSuperAdmin(target),
       history,
     });

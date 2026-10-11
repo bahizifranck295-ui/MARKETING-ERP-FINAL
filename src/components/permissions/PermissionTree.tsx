@@ -124,7 +124,7 @@ export default function PermissionTree({
         </select>
         {!readOnly && (
           <>
-            <button type="button" onClick={() => setMany(visibleCodes, true)} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-[#0F3D68] hover:bg-slate-50">
+            <button type="button" onClick={() => setMany(visibleCodes, true)} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-brand hover:bg-slate-50">
               Tout cocher
             </button>
             <button type="button" onClick={() => setMany(visibleCodes, false)} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 hover:bg-slate-50">
@@ -180,7 +180,7 @@ export default function PermissionTree({
                                   disabled={locked}
                                   onChange={() => setMany([a.code], !on)}
                                   aria-label={a.label}
-                                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-[#0F3D68] disabled:opacity-40"
+                                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-brand disabled:opacity-40"
                                 />
                                 <div className="min-w-0 flex-1">
                                   <div className="text-xs font-medium text-slate-800">{a.label}</div>
@@ -227,7 +227,7 @@ function TriBox({ state, onToggle, disabled, label }: { state: "all" | "some" | 
       }}
       disabled={disabled}
       onChange={onToggle}
-      className="h-4 w-4 shrink-0 rounded border-slate-300 accent-[#0F3D68]"
+      className="h-4 w-4 shrink-0 rounded border-slate-300 accent-brand"
     />
   );
 }

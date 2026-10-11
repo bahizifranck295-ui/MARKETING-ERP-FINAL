@@ -448,7 +448,7 @@ export default function SalesSheets({
             aria-selected={name === cat}
             onClick={() => setCat(name)}
             className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors ${
-              name === cat ? "bg-[#0F3D68] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              name === cat ? "bg-brand text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
             {name}
@@ -468,21 +468,21 @@ export default function SalesSheets({
               type="button"
               aria-pressed={period === o.v}
               onClick={() => setPeriod(o.v)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${period === o.v ? "bg-[#0F3D68] text-white" : "text-slate-600"}`}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${period === o.v ? "bg-brand text-white" : "text-slate-600"}`}
             >
               {o.l}
             </button>
           ))}
         </div>
         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-          <CalendarDays className="h-4 w-4 text-[#0F3D68]" />
+          <CalendarDays className="h-4 w-4 text-brand" />
           {period === "day" ? (
             <input aria-label="Jour de la fiche" type="date" value={day} max={todayKey()} onChange={(e) => e.target.value && setDay(e.target.value)} className="h-9 rounded-xl border border-slate-200 px-2.5 text-xs" />
           ) : (
             <input aria-label="Mois de la fiche" type="month" value={month} max={todayKey().slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className="h-9 rounded-xl border border-slate-200 px-2.5 text-xs" />
           )}
         </label>
-        {has("reports.export") && <Button size="sm" onClick={exportPdf} disabled={exporting} className="ml-auto rounded-xl bg-[#0F3D68] text-xs text-white hover:bg-[#0B2F52]">
+        {has("reports.export") && <Button size="sm" onClick={exportPdf} disabled={exporting} className="ml-auto rounded-xl bg-brand text-xs text-white hover:bg-brand-strong">
           {exporting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileText className="mr-1.5 h-4 w-4" />} Exporter la fiche en PDF
         </Button>}
       </div>
@@ -492,7 +492,7 @@ export default function SalesSheets({
         <div className="border-b border-slate-300 px-4 py-3">
           {sheet.subtitle && <div className="text-[11px] font-semibold text-slate-500">{sheet.subtitle}</div>}
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-base font-black tracking-wide text-[#0F3D68]">{sheet.title(columns)}</h3>
+            <h3 className="text-base font-black tracking-wide text-brand">{sheet.title(columns)}</h3>
             <span className="text-xs font-semibold text-slate-600">
               {period === "day" ? "Jour / Date" : "Mois"} : <span className="capitalize">{periodLabel}</span>
               {period === "month" && <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">Fiche récapitulative</span>}
@@ -502,7 +502,7 @@ export default function SalesSheets({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-xs">
             <thead>
-              <tr className="bg-blue-50 text-[11px] uppercase text-[#0F3D68]">
+              <tr className="bg-blue-50 text-[11px] uppercase text-brand">
                 {headers.map((h, i) => (
                   <th key={i} className={`border border-slate-300 px-2 py-2 font-bold ${i <= 1 || h === "Marketeur" ? "text-left" : "text-center"}`}>
                     {h}

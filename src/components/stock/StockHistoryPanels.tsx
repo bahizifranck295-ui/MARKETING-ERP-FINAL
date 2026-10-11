@@ -16,7 +16,7 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+        className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-brand/25"
       />
     </div>
   );
@@ -65,7 +65,7 @@ export function TransfersPanel({ onStockChanged }: { onStockChanged?: () => void
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <SearchBox value={q} onChange={setQ} placeholder="Produit, dépôt, code…" />
           {has("stock.transfer") && (
-            <Button size="sm" onClick={() => setOpen(true)} className="h-9 rounded-xl bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+            <Button size="sm" onClick={() => setOpen(true)} className="h-9 rounded-xl bg-brand text-white hover:bg-brand-strong">
               <ArrowRightLeft className="mr-1 h-4 w-4" /> Transférer du stock
             </Button>
           )}

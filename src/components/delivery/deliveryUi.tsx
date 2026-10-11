@@ -91,4 +91,4 @@ export function TypePill({ type }: { type: string }) {
 }
 
 export const selectCls =
-  "mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25 disabled:bg-slate-50 disabled:text-slate-400";
+  "mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand/25 disabled:bg-slate-50 disabled:text-slate-400";

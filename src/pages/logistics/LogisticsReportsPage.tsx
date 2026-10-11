@@ -126,7 +126,7 @@ export default function LogisticsReportsPage() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                tab === t.id ? "bg-[#0F3D68] text-white shadow-xs" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                tab === t.id ? "bg-brand text-white shadow-xs" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -161,14 +161,14 @@ export default function LogisticsReportsPage() {
                   key={p.id}
                   onClick={() => setPeriod(p.id)}
                   className={`px-3 py-2 rounded-xl font-medium border whitespace-nowrap ${
-                    period === p.id ? "bg-[#0F3D68] text-white border-[#0F3D68]" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    period === p.id ? "bg-brand text-white border-brand" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                   }`}
                 >
                   {p.label}
                 </button>
               ))}
             </div>
-            {has("stock.export") && <Button size="sm" onClick={exportDeliveries} disabled={!delivered.length} className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs">
+            {has("stock.export") && <Button size="sm" onClick={exportDeliveries} disabled={!delivered.length} className="rounded-xl bg-brand hover:bg-brand-strong text-white text-xs">
               <Download className="h-4 w-4 mr-1.5" /> Exporter (CSV)
             </Button>}
           </div>
@@ -221,7 +221,7 @@ export default function LogisticsReportsPage() {
                       <span className="min-w-0 truncate">
                         <span className="font-bold text-slate-900">{v.plate}</span> <span className="text-slate-500">· {v.driver}</span>
                       </span>
-                      <span className="font-bold tabular-nums text-[#0F3D68]">{fmtNum(v.n)}</span>
+                      <span className="font-bold tabular-nums text-brand">{fmtNum(v.n)}</span>
                     </li>
                   ))}
                 </ul>

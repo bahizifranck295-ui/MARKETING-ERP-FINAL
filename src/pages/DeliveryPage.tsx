@@ -101,11 +101,11 @@ export default function DeliveryPage() {
       {/* En-tête */}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#0F3D68] text-white shadow-[0_10px_24px_-10px_rgba(15,61,104,0.9)]">
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand text-white shadow-[0_10px_24px_-10px_rgba(15,61,104,0.9)]">
             <Truck className="h-6 w-6" />
           </span>
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-[#0F3D68]">Module Livraison</h1>
+            <h1 className="text-2xl font-black tracking-tight text-brand">Module Livraison</h1>
             <p className="text-sm text-slate-500">Deux modes de distribution, une seule gestion.</p>
           </div>
         </div>
@@ -145,7 +145,7 @@ export default function DeliveryPage() {
               ))}
           </select>
           <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs">
-            <CalendarDays className="h-4 w-4 text-[#0F3D68]" />
+            <CalendarDays className="h-4 w-4 text-brand" />
             {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
           </span>
         </div>
@@ -177,7 +177,7 @@ export default function DeliveryPage() {
               onClick={() => setSection(s.id)}
               aria-current={active ? "page" : undefined}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
-                active ? "bg-[#0F3D68] text-white shadow-[0_0_14px_-4px_rgba(15,61,104,0.8)]" : "text-slate-600 hover:bg-slate-100"
+                active ? "bg-brand text-white shadow-[0_0_14px_-4px_rgba(15,61,104,0.8)]" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
               <Icon className="h-4 w-4" /> {s.label}

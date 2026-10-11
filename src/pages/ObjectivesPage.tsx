@@ -355,7 +355,7 @@ export default function ObjectivesPage() {
           <Button
             size="sm"
             onClick={() => setIsCreateModalOpen(true)}
-            className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white"
+            className="rounded-xl bg-brand hover:bg-brand-strong text-white"
           >
             <Plus className="h-4 w-4 mr-1.5" /> Nouvel Objectif
           </Button>
@@ -380,7 +380,7 @@ export default function ObjectivesPage() {
                   type="button"
                   aria-pressed={showClosed === v}
                   onClick={() => setShowClosed(v)}
-                  className={`rounded-lg px-3 py-1 text-xs font-bold transition ${showClosed === v ? "bg-[#0F3D68] text-white shadow-xs" : "text-slate-600 hover:bg-white"}`}
+                  className={`rounded-lg px-3 py-1 text-xs font-bold transition ${showClosed === v ? "bg-brand text-white shadow-xs" : "text-slate-600 hover:bg-white"}`}
                 >
                   {l}
                 </button>
@@ -406,7 +406,7 @@ export default function ObjectivesPage() {
               <div
                 key={obj.id}
                 onClick={() => setSelectedObjective(obj)}
-                className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4 hover:shadow-md transition-all cursor-pointer border-l-4 hover:border-l-[#0F3D68] flex flex-col justify-between"
+                className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4 hover:shadow-md transition-all cursor-pointer border-l-4 hover:border-l-brand flex flex-col justify-between"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
@@ -452,7 +452,7 @@ export default function ObjectivesPage() {
                   <span className="text-slate-400 font-medium">
                     Bénéficiaires : {beneficiaries.length} agent(s)
                   </span>
-                  <span className="text-[#0F3D68] font-bold hover:underline flex items-center">
+                  <span className="text-brand font-bold hover:underline flex items-center">
                     Voir détails & Bénéficiaires <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                   </span>
                 </div>
@@ -470,7 +470,7 @@ export default function ObjectivesPage() {
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-base flex items-center gap-2">
-                <Target className="h-5 w-5 text-[#0F3D68]" />
+                <Target className="h-5 w-5 text-brand" />
                 Créer un Objectif Commercial & Primes
               </DialogTitle>
             </DialogHeader>
@@ -552,7 +552,7 @@ export default function ObjectivesPage() {
                       aria-pressed={formBonusType === v}
                       onClick={() => setFormBonusType(v)}
                       className={`h-9 rounded-lg border text-xs font-bold transition ${
-                        formBonusType === v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                        formBonusType === v ? "border-brand bg-brand text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
                       }`}
                     >
                       {l}
@@ -613,7 +613,7 @@ export default function ObjectivesPage() {
                 <Button
                   type="submit"
                   disabled={saving}
-                  className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-semibold"
+                  className="bg-brand hover:bg-brand-strong text-white font-semibold"
                 >
                   {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
                   Créer l'Objectif

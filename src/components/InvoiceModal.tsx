@@ -211,14 +211,14 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
         >
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center gap-2 text-slate-400">
-              <Loader2 className="h-8 w-8 animate-spin text-[#211A5C]" />
+              <Loader2 className="h-8 w-8 animate-spin text-ink" />
               <span className="text-xs">Chargement des données de la facture...</span>
             </div>
           ) : (
             <div className={`flex-1 flex flex-col justify-between ${isCompact ? "gap-2" : "gap-3"}`}>
               {/* EN-TÊTE DE LA FACTURE - PREMIDIS SARL */}
               <div
-                className={`border-b-2 border-[#211A5C] flex flex-col sm:flex-row sm:items-start justify-between ${
+                className={`border-b-2 border-ink flex flex-col sm:flex-row sm:items-start justify-between ${
                   isCompact ? "pb-2 gap-2" : "pb-3 gap-3"
                 }`}
               >
@@ -234,7 +234,7 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
                     />
                     <div>
                       <h1
-                        className={`font-black tracking-tight text-[#211A5C] leading-none ${
+                        className={`font-black tracking-tight text-ink leading-none ${
                           isCompact ? "text-sm sm:text-base" : "text-base sm:text-xl"
                         }`}
                       >
@@ -269,7 +269,7 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
                 {/* TITRE & NUMÉRO DE FACTURE */}
                 <div className="sm:text-right bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-xl border sm:border-0 border-slate-200">
                   <div
-                    className={`inline-block bg-[#211A5C] text-white rounded-lg font-black tracking-wider uppercase ${
+                    className={`inline-block bg-ink text-white rounded-lg font-black tracking-wider uppercase ${
                       isCompact ? "text-[10px] px-2 py-0.5 mb-0.5" : "text-xs px-3 py-1 mb-1"
                     }`}
                   >
@@ -352,7 +352,7 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
                     </div>
                     <div>
                       <span className="text-slate-500 block text-[9px]">Moyen de Paiement :</span>
-                      <span className="font-bold text-[#211A5C] uppercase block">
+                      <span className="font-bold text-ink uppercase block">
                         {paymentMethodLabel}
                       </span>
                     </div>
@@ -373,7 +373,7 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
               {/* TABLEAU DES ARTICLES (Compact, lisible, sans débordement, sans scroll) */}
               <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
                 <table className={`w-full text-left ${isCompact ? "text-[10px]" : "text-xs"}`}>
-                  <thead className={`bg-[#211A5C]/5 border-b border-slate-200 text-[#211A5C] font-bold uppercase tracking-wider ${
+                  <thead className={`bg-ink/5 border-b border-slate-200 text-ink font-bold uppercase tracking-wider ${
                     isCompact ? "text-[9.5px]" : "text-[11px]"
                   }`}>
                     <tr>
@@ -490,10 +490,10 @@ export default function InvoiceModal({ order: initialOrder, isOpen, onClose }: I
                   </div>
 
                   {/* TOTAL NET À PAYER */}
-                  <div className={`border-t-2 border-[#211A5C] ${isCompact ? "pt-1 mt-0.5" : "pt-2 mt-1"}`}>
+                  <div className={`border-t-2 border-ink ${isCompact ? "pt-1 mt-0.5" : "pt-2 mt-1"}`}>
                     <div className="flex justify-between items-baseline">
                       <span className="font-extrabold text-xs text-slate-900 uppercase">Total Net :</span>
-                      <span className={`font-black text-[#211A5C] font-mono ${
+                      <span className={`font-black text-ink font-mono ${
                         isCompact ? "text-sm sm:text-base" : "text-base sm:text-lg"
                       }`}>
                         {fmtMoney(totalUSD, "USD")}

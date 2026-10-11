@@ -5,6 +5,10 @@ import './index.css';
 import { initI18n } from './i18n';
 import { useLang } from './i18n/useLang';
 import { APP_INFO } from './app/edition';
+import { initTheme } from './theme/theme';
+
+// Thème clair / sombre appliqué avant le premier rendu
+initTheme();
 
 // Nom de l'application (Gestion commerciale / Stock & Livraison) dans l'onglet du navigateur
 document.title = `PREMIDIS · ${APP_INFO.name}`;

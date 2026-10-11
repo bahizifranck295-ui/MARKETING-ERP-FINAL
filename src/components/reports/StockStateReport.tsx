@@ -36,7 +36,7 @@ const endIso = (day: string) => new Date(`${day}T23:59:59.999`).toISOString();
 const dayLabel = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString("fr-FR");
 
 const fieldCls =
-  "h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/30";
+  "h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand/30";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -52,9 +52,9 @@ function StockTableView({ rows, totals }: { rows: any[]; totals: any }) {
     <div className="overflow-x-auto">
       <table className="w-full min-w-[720px] border-collapse text-[11px]">
         <thead>
-          <tr className="bg-[#211A5C] text-white">
+          <tr className="bg-ink text-white">
             {STOCK_COLUMNS.map((c, i) => (
-              <th key={c.key} className={`border border-[#211A5C] px-2 py-1.5 font-bold ${i ? "text-center" : "text-left"}`}>
+              <th key={c.key} className={`border border-ink px-2 py-1.5 font-bold ${i ? "text-center" : "text-left"}`}>
                 {c.label}
                 <div className="text-[9px] font-normal opacity-80">{c.sub}</div>
               </th>
@@ -102,11 +102,11 @@ function StockTableView({ rows, totals }: { rows: any[]; totals: any }) {
 function ReportDocument({ report, periodLabel, preparedBy }: { report: any; periodLabel: string; preparedBy: string }) {
   return (
     <div className="mx-auto max-w-[900px] rounded-xl border border-slate-300 bg-white p-4 shadow-sm sm:p-6">
-      <div className="border-2 border-[#211A5C]">
+      <div className="border-2 border-ink">
         <div className="flex items-center gap-3 px-3 py-2">
           <img src="/assets/premidis-logo.svg" alt="" className="h-10 w-12 object-contain" />
           <div className="flex-1 text-center">
-            <div className="text-base font-black text-[#211A5C] sm:text-lg">
+            <div className="text-base font-black text-ink sm:text-lg">
               PREMIDIS SARL · <span data-no-translate>{report.category}</span> Sales &amp; Stock Report
             </div>
             <div className="text-[11px] text-slate-500">Rapport des ventes et de l'état de stock</div>
@@ -129,7 +129,7 @@ function ReportDocument({ report, periodLabel, preparedBy }: { report: any; peri
         </div>
       </div>
 
-      <h4 className="mb-1.5 mt-4 text-xs font-bold text-[#211A5C]">{mainTitle(report)}</h4>
+      <h4 className="mb-1.5 mt-4 text-xs font-bold text-ink">{mainTitle(report)}</h4>
       <StockTableView rows={report.main.rows} totals={report.main.totals} />
       {report.main.intra_site_neutral && (
         <p className="mt-1 text-[10px] italic text-slate-500">{neutralNote(report)}</p>
@@ -138,17 +138,17 @@ function ReportDocument({ report, periodLabel, preparedBy }: { report: any; peri
       {report.warehouse_id === "all" &&
         report.sections.map((s: any) => (
           <div key={s.warehouse_id}>
-            <h4 className="mb-1.5 mt-4 text-xs font-bold text-[#211A5C]">{sectionTitleOf(s)}</h4>
+            <h4 className="mb-1.5 mt-4 text-xs font-bold text-ink">{sectionTitleOf(s)}</h4>
             <StockTableView rows={s.rows} totals={s.totals} />
           </div>
         ))}
 
-      <h4 className="mb-1.5 mt-5 text-xs font-bold text-[#211A5C]">Notes / Justification des dommages et cadeaux</h4>
+      <h4 className="mb-1.5 mt-5 text-xs font-bold text-ink">Notes / Justification des dommages et cadeaux</h4>
       {report.notes.length ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[620px] border-collapse text-[11px]">
             <thead>
-              <tr className="bg-[#211A5C] text-left text-white">
+              <tr className="bg-ink text-left text-white">
                 {["Date", "Produit", "Qté", "Dépôt", "Motif", "Commentaire"].map((h) => (
                   <th key={h} className={`px-2 py-1.5 ${h === "Qté" ? "text-right" : ""}`}>{h}</th>
                 ))}
@@ -172,11 +172,11 @@ function ReportDocument({ report, periodLabel, preparedBy }: { report: any; peri
         <p className="text-xs italic text-slate-500">Aucune opération enregistrée.</p>
       )}
 
-      <h4 className="mb-1.5 mt-5 text-xs font-bold text-[#211A5C]">Credit Sales — Ventes à crédit</h4>
+      <h4 className="mb-1.5 mt-5 text-xs font-bold text-ink">Credit Sales — Ventes à crédit</h4>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[680px] border-collapse text-[11px]">
           <thead>
-            <tr className="bg-[#211A5C] text-left text-white">
+            <tr className="bg-ink text-left text-white">
               {CREDIT_COLUMNS.map((h, i) => (
                 <th key={h} className={`px-2 py-1.5 ${i >= 3 && i <= 5 ? "text-right" : ""}`}>{h}</th>
               ))}
@@ -399,7 +399,7 @@ export default function StockStateReport({
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-          <FileText className="h-4 w-4 text-[#0F3D68]" /> Rapport d'état de stock (Sales &amp; Stock Report)
+          <FileText className="h-4 w-4 text-brand" /> Rapport d'état de stock (Sales &amp; Stock Report)
         </h3>
         <span className="text-[11px] text-slate-500">Calculé automatiquement à partir des enregistrements de l'ERP</span>
       </div>
@@ -451,7 +451,7 @@ export default function StockStateReport({
         </Field>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={generate} disabled={generating || !siteId || !category} className="rounded-xl bg-[#0F3D68] text-xs text-white hover:bg-[#0B2F52]">
+        <Button onClick={generate} disabled={generating || !siteId || !category} className="rounded-xl bg-brand text-xs text-white hover:bg-brand-strong">
           {generating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CalendarDays className="mr-1.5 h-4 w-4" />}
           Générer le rapport
         </Button>
@@ -490,7 +490,7 @@ export default function StockStateReport({
       {/* Historique des rapports (trié par la barre Site / Dépôt / Catégorie de l'état des stocks) */}
       <div>
         <h4 className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-900">
-          <History className="h-4 w-4 text-[#0F3D68]" /> Historique des rapports ({shownHistory.length})
+          <History className="h-4 w-4 text-brand" /> Historique des rapports ({shownHistory.length})
           {shownHistory.length !== history.length && (
             <span className="text-[11px] font-normal text-slate-500">
               · filtré par la barre de tri (site, dépôt, catégorie) : {shownHistory.length} sur {history.length}
@@ -558,7 +558,7 @@ export default function StockStateReport({
                   type="button"
                   aria-current={n === curHistoryPage ? "page" : undefined}
                   onClick={() => setHistoryPage(n)}
-                  className={`h-7 min-w-7 rounded-lg px-2 font-bold ${n === curHistoryPage ? "bg-[#0F3D68] text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  className={`h-7 min-w-7 rounded-lg px-2 font-bold ${n === curHistoryPage ? "bg-brand text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
                 >
                   {n}
                 </button>

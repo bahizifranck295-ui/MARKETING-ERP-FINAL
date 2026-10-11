@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Loader2, Landmark, Lock, Mail, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { APP_INFO } from "@/app/edition";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,22 +38,23 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F4F6F9] px-4 py-8">
-      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-app px-4 py-8">
+      <div className="relative w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+        <ThemeToggle className="absolute right-4 top-4" />
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="mx-auto flex justify-center">
             <img
               src="/assets/premidis-logo.svg"
               alt="PREMIDIS SARL"
-              className="h-20 w-auto object-contain"
+              className="logo-tile h-20 w-auto rounded-2xl object-contain p-1.5"
             />
           </div>
-          <h1 className="text-2xl font-black text-[#211A5C] tracking-tight mt-2">
+          <h1 className="text-2xl font-black text-ink tracking-tight mt-2">
             PREMIDIS SARL
           </h1>
           <p className="text-xs text-slate-500">
-            <span data-app-name className="font-bold text-[#0F3D68]">{APP_INFO.name}</span> · {APP_INFO.subtitle}
+            <span data-app-name className="font-bold text-brand">{APP_INFO.name}</span> · {APP_INFO.subtitle}
           </p>
         </div>
 
@@ -91,8 +93,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={loading}
-            style={{ backgroundColor: "#0f3b68" }}
-            className="w-full h-11 rounded-xl bg-[#0f3b68] hover:bg-[#0B2F52] text-white font-bold text-sm shadow-md"
+            className="w-full h-11 rounded-xl bg-brand hover:bg-brand-strong text-white font-bold text-sm shadow-md"
           >
             {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Se connecter
@@ -111,7 +112,7 @@ export default function LoginPage() {
               className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-left transition-colors"
             >
               <div className="font-bold text-slate-800 flex items-center gap-1">
-                <ShieldCheck className="h-3.5 w-3.5 text-[#0F3D68]" />
+                <ShieldCheck className="h-3.5 w-3.5 text-brand" />
                 Super Admin
               </div>
               <div className="text-[10px] text-slate-400">admin@erp.local</div>

@@ -239,7 +239,7 @@ export default function CreditsPage() {
                 onClick={() => setDebtSite(x.id)}
                 data-no-translate={x.id === ALL_SITES ? undefined : true}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  debtSite === x.id ? "bg-white text-[#0F3D68] shadow-xs" : "text-slate-600 hover:text-slate-900"
+                  debtSite === x.id ? "bg-white text-brand shadow-xs" : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 {x.name}

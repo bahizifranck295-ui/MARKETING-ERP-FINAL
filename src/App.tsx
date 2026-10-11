@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { useTheme } from "@/theme/theme";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Layout from "@/components/Layout";
 
@@ -30,9 +31,10 @@ import LogisticsReportsPage from "@/pages/logistics/LogisticsReportsPage";
 import { IS_LOGISTICS, inThisApp } from "@/app/edition";
 
 export default function App() {
+  const { theme } = useTheme();
   return (
     <AuthProvider>
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors theme={theme} />
       <BrowserRouter>
         <Routes>
           {/* Public Route */}

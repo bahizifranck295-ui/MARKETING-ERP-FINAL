@@ -27,6 +27,7 @@ import { APP_INFO, IS_LOGISTICS, inThisApp } from "@/app/edition";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import BrandLogo from "@/components/BrandLogo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,16 +127,17 @@ export default function Layout() {
   ].filter((item) => !item.perm || has(item.perm));
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] text-slate-900 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-app text-slate-900 flex flex-col lg:flex-row dark:bg-transparent">
       {/* DESKTOP SIDEBAR */}
       <aside
-        className={`hidden lg:flex flex-col flex-shrink-0 bg-[#0A1828] text-slate-300 border-r border-[#15273C] transition-all duration-300 sticky top-0 h-screen z-40 ${
+        className={`hidden lg:flex flex-col flex-shrink-0 bg-sidebar text-sidebar-fg border-r border-sidebar-line transition-all duration-300 sticky top-0 h-screen z-40 ${
           sidebarCollapsed ? "w-20" : "w-[245px]"
         }`}
       >
         {/* Brand Header */}
-        <div className="h-16 px-4 flex items-center gap-3 border-b border-[#15273C] select-none">
-          <div className="h-9 w-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center p-1 flex-shrink-0">
+        <div className="h-16 px-4 flex items-center gap-3 border-b border-sidebar-line select-none">
+          {/* Logo PREMIDIS sur fond clair dans les deux thèmes (lisibilité) */}
+          <div className="h-9 w-9 rounded-xl logo-tile border border-line flex items-center justify-center p-1 flex-shrink-0 shadow-xs">
             <img
               src="/assets/premidis-logo.svg"
               alt="PREMIDIS"
@@ -144,10 +146,10 @@ export default function Layout() {
           </div>
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-[13px] font-black tracking-wider text-white truncate">
+              <span className="text-[13px] font-black tracking-wider text-ink truncate">
                 PREMIDIS SARL
               </span>
-              <span className="text-[10px] text-slate-400 truncate" data-app-name>
+              <span className="text-[10px] text-sidebar-muted truncate" data-app-name>
                 {APP_INFO.name}
               </span>
             </div>
@@ -168,8 +170,8 @@ export default function Layout() {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                     isActive
-                      ? "bg-[#1E70BF] text-white shadow-sm font-semibold"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                      ? "bg-brand text-white font-semibold shadow-[var(--shadow-glow)]"
+                      : "text-sidebar-fg hover:bg-sidebar-hover hover:text-brand dark:hover:text-white"
                   } ${sidebarCollapsed ? "justify-center px-0" : ""}`
                 }
               >
@@ -181,31 +183,33 @@ export default function Layout() {
         </nav>
 
         {/* User Card & Collapse */}
-        <div className="p-3 border-t border-[#15273C] bg-[#071322]/60 space-y-2">
+        <div className="p-3 border-t border-sidebar-line space-y-2">
           <div
             onClick={() => navigate("/profile")}
-            className={`flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors ${
+            className={`flex items-center gap-2.5 p-2 rounded-xl hover:bg-sidebar-hover cursor-pointer transition-colors ${
               sidebarCollapsed ? "justify-center" : ""
             }`}
           >
-            <div className="h-8 w-8 rounded-full bg-[#1E70BF] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+            <div className="h-8 w-8 rounded-full bg-brand text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
               {initials}
             </div>
             {!sidebarCollapsed && (
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-xs font-semibold text-white truncate" data-no-translate={user?.full_name ? "" : undefined}>
+                <span className="text-xs font-semibold text-ink truncate" data-no-translate={user?.full_name ? "" : undefined}>
                   {user?.full_name || "Utilisateur"}
                 </span>
-                <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
+                <div className="flex items-center gap-1.5 text-[10px] text-emerald-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
                   <span>En ligne</span>
                 </div>
               </div>
             )}
           </div>
+          <div className={`flex items-center gap-2 ${sidebarCollapsed ? "flex-col" : ""}`}>
+          <ThemeToggle />
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="w-full flex items-center justify-center gap-2 py-1.5 text-[11px] text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors"
+            className="flex-1 w-full flex items-center justify-center gap-2 py-1.5 text-[11px] text-sidebar-muted hover:text-brand hover:bg-sidebar-hover rounded-lg transition-colors"
           >
             {sidebarCollapsed ? (
               <PanelLeftOpen className="h-4 w-4" />
@@ -216,6 +220,7 @@ export default function Layout() {
               </>
             )}
           </button>
+          </div>
         </div>
       </aside>
 
@@ -227,6 +232,7 @@ export default function Layout() {
           <div className="flex items-center gap-2">
             <OnlineBadge online={online} />
             {location.pathname !== "/dashboard" && <LanguageSwitcher />}
+            <ThemeToggle />
             <button
               onClick={() => navigate("/notifications")}
               className="relative h-9 w-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700"
@@ -240,7 +246,7 @@ export default function Layout() {
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="h-9 w-9 rounded-full bg-[#1E70BF] text-white text-xs font-semibold flex items-center justify-center hover:bg-[#165a9b] transition-colors">
+                <button className="h-9 w-9 rounded-full bg-brand text-white text-xs font-semibold flex items-center justify-center hover:bg-brand-strong transition-colors">
                   {initials}
                 </button>
               </DropdownMenuTrigger>
@@ -251,7 +257,7 @@ export default function Layout() {
                       {user?.full_name}
                     </span>
                     <span className="text-xs text-slate-500">{user?.email}</span>
-                    <span className="mt-1 inline-flex w-fit text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#0F3D68]/10 text-[#0F3D68] font-semibold">
+                    <span className="mt-1 inline-flex w-fit text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand/10 text-brand font-semibold">
                       {role?.name || user?.role_code}
                     </span>
                   </div>
@@ -357,7 +363,7 @@ function BottomLink({
         if (!enabled) return `${base} text-slate-300 cursor-not-allowed`;
         return `${base} ${
           isActive
-            ? "text-[#1E70BF] font-semibold"
+            ? "text-brand font-semibold"
             : "text-slate-500 hover:text-slate-900"
         }`;
       }}

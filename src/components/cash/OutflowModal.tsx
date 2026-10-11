@@ -269,7 +269,7 @@ export default function OutflowModal({
               <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs focus:border-[#0F3D68] focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs focus:border-brand focus:outline-none"
               >
                 {expenseCategories.map((cat) => (
                   <option key={cat} value={cat}>
@@ -313,7 +313,7 @@ export default function OutflowModal({
                 <select
                   value={form.currency}
                   onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                  className="mt-1 w-full h-9 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-xs focus:border-[#0F3D68] focus:outline-none"
+                  className="mt-1 w-full h-9 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-xs focus:border-brand focus:outline-none"
                 >
                   <option value="USD">USD ($ - Dollar américain)</option>
                   <option value="CDF">CDF (FC - Franc congolais)</option>
@@ -353,7 +353,7 @@ export default function OutflowModal({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5 text-[#0F3D68]" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-brand" />
                   Autorisé par <span className="text-rose-500">*</span>
                 </Label>
                 {form.authorized_by && (
@@ -373,7 +373,7 @@ export default function OutflowModal({
               {form.authorized_by ? (
                 <div className="p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center justify-between shadow-2xs">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-lg bg-[#0F3D68] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    <div className="h-8 w-8 rounded-lg bg-brand text-white flex items-center justify-center font-bold text-xs shrink-0">
                       {form.authorized_by.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
@@ -428,7 +428,7 @@ export default function OutflowModal({
                             className="w-full text-left p-2 hover:bg-blue-50/70 rounded-lg flex items-center justify-between transition-colors text-xs"
                           >
                             <div className="flex items-center gap-2">
-                              <div className="h-7 w-7 rounded-full bg-slate-100 text-[#0F3D68] flex items-center justify-center font-bold text-[10px] shrink-0">
+                              <div className="h-7 w-7 rounded-full bg-slate-100 text-brand flex items-center justify-center font-bold text-[10px] shrink-0">
                                 {u.full_name?.slice(0, 2).toUpperCase()}
                               </div>
                               <div>
@@ -526,7 +526,7 @@ export default function OutflowModal({
                         type="button"
                         size="sm"
                         onClick={() => openDocumentInNativeViewer(docUrl, docName)}
-                        className="h-7 text-xs rounded-lg bg-[#0F3D68] hover:bg-[#0B2F52] text-white font-semibold px-2.5 gap-1"
+                        className="h-7 text-xs rounded-lg bg-brand hover:bg-brand-strong text-white font-semibold px-2.5 gap-1"
                         title="Ouvrir dans le visualiseur"
                       >
                         <Eye className="h-3.5 w-3.5" />
@@ -608,7 +608,7 @@ export default function OutflowModal({
         <DialogContent className="max-w-md bg-white rounded-2xl p-5">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Plus className="h-5 w-5 text-[#0F3D68]" />
+              <Plus className="h-5 w-5 text-brand" />
               Créer une Catégorie de Dépense
             </DialogTitle>
           </DialogHeader>
@@ -645,7 +645,7 @@ export default function OutflowModal({
               <Button
                 type="submit"
                 disabled={savingCat || !newCatName.trim()}
-                className="bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs font-bold"
+                className="bg-brand hover:bg-brand-strong text-white text-xs font-bold"
               >
                 {savingCat ? (
                   <>

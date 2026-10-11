@@ -164,7 +164,7 @@ export default function AuditTimeline({ base, modules, showActor = false, compac
           </button>
         )}
         {has("audit.export") && (
-          <button type="button" onClick={exportCsv} className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-[#0F3D68] hover:bg-slate-50">
+          <button type="button" onClick={exportCsv} className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-brand hover:bg-slate-50">
             <Download className="h-3.5 w-3.5" /> CSV
           </button>
         )}

@@ -52,7 +52,7 @@ function Breadcrumb({ items }: { items: Array<{ label: string; onClick?: () => v
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
           {it.onClick ? (
-            <button type="button" onClick={it.onClick} className="font-semibold text-[#0F3D68] hover:underline">
+            <button type="button" onClick={it.onClick} className="font-semibold text-brand hover:underline">
               {it.label}
             </button>
           ) : (
@@ -162,7 +162,7 @@ export default function SitesDepotsPanel({
           icon={MapPin}
           right={
             canManage && (
-              <Button size="sm" onClick={() => setDialog("site")} className="h-8 rounded-xl bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+              <Button size="sm" onClick={() => setDialog("site")} className="h-8 rounded-xl bg-brand text-white hover:bg-brand-strong">
                 <Plus className="mr-1 h-4 w-4" /> Nouveau site
               </Button>
             )
@@ -180,7 +180,7 @@ export default function SitesDepotsPanel({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-[#0F3D68]" />
+                      <MapPin className="h-4 w-4 text-brand" />
                       <span className="truncate text-base font-black text-slate-900">{s.name}</span>
                     </div>
                     <div className="mt-0.5 font-mono text-[10px] text-slate-500">{s.code}</div>
@@ -200,7 +200,7 @@ export default function SitesDepotsPanel({
                     </div>
                   ))}
                 </dl>
-                <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-[#0F3D68] group-hover:underline">
+                <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-brand group-hover:underline">
                   Voir les dépôts <ChevronRight className="h-3.5 w-3.5" />
                 </span>
               </button>
@@ -226,7 +226,7 @@ export default function SitesDepotsPanel({
                   </Button>
                 )}
                 {canManage && (
-                  <Button size="sm" onClick={() => setDialog("depot")} className="h-8 rounded-xl bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+                  <Button size="sm" onClick={() => setDialog("depot")} className="h-8 rounded-xl bg-brand text-white hover:bg-brand-strong">
                     <Plus className="mr-1 h-4 w-4" /> Nouveau dépôt
                   </Button>
                 )}
@@ -281,7 +281,7 @@ export default function SitesDepotsPanel({
                             size="sm"
                             variant="outline"
                             onClick={() => setView({ level: "depot", siteId: site.id, depotId: d.id })}
-                            className="h-8 rounded-lg text-[11px] hover:border-cyan-300 hover:text-[#0F3D68]"
+                            className="h-8 rounded-lg text-[11px] hover:border-cyan-300 hover:text-brand"
                           >
                             <Eye className="mr-1 h-3.5 w-3.5" /> Voir
                           </Button>
@@ -332,7 +332,7 @@ export default function SitesDepotsPanel({
                 <div className="flex flex-wrap items-center gap-2">
                   <ActivePill active={detail.depot.is_active !== false} />
                   {canAddStock && detail.depot.is_active !== false && (
-                    <Button size="sm" onClick={() => setDialog("add")} className="h-8 rounded-xl bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+                    <Button size="sm" onClick={() => setDialog("add")} className="h-8 rounded-xl bg-brand text-white hover:bg-brand-strong">
                       <PackagePlus className="mr-1 h-4 w-4" /> Ajouter un produit
                     </Button>
                   )}
@@ -341,7 +341,7 @@ export default function SitesDepotsPanel({
                       size="sm"
                       variant="outline"
                       onClick={() => setDialog({ transferFrom: detail.depot.id })}
-                      className="h-8 rounded-xl hover:border-cyan-300 hover:text-[#0F3D68]"
+                      className="h-8 rounded-xl hover:border-cyan-300 hover:text-brand"
                     >
                       <ArrowRightLeft className="mr-1 h-4 w-4" /> Transférer du stock
                     </Button>
@@ -362,7 +362,7 @@ export default function SitesDepotsPanel({
                       : "Capacité non définie"
                   }
                 />
-                <KpiTile icon={Database} glow="from-[#0F3D68] to-[#1D6FB8]" label="Valeur du stock" value={fmtMoney(detail.depot.value)} hint="Au prix d'achat" />
+                <KpiTile icon={Database} glow="from-brand to-brand" label="Valeur du stock" value={fmtMoney(detail.depot.value)} hint="Au prix d'achat" />
                 <KpiTile icon={TriangleAlert} glow="from-amber-400 to-orange-500" label="Stock faible" value={fmtNum(detail.depot.low_count)} hint="Sous le seuil d'alerte" />
               </div>
 
@@ -417,7 +417,7 @@ export default function SitesDepotsPanel({
                                       size="sm"
                                       variant="outline"
                                       onClick={() => setAdjusting(p)}
-                                      className="h-8 rounded-lg text-[11px] hover:border-cyan-300 hover:text-[#0F3D68]"
+                                      className="h-8 rounded-lg text-[11px] hover:border-cyan-300 hover:text-brand"
                                     >
                                       <Sliders className="mr-1 h-3.5 w-3.5" /> Ajuster
                                     </Button>
@@ -428,7 +428,7 @@ export default function SitesDepotsPanel({
                                       variant="outline"
                                       disabled={p.quantity <= 0}
                                       onClick={() => setDialog({ transferFrom: detail.depot.id, productId: p.id })}
-                                      className="h-8 rounded-lg text-[11px] hover:border-cyan-300 hover:text-[#0F3D68]"
+                                      className="h-8 rounded-lg text-[11px] hover:border-cyan-300 hover:text-brand"
                                     >
                                       <ArrowRightLeft className="mr-1 h-3.5 w-3.5" /> Transférer
                                     </Button>

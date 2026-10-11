@@ -77,7 +77,7 @@ export default function RolesPage() {
               type="button"
               onClick={() => setTab(t.id)}
               aria-current={tab === t.id ? "page" : undefined}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${tab === t.id ? "bg-[#0F3D68] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${tab === t.id ? "bg-brand text-white" : "text-slate-600 hover:bg-slate-100"}`}
             >
               <Icon className="h-4 w-4" /> {t.label}
             </button>
@@ -114,6 +114,8 @@ function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { t
   const [detail, setDetail] = useState<any>(null);
   const [value, setValue] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<any>(null);
+  // Le périmètre n'est envoyé que s'il a été modifié (une modification de permissions ne le touche pas)
+  const [scopeDirty, setScopeDirty] = useState(false);
   const [sites, setSites] = useState<any[]>([]);
   const [cats, setCats] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -135,6 +137,7 @@ function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { t
       (data.denies || []).forEach((c: string) => role.delete(c));
       setValue(role);
       setScope({ ...data.raw_scope });
+      setScopeDirty(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Impossible de charger les permissions"));
     } finally {
@@ -164,7 +167,7 @@ function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { t
     try {
       const body: any = {};
       if (canPerms) Object.assign(body, { grants, denies });
-      if (canScope && scope) body.scope = scope;
+      if (canScope && scope && scopeDirty) body.scope = scope;
       const { data } = await api.put(`/users/${detail.user.id}/permissions`, body);
       toast.success(`Permissions enregistrées : ${data.effective.length} droit(s) effectif(s), appliqués immédiatement`);
       loadDetail(detail.user.id);
@@ -188,9 +191,9 @@ function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { t
               <button
                 type="button"
                 onClick={() => onSelect(u.id)}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors ${selectedId === u.id ? "bg-[#0F3D68] text-white" : "hover:bg-slate-50"}`}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors ${selectedId === u.id ? "bg-brand text-white" : "hover:bg-slate-50"}`}
               >
-                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold ${selectedId === u.id ? "bg-white/20" : "bg-[#0F3D68]/10 text-[#0F3D68]"}`}>{initials(u.full_name)}</span>
+                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold ${selectedId === u.id ? "bg-white/20" : "bg-brand/10 text-brand"}`}>{initials(u.full_name)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-bold" data-no-translate>{u.full_name}</span>
                   <span className={`block truncate text-[10px] ${selectedId === u.id ? "text-white/70" : "text-slate-500"}`}>{roleName(u.role_code)}</span>
@@ -216,7 +219,7 @@ function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { t
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
               <div className="flex items-center gap-3">
-                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#0F3D68] text-sm font-bold text-white">{initials(detail.user.full_name)}</span>
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-brand text-sm font-bold text-white">{initials(detail.user.full_name)}</span>
                 <div>
                   <div className="text-sm font-bold text-slate-900" data-no-translate>{detail.user.full_name}</div>
                   <div className="text-[11px] text-slate-500">
@@ -232,7 +235,7 @@ function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { t
                   </Button>
                 )}
                 {(canPerms || canScope) && (
-                  <Button size="sm" onClick={save} disabled={saving} className="h-9 rounded-xl bg-[#0F3D68] text-xs text-white hover:bg-[#0B2F52]" data-save-perms>
+                  <Button size="sm" onClick={save} disabled={saving} className="h-9 rounded-xl bg-brand text-xs text-white hover:bg-brand-strong" data-save-perms>
                     {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />} Enregistrer
                   </Button>
                 )}
@@ -251,7 +254,7 @@ function UserPermissions({ tree, users, roles, mine, selectedId, onSelect }: { t
             )}
 
             {scope && has("users.scope") && (
-              <ScopeEditor scope={scope} onChange={setScope} sites={sites} categories={cats} disabled={!canScope} />
+              <ScopeEditor scope={scope} onChange={(next) => { setScope(next); setScopeDirty(true); }} sites={sites} categories={cats} disabled={!canScope} />
             )}
 
             {has("users.permissions") && (
@@ -309,7 +312,7 @@ function ScopeEditor({ scope, onChange, sites, categories, disabled }: { scope: 
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-bold text-slate-700">{title}</span>
         <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
-          <input type="checkbox" disabled={disabled} checked={!!scope[allKey]} onChange={(e) => onChange({ ...scope, [allKey]: e.target.checked })} className="h-3.5 w-3.5 accent-[#0F3D68]" />
+          <input type="checkbox" disabled={disabled} checked={!!scope[allKey]} onChange={(e) => onChange({ ...scope, [allKey]: e.target.checked })} className="h-3.5 w-3.5 accent-brand" />
           {allLabel}
         </label>
       </div>
@@ -324,7 +327,7 @@ function ScopeEditor({ scope, onChange, sites, categories, disabled }: { scope: 
                 disabled={disabled}
                 onClick={() => toggle(listKey, it.value)}
                 aria-pressed={on}
-                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${on ? "border-[#0F3D68] bg-[#0F3D68]/10 text-[#0F3D68]" : "border-slate-200 bg-white text-slate-600"}`}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${on ? "border-brand bg-brand/10 text-brand" : "border-slate-200 bg-white text-slate-600"}`}
               >
                 {it.label}
               </button>
@@ -384,14 +387,14 @@ function RoleTemplates({ tree, roles, users, mine, onChanged }: { tree: CatalogT
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
       <aside className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
         {has("roles.manage") && (
-          <Button size="sm" onClick={() => setCreating(true)} className="h-9 w-full rounded-xl bg-[#0F3D68] text-xs text-white hover:bg-[#0B2F52]">
+          <Button size="sm" onClick={() => setCreating(true)} className="h-9 w-full rounded-xl bg-brand text-xs text-white hover:bg-brand-strong">
             <Plus className="mr-1.5 h-4 w-4" /> Nouveau rôle
           </Button>
         )}
         <ul className="space-y-1" data-role-list>
           {roles.map((r) => (
             <li key={r.code}>
-              <button type="button" onClick={() => setCode(r.code)} className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left ${code === r.code ? "bg-[#0F3D68] text-white" : "hover:bg-slate-50"}`}>
+              <button type="button" onClick={() => setCode(r.code)} className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left ${code === r.code ? "bg-brand text-white" : "hover:bg-slate-50"}`}>
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-bold">{r.name}</span>
                   <span className={`block text-[10px] ${code === r.code ? "text-white/70" : "text-slate-500"}`}>
@@ -418,7 +421,7 @@ function RoleTemplates({ tree, roles, users, mine, onChanged }: { tree: CatalogT
                 </Button>
               )}
               {editable && (
-                <Button size="sm" onClick={save} disabled={saving} className="h-9 rounded-xl bg-[#0F3D68] text-xs text-white hover:bg-[#0B2F52]" data-save-role>
+                <Button size="sm" onClick={save} disabled={saving} className="h-9 rounded-xl bg-brand text-xs text-white hover:bg-brand-strong" data-save-role>
                   {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />} Enregistrer le modèle
                 </Button>
               )}
@@ -492,7 +495,7 @@ function NewRoleDialog({ roles, onClose, onCreated }: { roles: any[]; onClose: (
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit" disabled={saving || !name.trim()} className="bg-[#0F3D68] text-white">
+            <Button type="submit" disabled={saving || !name.trim()} className="bg-brand text-white">
               Créer
             </Button>
           </DialogFooter>

@@ -16,8 +16,9 @@ import {
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { fmtMoney } from "@/components/erp-ui";
+import { fmtMoney, KpiCard } from "@/components/erp-ui";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Bell } from "lucide-react";
 
 function Tile({
@@ -38,7 +39,7 @@ function Tile({
   badge?: string | number | null;
 }) {
   const tones = {
-    blue: "bg-[#0F3D68] text-white",
+    blue: "bg-brand text-white",
     slate: "bg-slate-100 text-slate-700",
     green: "bg-emerald-50 text-emerald-700 border border-emerald-100",
     amber: "bg-amber-50 text-amber-700 border border-amber-100",
@@ -67,51 +68,12 @@ function Tile({
         </span>
       )}
       {enabled && !badge && (
-        <ArrowRight className="h-4 w-4 text-slate-300 absolute top-4 right-4 group-hover:text-[#0F3D68] transition-colors" />
+        <ArrowRight className="h-4 w-4 text-slate-300 absolute top-4 right-4 group-hover:text-brand transition-colors" />
       )}
     </Wrapper>
   );
 }
 
-function KpiCard({
-  label,
-  value,
-  sub,
-  tone = "blue",
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: "blue" | "green" | "red" | "slate";
-}) {
-  const tones = {
-    blue: "bg-[#0F3D68] text-white",
-    green: "bg-emerald-600 text-white",
-    red: "bg-red-600 text-white",
-    slate: "bg-white text-slate-900 border border-slate-200 shadow-xs",
-  };
-  return (
-    <div className={`rounded-2xl p-4 ${tones[tone]}`}>
-      <div
-        className={`text-[11px] uppercase tracking-wider font-semibold ${
-          tone === "slate" ? "text-slate-500" : "text-white/70"
-        }`}
-      >
-        {label}
-      </div>
-      <div className="text-2xl font-bold mt-1 tracking-tight">{value}</div>
-      {sub && (
-        <div
-          className={`text-xs mt-0.5 ${
-            tone === "slate" ? "text-slate-500" : "text-white/80"
-          }`}
-        >
-          {sub}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const { user, role, has } = useAuth();
@@ -153,11 +115,12 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5">
       {/* Hero */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#0F3D68] to-[#0B2F52] text-white p-5 shadow-sm">
+      <div className="rounded-2xl hero-surface p-5 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="text-white/80 text-sm">Bienvenue,</div>
           <div className="flex items-center gap-2 shrink-0">
             <LanguageSwitcher variant="dark" />
+            <ThemeToggle variant="hero" />
             <Link
               to="/notifications"
               title="Notifications"
@@ -232,7 +195,7 @@ export default function DashboardPage() {
           {unread > 0 && (
             <Link
               to="/notifications"
-              className="text-[11px] text-[#0F3D68] font-semibold hover:underline"
+              className="text-[11px] text-brand font-semibold hover:underline"
             >
               {unread} notification(s)
             </Link>

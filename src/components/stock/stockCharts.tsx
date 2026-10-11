@@ -70,8 +70,8 @@ export function BarsBySite({ rows }: { rows: Array<{ site: string; value: number
       <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Valeur du stock par site">
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#e2e8f0" strokeWidth={1} />
-            <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="#64748b">
+            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="var(--color-slate-200)" strokeWidth={1} />
+            <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="var(--color-slate-500)">
               {compactMoney(t)}
             </text>
           </g>
@@ -89,10 +89,10 @@ export function BarsBySite({ rows }: { rows: Array<{ site: string; value: number
                 fill={BAR_COLOR}
                 opacity={hover === null || hover === i ? 1 : 0.55}
               />
-              <text x={cx} y={top - 6} textAnchor="middle" fontSize={10} fontWeight={700} fill="#0f172a">
+              <text x={cx} y={top - 6} textAnchor="middle" fontSize={10} fontWeight={700} fill="var(--color-slate-900)">
                 {fmtMoney(r.value)}
               </text>
-              <text x={cx} y={H - 10} textAnchor="middle" fontSize={11} fill="#334155">
+              <text x={cx} y={H - 10} textAnchor="middle" fontSize={11} fill="var(--color-slate-700)">
                 {r.site}
               </text>
             </g>
@@ -141,10 +141,10 @@ export function Donut({ slices, total }: { slices: Array<{ label: string; value:
             />
           ) : null
         )}
-        <text x={C} y={C - 2} textAnchor="middle" fontSize={14} fontWeight={800} fill="#0f172a">
+        <text x={C} y={C - 2} textAnchor="middle" fontSize={14} fontWeight={800} fill="var(--color-slate-900)">
           {active ? `${Math.round((active.value / total) * 100)} %` : compactMoney(total)}
         </text>
-        <text x={C} y={C + 14} textAnchor="middle" fontSize={9} fill="#64748b">
+        <text x={C} y={C + 14} textAnchor="middle" fontSize={9} fill="var(--color-slate-500)">
           {active ? active.label : "Valeur totale"}
         </text>
       </svg>
@@ -201,31 +201,31 @@ export function Evolution({ points }: { points: Array<{ date: Date; value: numbe
         </defs>
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#e2e8f0" strokeWidth={1} />
-            <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="#64748b">
+            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="var(--color-slate-200)" strokeWidth={1} />
+            <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="var(--color-slate-500)">
               {compactMoney(t)}
             </text>
           </g>
         ))}
         {points.map((p, i) =>
           i % labelEvery === 0 || i === last ? (
-            <text key={i} x={x(i)} y={H - 10} textAnchor="middle" fontSize={10} fill="#64748b">
+            <text key={i} x={x(i)} y={H - 10} textAnchor="middle" fontSize={10} fill="var(--color-slate-500)">
               {p.date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
             </text>
           ) : null
         )}
         <path d={area} fill="url(#stock-evo-fill)" />
         <path d={line} fill="none" stroke={BAR_COLOR} strokeWidth={2} strokeLinejoin="round" />
-        <circle cx={x(last)} cy={y(points[last]?.value || 0)} r={4.5} fill={BAR_COLOR} stroke="#fff" strokeWidth={2} />
+        <circle cx={x(last)} cy={y(points[last]?.value || 0)} r={4.5} fill={BAR_COLOR} stroke="var(--surface-primary)" strokeWidth={2} />
         {hp && (
           <g pointerEvents="none">
-            <line x1={x(hover!)} x2={x(hover!)} y1={T} y2={T + plotH} stroke="#94a3b8" strokeDasharray="3 3" />
-            <circle cx={x(hover!)} cy={y(hp.value)} r={4} fill={BAR_COLOR} stroke="#fff" strokeWidth={2} />
+            <line x1={x(hover!)} x2={x(hover!)} y1={T} y2={T + plotH} stroke="var(--color-slate-400)" strokeDasharray="3 3" />
+            <circle cx={x(hover!)} cy={y(hp.value)} r={4} fill={BAR_COLOR} stroke="var(--surface-primary)" strokeWidth={2} />
           </g>
         )}
         <rect x={L} y={T} width={plotW} height={plotH} fill="transparent" onMouseMove={onMove} onMouseLeave={() => setHover(null)} />
       </svg>
-      <div className="absolute right-2 top-0 rounded-lg bg-[#0F3D68] px-2 py-1 text-[11px] font-bold text-white tabular-nums">
+      <div className="absolute right-2 top-0 rounded-lg bg-brand px-2 py-1 text-[11px] font-bold text-white tabular-nums">
         {hp
           ? `${hp.date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} · ${fmtMoney(hp.value)}`
           : `Aujourd'hui · ${fmtMoney(points[last]?.value || 0)}`}

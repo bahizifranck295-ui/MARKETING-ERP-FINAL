@@ -139,7 +139,7 @@ export default function MovementDetailPanel({
                   ? "bg-emerald-100 text-emerald-700"
                   : movement.module === "orders"
                   ? "bg-purple-100 text-purple-700"
-                  : "bg-blue-100 text-[#1E70BF]"
+                  : "bg-blue-100 text-brand"
               }`}
             >
               {movement.module === "cash" ? (
@@ -274,7 +274,7 @@ export default function MovementDetailPanel({
                 movement.reference?.startsWith("DEC-") ||
                 Number(movement.amount) < 0
                   ? "border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100"
-                  : "border-[#0F3D68]/30 bg-[#0F3D68]/10 text-[#0F3D68] hover:bg-[#0F3D68]/20"
+                  : "border-brand/30 bg-brand/10 text-brand hover:bg-brand/20"
               }`}
               title={
                 movement.source?.toLowerCase().includes("sortie") ||
@@ -292,7 +292,7 @@ export default function MovementDetailPanel({
                   movement.reference?.startsWith("DEC-") ||
                   Number(movement.amount) < 0
                     ? "text-rose-600"
-                    : "text-[#0F3D68]"
+                    : "text-brand"
                 }`}
               />
               <span>
@@ -324,7 +324,7 @@ export default function MovementDetailPanel({
             className={`w-full h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs ${
               isRecorded
                 ? "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100"
-                : "bg-[#1E70BF] hover:bg-[#165a9b] text-white"
+                : "bg-brand hover:bg-brand-strong text-white"
             }`}
           >
             {isRecorded ? (
@@ -348,7 +348,7 @@ export default function MovementDetailPanel({
         <DialogContent className="max-w-md p-6 bg-white rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#1E70BF]" />
+              <FileText className="h-5 w-5 text-brand" />
               Document Source
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
@@ -359,7 +359,7 @@ export default function MovementDetailPanel({
           <div className="mt-4 p-4 border border-slate-200 rounded-xl bg-slate-50/40 space-y-4 text-xs">
             <div className="flex justify-between items-start border-b border-slate-200 pb-3">
               <div>
-                <p className="text-sm font-black text-[#211A5C]">PREMIDIS SARL</p>
+                <p className="text-sm font-black text-ink">PREMIDIS SARL</p>
                 <p className="text-[11px] text-slate-500">Service Comptabilité & Finance</p>
               </div>
               <div className="text-right">
@@ -387,7 +387,7 @@ export default function MovementDetailPanel({
             </Button>
             <Button
               onClick={() => setShowDocModal(false)}
-              className="flex-1 bg-[#1E70BF] hover:bg-[#165a9b] text-white text-xs"
+              className="flex-1 bg-brand hover:bg-brand-strong text-white text-xs"
             >
               Fermer
             </Button>

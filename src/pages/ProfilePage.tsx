@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { Lock, LogOut, Loader2 } from "lucide-react";
+import { Lock, LogOut, Loader2, Monitor, Moon, Palette, Sun } from "lucide-react";
+import { useTheme, type ThemePref } from "@/theme/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { api, extractErrorMessage } from "@/lib/api";
@@ -45,14 +46,14 @@ export default function ProfilePage() {
         subtitle="Informations de votre compte utilisateur"
       />
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col sm:flex-row items-center gap-5">
-        <div className="h-20 w-20 rounded-2xl bg-[#0F3D68] text-white font-black text-2xl flex items-center justify-center shadow-md">
+        <div className="h-20 w-20 rounded-2xl bg-brand text-white font-black text-2xl flex items-center justify-center shadow-md">
           {initials}
         </div>
         <div className="text-center sm:text-left space-y-1">
           <h2 className="text-xl font-bold text-slate-900">{user?.full_name}</h2>
           <p className="text-xs text-slate-500">{user?.email}</p>
           <div className="pt-1 flex flex-wrap justify-center sm:justify-start gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#0F3D68]/10 text-[#0F3D68] text-xs font-semibold">
+            <span className="px-2.5 py-0.5 rounded-full bg-brand/10 text-brand text-xs font-semibold">
               {role?.name || user?.role_code}
             </span>
             {user?.department && (
@@ -63,6 +64,8 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <ThemePreference />
 
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
@@ -93,7 +96,7 @@ export default function ProfilePage() {
           <Button
             type="submit"
             disabled={saving}
-            className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white"
+            className="rounded-xl bg-brand hover:bg-brand-strong text-white"
           >
             {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
             Mettre à jour le mot de passe
@@ -116,6 +119,47 @@ export default function ProfilePage() {
         >
           <LogOut className="h-4 w-4 mr-1.5" /> Se déconnecter
         </Button>
+      </div>
+    </div>
+  );
+}
+
+/* Préférence d'affichage : enregistrée pour cet utilisateur, appliquée immédiatement */
+function ThemePreference() {
+  const { pref, setPref } = useTheme();
+  const options: Array<{ v: ThemePref; label: string; icon: any; hint: string }> = [
+    { v: "light", label: "Clair", icon: Sun, hint: "Gris-lavande, blanc et violet" },
+    { v: "dark", label: "Sombre", icon: Moon, hint: "Bleu nuit, bleu électrique et cyan" },
+    { v: "system", label: "Système", icon: Monitor, hint: "Suit le réglage de l'appareil" },
+  ];
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-3" data-theme-pref>
+      <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+        <Palette className="h-4 w-4 text-brand" /> Apparence
+      </h2>
+      <div role="radiogroup" aria-label="Thème de l'application" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {options.map((o) => {
+          const Icon = o.icon;
+          const on = pref === o.v;
+          return (
+            <button
+              key={o.v}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => setPref(o.v)}
+              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${on ? "border-brand bg-brand/10" : "border-slate-200 hover:bg-slate-50"}`}
+            >
+              <span className={`grid h-9 w-9 place-items-center rounded-lg ${on ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>
+                <Icon className="h-4 w-4" />
+              </span>
+              <span>
+                <span className="block text-xs font-bold text-slate-900">{o.label}</span>
+                <span className="block text-[11px] text-slate-500">{o.hint}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

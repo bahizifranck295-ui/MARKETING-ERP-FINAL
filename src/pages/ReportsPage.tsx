@@ -625,12 +625,12 @@ export default function ReportsPage() {
     <div className="space-y-5 pb-16">
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-[#0F3D68] text-white flex items-center justify-center font-black text-base shadow-sm">
+          <div className="h-12 w-12 rounded-xl bg-brand text-white flex items-center justify-center font-black text-base shadow-sm">
             P
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-[#0F3D68] tracking-widest uppercase">
+              <span className="text-xs font-black text-brand tracking-widest uppercase">
                 PREMIDIS SARL
               </span>
               <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
@@ -810,7 +810,7 @@ export default function ReportsPage() {
               onClick={() => setActiveTab(t.id as any)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 isActive
-                  ? "bg-[#0F3D68] text-white shadow-xs"
+                  ? "bg-brand text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
@@ -846,7 +846,7 @@ export default function ReportsPage() {
                 onClick={() => setCashSubTab("closings")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                   cashSubTab === "closings"
-                    ? "bg-[#0F3D68] text-white shadow-xs"
+                    ? "bg-brand text-white shadow-xs"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
@@ -856,7 +856,7 @@ export default function ReportsPage() {
                 onClick={() => setCashSubTab("operations")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                   cashSubTab === "operations"
-                    ? "bg-[#0F3D68] text-white shadow-xs"
+                    ? "bg-brand text-white shadow-xs"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
@@ -882,7 +882,7 @@ export default function ReportsPage() {
                             ? "bg-emerald-600 text-white shadow-xs"
                             : v === "out"
                             ? "bg-red-600 text-white shadow-xs"
-                            : "bg-[#0F3D68] text-white shadow-xs"
+                            : "bg-brand text-white shadow-xs"
                           : "text-slate-600 hover:bg-white"
                       }`}
                     >
@@ -899,7 +899,7 @@ export default function ReportsPage() {
                 size="sm"
                 onClick={handleExportCash}
                 disabled={exportingCash}
-                className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs"
+                className="rounded-xl bg-brand hover:bg-brand-strong text-white text-xs"
               >
                 {exportingCash ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
                 Exporter en PDF
@@ -1033,12 +1033,12 @@ export default function ReportsPage() {
                               className={`h-7 px-2.5 text-[10px] font-semibold ${
                                 !isIn
                                   ? "text-rose-700 border-rose-300 hover:bg-rose-50"
-                                  : "text-[#0F3D68] border-[#0F3D68]/30 hover:bg-[#0F3D68]/10"
+                                  : "text-brand border-brand/30 hover:bg-brand/10"
                               }`}
                             >
                               <FileText
                                 className={`h-3 w-3 mr-1 ${
-                                  !isIn ? "text-rose-600" : "text-[#0F3D68]"
+                                  !isIn ? "text-rose-600" : "text-brand"
                                 }`}
                               />
                               {!isIn
@@ -1071,7 +1071,7 @@ export default function ReportsPage() {
               size="sm"
               onClick={handleExportReceivables}
               disabled={exportingReceivables}
-              className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white text-xs"
+              className="rounded-xl bg-brand hover:bg-brand-strong text-white text-xs"
             >
               {exportingReceivables ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
               Exporter en PDF
@@ -1136,7 +1136,7 @@ export default function ReportsPage() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Coins className="h-5 w-5 text-[#0F3D68]" />
+                <Coins className="h-5 w-5 text-brand" />
                 <span>Billetage de Clôture</span>
               </DialogTitle>
             </DialogHeader>

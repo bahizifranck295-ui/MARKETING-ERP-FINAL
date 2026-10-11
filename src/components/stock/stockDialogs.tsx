@@ -22,7 +22,7 @@ function StatusField({ value, onChange }: { value: boolean; onChange: (v: boolea
             onClick={() => onChange(o.v)}
             aria-pressed={value === o.v}
             className={`h-9 flex-1 rounded-lg border text-xs font-semibold transition-colors ${
-              value === o.v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              value === o.v ? "border-brand bg-brand text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
             }`}
           >
             {o.label}
@@ -64,7 +64,7 @@ export function SiteFormDialog({ onClose, onSaved }: { onClose: () => void; onSa
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <MapPin className="h-5 w-5 text-[#0F3D68]" /> Nouveau site
+            <MapPin className="h-5 w-5 text-brand" /> Nouveau site
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3 pt-1 text-xs">
@@ -89,7 +89,7 @@ export function SiteFormDialog({ onClose, onSaved }: { onClose: () => void; onSa
           <StatusField value={active} onChange={setActive} />
           <DialogFooter className="gap-2 border-t border-slate-100 pt-3">
             <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={saving} className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+            <Button type="submit" disabled={saving} className="bg-brand text-white hover:bg-brand-strong">
               {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Créer le site
             </Button>
           </DialogFooter>
@@ -141,12 +141,12 @@ export function DepotFormDialog({ site, onClose, onSaved }: { site: any; onClose
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Building2 className="h-5 w-5 text-[#0F3D68]" /> Nouveau dépôt
+            <Building2 className="h-5 w-5 text-brand" /> Nouveau dépôt
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3 pt-1 text-xs">
           <div className="flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50/60 px-3 py-2">
-            <MapPin className="h-4 w-4 text-[#0F3D68]" />
+            <MapPin className="h-4 w-4 text-brand" />
             <span className="text-slate-600">Site parent :</span>
             <strong className="text-slate-900">{site.name}</strong>
             <span className="font-mono text-[10px] text-slate-500">{site.code}</span>
@@ -197,7 +197,7 @@ export function DepotFormDialog({ site, onClose, onSaved }: { site: any; onClose
           <StatusField value={active} onChange={setActive} />
           <DialogFooter className="gap-2 border-t border-slate-100 pt-3">
             <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={saving} className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+            <Button type="submit" disabled={saving} className="bg-brand text-white hover:bg-brand-strong">
               {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Créer le dépôt
             </Button>
           </DialogFooter>
@@ -240,7 +240,7 @@ export function AddProductToDepotDialog({ depot, onClose, onSaved }: { depot: an
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <PackagePlus className="h-5 w-5 text-[#0F3D68]" /> Ajouter un produit
+            <PackagePlus className="h-5 w-5 text-brand" /> Ajouter un produit
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3 pt-1 text-xs">
@@ -274,7 +274,7 @@ export function AddProductToDepotDialog({ depot, onClose, onSaved }: { depot: an
           </p>
           <DialogFooter className="gap-2 border-t border-slate-100 pt-3">
             <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={saving} className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+            <Button type="submit" disabled={saving} className="bg-brand text-white hover:bg-brand-strong">
               {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Ajouter au dépôt
             </Button>
           </DialogFooter>
@@ -352,7 +352,7 @@ export function TransferDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <ArrowRightLeft className="h-5 w-5 text-[#0F3D68]" /> Transférer du stock
+            <ArrowRightLeft className="h-5 w-5 text-brand" /> Transférer du stock
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3 pt-1 text-xs">
@@ -432,12 +432,12 @@ export function TransferDialog({
             <div className="rounded-xl border border-cyan-200 bg-cyan-50/60 px-3 py-2 text-slate-700">
               {from.label} : {available} → <strong>{available - amount}</strong> · {to.label} : {qtyIn(to.id)} →{" "}
               <strong>{qtyIn(to.id) + amount}</strong>
-              {from.site_id !== to.site_id && <span className="ml-1 font-semibold text-[#0F3D68]">(transfert entre sites)</span>}
+              {from.site_id !== to.site_id && <span className="ml-1 font-semibold text-brand">(transfert entre sites)</span>}
             </div>
           )}
           <DialogFooter className="gap-2 border-t border-slate-100 pt-3">
             <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={saving || tooMuch || !amount} className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+            <Button type="submit" disabled={saving || tooMuch || !amount} className="bg-brand text-white hover:bg-brand-strong">
               {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Valider le transfert
             </Button>
           </DialogFooter>
@@ -502,7 +502,7 @@ export function AdjustInDepotDialog({ depot, product, onClose, onSaved }: { depo
                 }}
                 aria-pressed={mode === o.v}
                 className={`h-9 flex-1 rounded-lg border text-xs font-semibold ${
-                  mode === o.v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600"
+                  mode === o.v ? "border-brand bg-brand text-white" : "border-slate-200 bg-white text-slate-600"
                 }`}
               >
                 {o.label}
@@ -541,7 +541,7 @@ export function AdjustInDepotDialog({ depot, product, onClose, onSaved }: { depo
           </div>
           <DialogFooter className="gap-2 border-t border-slate-100 pt-3">
             <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={saving || tooMuch || !amount} className="bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+            <Button type="submit" disabled={saving || tooMuch || !amount} className="bg-brand text-white hover:bg-brand-strong">
               {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Valider
             </Button>
           </DialogFooter>

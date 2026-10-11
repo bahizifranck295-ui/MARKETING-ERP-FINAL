@@ -223,9 +223,9 @@ function CreateCategoryInline({ onCreate, onCancel }: { onCreate: (name: string)
         }}
         placeholder="Nom de la nouvelle catégorie"
         aria-label="Nom de la nouvelle catégorie"
-        className="h-8 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+        className="h-8 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/25"
       />
-      <button type="button" onClick={submit} disabled={busy || !value.trim()} className="inline-flex h-8 items-center gap-1 rounded-lg bg-[#0F3D68] px-2.5 text-[11px] font-bold text-white disabled:opacity-50">
+      <button type="button" onClick={submit} disabled={busy || !value.trim()} className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand px-2.5 text-[11px] font-bold text-white disabled:opacity-50">
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Créer
       </button>
       {onCancel && (
@@ -271,7 +271,7 @@ export function CategoryPicker({ name, defaultValue = "" }: { name: string; defa
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-left text-xs focus:outline-none focus:ring-2 focus:ring-[#0F3D68]/25"
+        className="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-left text-xs focus:outline-none focus:ring-2 focus:ring-brand/25"
       >
         <span className={`truncate ${value ? "text-slate-900" : "text-slate-400"}`}>{value || "Choisir…"}</span>
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -295,7 +295,7 @@ export function CategoryPicker({ name, defaultValue = "" }: { name: string; defa
                       setOpen(false);
                     }}
                     className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs ${
-                      value === c.name ? "bg-cyan-50 font-semibold text-[#0F3D68]" : "text-slate-700 hover:bg-slate-50"
+                      value === c.name ? "bg-cyan-50 font-semibold text-brand" : "text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     {value === c.name ? <Check className="h-3.5 w-3.5" /> : <span className="w-3.5" />}
@@ -331,7 +331,7 @@ export function CategoryPicker({ name, defaultValue = "" }: { name: string; defa
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs font-bold text-[#0F3D68] hover:bg-cyan-50"
+                className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs font-bold text-brand hover:bg-cyan-50"
               >
                 <Plus className="h-3.5 w-3.5" /> Créer une catégorie
               </button>
@@ -377,7 +377,7 @@ export function CategoriesPanel({ products, onChanged }: { products: any[]; onCh
       right={
         canEdit &&
         !creating && (
-          <Button size="sm" onClick={() => setCreating(true)} className="h-8 rounded-xl bg-[#0F3D68] text-white hover:bg-[#0B2F52]">
+          <Button size="sm" onClick={() => setCreating(true)} className="h-8 rounded-xl bg-brand text-white hover:bg-brand-strong">
             <Plus className="mr-1 h-4 w-4" /> Créer une catégorie
           </Button>
         )

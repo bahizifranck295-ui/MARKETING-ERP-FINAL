@@ -123,7 +123,7 @@ export default function UsersPage() {
                 setEditingUser(null);
                 setUserModal(true);
               }}
-              className="rounded-xl bg-[#0F3D68] hover:bg-[#0B2F52] text-white"
+              className="rounded-xl bg-brand hover:bg-brand-strong text-white"
             >
               <UserPlus className="h-4 w-4 mr-1.5" /> Nouvel Utilisateur
             </Button>
@@ -155,7 +155,7 @@ export default function UsersPage() {
                     <td className="p-3.5 font-bold text-slate-900">{u.full_name}</td>
                     <td className="p-3.5 text-slate-600 font-mono">{u.email}</td>
                     <td className="p-3.5">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0F3D68]/10 text-[#0F3D68]">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/10 text-brand">
                         {roles.find((r) => r.code === u.role_code)?.name || u.role_code}
                       </span>
                     </td>
@@ -196,7 +196,7 @@ export default function UsersPage() {
                             title="Permissions et périmètre de cet utilisateur"
                             aria-label={`Permissions de ${u.full_name}`}
                             onClick={() => navigate(`/admin/roles?user=${u.id}`)}
-                            className="h-7 w-7 p-0 rounded-lg text-slate-500 hover:text-[#0F3D68]"
+                            className="h-7 w-7 p-0 rounded-lg text-slate-500 hover:text-brand"
                           >
                             <KeyRound className="h-3.5 w-3.5" />
                           </Button>
@@ -293,7 +293,7 @@ export default function UsersPage() {
                       aria-pressed={allCategories === v}
                       onClick={() => setAllCategories(v)}
                       className={`h-9 rounded-lg border px-2 text-xs font-bold transition ${
-                        allCategories === v ? "border-[#0F3D68] bg-[#0F3D68] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                        allCategories === v ? "border-brand bg-brand text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
                       }`}
                     >
                       {l}
@@ -311,7 +311,7 @@ export default function UsersPage() {
                           <label
                             key={c}
                             className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
-                              on ? "border-[#0F3D68] bg-[#0F3D68]/10 text-[#0F3D68]" : "border-slate-200 bg-white text-slate-600"
+                              on ? "border-brand bg-brand/10 text-brand" : "border-slate-200 bg-white text-slate-600"
                             }`}
                           >
                             <input
@@ -356,7 +356,7 @@ export default function UsersPage() {
                   id="is_active"
                   name="is_active"
                   defaultChecked={editingUser ? editingUser.is_active : true}
-                  className="h-4 w-4 rounded border-slate-300 text-[#0F3D68]"
+                  className="h-4 w-4 rounded border-slate-300 text-brand"
                 />
                 <label htmlFor="is_active" className="text-xs font-medium text-slate-700">
                   Compte actif et autorisé à se connecter
@@ -367,7 +367,7 @@ export default function UsersPage() {
                 <Button type="button" variant="outline" onClick={() => setUserModal(false)}>
                   Annuler
                 </Button>
-                <Button type="submit" disabled={saving} className="bg-[#0F3D68] text-white">
+                <Button type="submit" disabled={saving} className="bg-brand text-white">
                   Enregistrer
                 </Button>
               </DialogFooter>

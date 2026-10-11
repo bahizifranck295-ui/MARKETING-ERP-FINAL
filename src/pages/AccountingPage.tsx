@@ -340,7 +340,7 @@ export default function AccountingPage() {
                                 m.reference?.startsWith("DEC-") ||
                                 Number(m.amount) < 0
                                   ? "text-rose-700 border-rose-300 hover:bg-rose-50"
-                                  : "text-[#0F3D68] border-[#0F3D68]/30 hover:bg-[#0F3D68]/10"
+                                  : "text-brand border-brand/30 hover:bg-brand/10"
                               }`}
                               title={
                                 m.source?.toLowerCase().includes("sortie") ||
@@ -358,7 +358,7 @@ export default function AccountingPage() {
                                   m.reference?.startsWith("DEC-") ||
                                   Number(m.amount) < 0
                                     ? "text-rose-600"
-                                    : "text-[#0F3D68]"
+                                    : "text-brand"
                                 }`}
                               />
                               {m.source?.toLowerCase().includes("sortie") ||

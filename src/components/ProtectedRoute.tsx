@@ -29,8 +29,8 @@ export default function ProtectedRoute({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F4F6F9]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0F3D68]" />
+      <div className="min-h-screen flex items-center justify-center bg-app">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -49,7 +49,7 @@ export default function ProtectedRoute({
         <p className="mt-1 text-xs text-slate-500">
           Cette page ne fait pas partie de vos permissions. La tentative a été enregistrée dans le journal d'audit.
         </p>
-        <Link to="/dashboard" className="mt-4 inline-flex h-9 items-center rounded-xl bg-[#0F3D68] px-4 text-xs font-bold text-white">
+        <Link to="/dashboard" className="mt-4 inline-flex h-9 items-center rounded-xl bg-brand px-4 text-xs font-bold text-white">
           Retour au tableau de bord
         </Link>
       </div>

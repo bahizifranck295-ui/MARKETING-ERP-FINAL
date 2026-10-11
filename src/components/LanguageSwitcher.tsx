@@ -33,7 +33,7 @@ export function LanguageSwitcher({ variant = "light", className = "" }: { varian
           <DropdownMenuItem key={o.value} data-lang={o.value} onSelect={() => setLang(o.value)} className="flex items-center gap-2 cursor-pointer">
             <span className="w-7 text-[11px] font-bold text-slate-400">{o.short}</span>
             <span className="flex-1">{o.label}</span>
-            {lang === o.value && <Check className="h-4 w-4 text-[#211A5C]" />}
+            {lang === o.value && <Check className="h-4 w-4 text-ink" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

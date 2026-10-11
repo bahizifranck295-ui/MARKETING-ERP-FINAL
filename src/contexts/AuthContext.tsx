@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api, tokenStore } from "@/lib/api";
+import { setThemeUser } from "@/theme/theme";
 
 interface User {
   id: string;
@@ -73,6 +74,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     reloadUser();
   }, []);
+
+  // Préférence de thème propre à chaque utilisateur
+  useEffect(() => {
+    setThemeUser(user?.id || null);
+  }, [user?.id]);
 
   // Droits toujours à jour : rechargés au retour sur l'onglet, chaque minute, et dès qu'une action est refusée
   // (une permission retirée par l'administrateur s'applique sans reconnexion)
