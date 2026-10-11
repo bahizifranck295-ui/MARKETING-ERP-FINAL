@@ -20,7 +20,10 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
+  HandCoins,
+  Target,
 } from "lucide-react";
+import { APP_INFO, IS_LOGISTICS, inThisApp } from "@/app/edition";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import BrandLogo from "@/components/BrandLogo";
@@ -33,27 +36,37 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const BOTTOM_NAV = [
-  { to: "/dashboard", label: "Accueil", icon: Home, perm: "dashboard.read" },
-  { to: "/boutique", label: "Boutique", icon: Store, perm: "boutique.read" },
-  { to: "/clients", label: "Clients", icon: Users, perm: "crm.read" },
-  { to: "/orders", label: "Ventes", icon: ShoppingCart, perm: "orders.read" },
-  { to: "/cash", label: "Caisse", icon: Wallet, perm: "cash.read" },
-];
+const BOTTOM_NAV = IS_LOGISTICS
+  ? [
+      { to: "/dashboard", label: "Accueil", icon: Home, perm: "dashboard.read" },
+      { to: "/stock", label: "Stock", icon: Package, perm: "stock.read" },
+      { to: "/delivery", label: "Livraisons", icon: Truck, perm: "delivery.read" },
+      { to: "/reports", label: "Rapports", icon: BarChart3, perm: "reports.read" },
+    ]
+  : [
+      { to: "/dashboard", label: "Accueil", icon: Home, perm: "dashboard.read" },
+      { to: "/boutique", label: "Boutique", icon: Store, perm: "boutique.read" },
+      { to: "/clients", label: "Clients", icon: Users, perm: "crm.read" },
+      { to: "/orders", label: "Ventes", icon: ShoppingCart, perm: "orders.read" },
+      { to: "/cash", label: "Caisse", icon: Wallet, perm: "cash.read" },
+    ];
 
+// Chaque application n'affiche que ses propres modules (voir src/app/edition.ts)
 const DESKTOP_NAV = [
   { to: "/dashboard", label: "Tableau de bord", icon: Home, perm: "dashboard.read" },
-  { to: "/stock", label: "Stock & Dépôts", icon: Package, perm: "stock.read" },
-  { to: "/cash", label: "Caisse", icon: Wallet, perm: "cash.read" },
   { to: "/boutique", label: "Boutique / Ventes", icon: Store, perm: "boutique.read" },
-  { to: "/delivery", label: "Livraisons", icon: Truck, perm: "delivery.read" },
   { to: "/orders", label: "Commandes", icon: ShoppingCart, perm: "orders.read" },
   { to: "/clients", label: "Clients (CRM)", icon: Users, perm: "crm.read" },
+  { to: "/cash", label: "Caisse", icon: Wallet, perm: "cash.read" },
+  { to: "/credits", label: "Crédits & Créances", icon: HandCoins, perm: "credits.read" },
   { to: "/accounting", label: "Comptabilité", icon: Calculator, perm: "accounting.read" },
-  { to: "/reports", label: "Rapports & KPIs", icon: BarChart3, perm: "reports.read" },
+  { to: "/stock", label: "Stock & Dépôts", icon: Package, perm: "stock.read" },
+  { to: "/delivery", label: "Livraisons", icon: Truck, perm: "delivery.read" },
+  { to: "/reports", label: IS_LOGISTICS ? "Rapports Stock & Livraison" : "Rapports & KPIs", icon: BarChart3, perm: "reports.read" },
+  { to: "/objectives", label: "Objectifs commerciaux", icon: Target, perm: "objectives.read" },
   { to: "/admin/users", label: "Utilisateurs", icon: UserCheck, perm: "users.read" },
   { to: "/profile", label: "Mon Compte", icon: Settings, perm: null },
-];
+].filter((item) => inThisApp(item.to));
 
 export default function Layout() {
   const { user, role, logout, has } = useAuth();
@@ -123,8 +136,8 @@ export default function Layout() {
               <span className="text-[13px] font-black tracking-wider text-white truncate">
                 PREMIDIS SARL
               </span>
-              <span className="text-[10px] text-slate-400 truncate">
-                Distribution & Agroalimentaire
+              <span className="text-[10px] text-slate-400 truncate" data-app-name>
+                {APP_INFO.name}
               </span>
             </div>
           )}
@@ -236,20 +249,22 @@ export default function Layout() {
                 <DropdownMenuItem onClick={() => navigate("/profile")}>
                   Mon profil
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/accounting")}>
-                  Comptabilité
-                </DropdownMenuItem>
-                {has("users.read") && (
+                {inThisApp("/accounting") && (
+                  <DropdownMenuItem onClick={() => navigate("/accounting")}>
+                    Comptabilité
+                  </DropdownMenuItem>
+                )}
+                {has("users.read") && inThisApp("/admin/users") && (
                   <DropdownMenuItem onClick={() => navigate("/admin/users")}>
                     Utilisateurs
                   </DropdownMenuItem>
                 )}
-                {has("roles.read") && (
+                {has("roles.read") && inThisApp("/admin/roles") && (
                   <DropdownMenuItem onClick={() => navigate("/admin/roles")}>
                     Rôles & permissions
                   </DropdownMenuItem>
                 )}
-                {has("audit.read") && (
+                {has("audit.read") && inThisApp("/admin/audit") && (
                   <DropdownMenuItem onClick={() => navigate("/admin/audit")}>
                     Journal d'audit
                   </DropdownMenuItem>
@@ -284,7 +299,7 @@ export default function Layout() {
         </main>
 
         {/* MOBILE BOTTOM NAV (< lg) */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 grid grid-cols-6 z-40 shadow-lg">
+        <nav className={`lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 grid ${IS_LOGISTICS ? "grid-cols-4" : "grid-cols-6"} z-40 shadow-lg`}>
           {BOTTOM_NAV.map((item) => (
             <BottomLink
               key={item.to}
@@ -294,12 +309,14 @@ export default function Layout() {
               enabled={has(item.perm)}
             />
           ))}
-          <BottomLink
-            to="/accounting"
-            icon={Calculator}
-            label="Compta"
-            enabled={has("accounting.read")}
-          />
+          {inThisApp("/accounting") && (
+            <BottomLink
+              to="/accounting"
+              icon={Calculator}
+              label="Compta"
+              enabled={has("accounting.read")}
+            />
+          )}
         </nav>
       </div>
     </div>

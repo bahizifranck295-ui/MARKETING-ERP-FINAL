@@ -143,6 +143,8 @@ export interface Product {
   alert_threshold?: number;
   low_stock_threshold: number;
   bonus_rules: any[];
+  /** Disponibilité à la vente (Boutique) : false = commande refusée */
+  available?: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;

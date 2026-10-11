@@ -1,4 +1,5 @@
 import axios from "axios";
+import { ERP_APP } from "@/app/edition";
 
 export const API_BASE = "/api";
 const STORAGE_ACCESS = "erp_access_token";
@@ -29,6 +30,8 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const t = tokenStore.access;
   if (t) config.headers.Authorization = `Bearer ${t}`;
+  // Application appelante : le serveur n'ouvre à chacune que les routes de ses propres modules
+  config.headers["X-ERP-App"] = ERP_APP;
   return config;
 });
 

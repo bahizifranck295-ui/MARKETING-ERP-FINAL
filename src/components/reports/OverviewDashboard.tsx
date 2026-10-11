@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { BarChart3, Layers, LineChart, MapPin, PieChart, ShoppingCart, Tag, TrendingDown, TrendingUp, Trophy, Wallet, Package } from "lucide-react";
 import { fmtMoney } from "@/components/erp-ui";
-import { compactMoney, niceScale } from "@/components/stock/stockCharts";
+import { compactMoney, niceScale } from "@/lib/chartScale";
 
 /*
  * Vue d'ensemble du module Rapports (sous la barre de recherche).
@@ -20,7 +20,6 @@ type Props = {
   siteOfOrder: (o: any) => string;
   kpiCur: Kpi;
   kpiPrev: Kpi;
-  stockValue: number;
   prevLabel: string;
 };
 
@@ -296,7 +295,8 @@ function Delta({ cur, prev, goodUp = true, points = false }: { cur: number; prev
   );
 }
 
-export default function OverviewDashboard({ orders, periodOrders, cashOps, products, siteOfOrder, kpiCur, kpiPrev, stockValue, prevLabel }: Props) {
+export default function OverviewDashboard({ orders, periodOrders, cashOps, products, siteOfOrder, kpiCur, kpiPrev, prevLabel }: Props) {
+  const avgBasket = periodOrders.length ? periodOrders.reduce((t: number, o: any) => t + (Number(o.total) || 0), 0) / periodOrders.length : 0;
   const [salesRange, setSalesRange] = useState<RangeId>("30j");
   const [cashRange, setCashRange] = useState<RangeId>("30j");
   const cost = useMemo(() => new Map(products.map((p) => [p.id, Number(p.cost_price) || 0])), [products]);
@@ -466,8 +466,8 @@ export default function OverviewDashboard({ orders, periodOrders, cashOps, produ
                 <ShoppingCart className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] text-slate-500">Stock actuel (valeur)</div>
-                <div className="text-sm font-bold tabular-nums text-slate-900">{fmtMoney(stockValue)}</div>
+                <div className="text-[11px] text-slate-500">Panier moyen ({periodOrders.length} commande{periodOrders.length > 1 ? "s" : ""})</div>
+                <div className="text-sm font-bold tabular-nums text-slate-900">{fmtMoney(avgBasket)}</div>
               </div>
             </li>
           </ul>

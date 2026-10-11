@@ -56,22 +56,18 @@ export default function OrdersPage() {
     user?.role_code === "dg" ||
     user?.is_transversal;
 
-  // Tri par site et par dépôt ; un utilisateur rattaché à un site ne voit que son site
+  // Tri par site ; un utilisateur rattaché à un site ne voit que son site
   const ALL = "all";
   const siteLocked = !!(user as any)?.site_id && !["super_admin", "dg"].includes(user?.role_code || "") && !(user as any)?.is_transversal;
   const [sites, setSites] = useState<any[]>([]);
-  const [depots, setDepots] = useState<any[]>([]);
   const [siteFilter, setSiteFilter] = useState<string>(siteLocked ? (user as any).site_id : ALL);
-  const [depotFilter, setDepotFilter] = useState<string>(ALL);
   useEffect(() => {
-    api.get("/stock/sites").then(({ data }) => setSites(Array.isArray(data) ? data : [])).catch(() => setSites([]));
-    api.get("/stock/depots").then(({ data }) => setDepots(Array.isArray(data) ? data : [])).catch(() => setDepots([]));
+    api.get("/integration/sites").then(({ data }) => setSites(Array.isArray(data) ? data : [])).catch(() => setSites([]));
   }, []);
   useEffect(() => {
     if (siteLocked) setSiteFilter((user as any).site_id);
   }, [siteLocked, (user as any)?.site_id]);
   const visibleSites = siteLocked ? sites.filter((x) => x.id === (user as any).site_id) : sites;
-  const visibleDepots = depots.filter((d) => siteFilter === ALL || d.site_id === siteFilter);
 
   const loadOrders = async () => {
     setLoading(true);
@@ -107,16 +103,18 @@ export default function OrdersPage() {
     return orders.filter(
       (o) =>
         o.status === "pending_approval" &&
-        (siteFilter === ALL || o.site_id === siteFilter) &&
-        (depotFilter === ALL || o.warehouse_id === depotFilter)
+        (siteFilter === ALL || o.site_id === siteFilter)
     ).length;
-  }, [orders, siteFilter, depotFilter]);
+  }, [orders, siteFilter]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((ord) => {
       if (siteFilter !== ALL && ord.site_id !== siteFilter) return false;
-      if (depotFilter !== ALL && ord.warehouse_id !== depotFilter) return false;
-      const matchStatus = statusFilter === "all" || ord.status === statusFilter;
+      // « Validées » : commandes approuvées, quelle que soit leur étape logistique (projet Stock & Livraison)
+      const matchStatus =
+        statusFilter === "all" ||
+        ord.status === statusFilter ||
+        (statusFilter === "validated" && ["prepared", "shipped", "delivered"].includes(ord.status));
       const q = search.trim().toLowerCase();
       const matchQ =
         !q ||
@@ -125,7 +123,7 @@ export default function OrdersPage() {
         (ord.marketer_name && ord.marketer_name.toLowerCase().includes(q));
       return matchStatus && matchQ;
     });
-  }, [orders, statusFilter, search, siteFilter, depotFilter]);
+  }, [orders, statusFilter, search, siteFilter]);
 
   const handleApprove = async (id: string, overrideCreditLimit = false) => {
     setBusyId(id);
@@ -136,7 +134,7 @@ export default function OrdersPage() {
       toast.success(
         overrideCreditLimit
           ? "Commande approuvée sous dérogation exceptionnelle de Direction !"
-          : "Commande approuvée avec succès ! Le stock a été réduit."
+          : "Commande approuvée avec succès !"
       );
       loadOrders();
       if (selectedOrder?.id === id) setSelectedOrder(null);
@@ -173,36 +171,20 @@ export default function OrdersPage() {
     <div className="space-y-4">
       <PageHeader
         title="Gestion des Commandes"
-        subtitle="Validation, suivi des ventes terrain et historique des expéditions"
+        subtitle="Validation, suivi des ventes terrain et historique des commandes"
         right={
           <div className="flex flex-wrap items-center gap-2" data-orders-scope>
             <select
               aria-label="Site"
               value={siteFilter}
               disabled={siteLocked}
-              onChange={(e) => {
-                setSiteFilter(e.target.value);
-                setDepotFilter(ALL);
-              }}
+              onChange={(e) => setSiteFilter(e.target.value)}
               className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 disabled:bg-slate-50 disabled:text-slate-500"
             >
               {!siteLocked && <option value={ALL}>Tous les sites</option>}
               {visibleSites.map((x) => (
                 <option key={x.id} value={x.id} data-no-translate>
                   {x.name}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Dépôt"
-              value={depotFilter}
-              onChange={(e) => setDepotFilter(e.target.value)}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
-            >
-              <option value={ALL}>Tous les dépôts</option>
-              {visibleDepots.map((d) => (
-                <option key={d.id} value={d.id} data-no-translate>
-                  {siteFilter === ALL ? d.label || d.name : d.name}
                 </option>
               ))}
             </select>
@@ -243,7 +225,7 @@ export default function OrdersPage() {
           />
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
-          {["all", "pending_approval", "validated", "shipped", "delivered", "cancelled"].map(
+          {["all", "pending_approval", "validated", "cancelled"].map(
             (st) => (
               <button
                 key={st}
@@ -261,10 +243,6 @@ export default function OrdersPage() {
                     ? "À approuver"
                     : st === "validated"
                     ? "Validées"
-                    : st === "shipped"
-                    ? "Expédiées"
-                    : st === "delivered"
-                    ? "Livrées"
                     : "Annulées"}
                 </span>
                 {st === "pending_approval" && pendingCount > 0 && (
@@ -346,7 +324,6 @@ export default function OrdersPage() {
                   <div className="text-xs text-slate-500">
                     Par : {ord.marketer_name || "Vendeur"} • {ord.items?.length || 0} article(s)
                   </div>
-                  <StockOriginBadge order={ord} />
                   {ord.status === "cancelled" && ord.rejection_reason && (
                     <div className="text-[11px] text-red-600 bg-red-50 px-2 py-0.5 rounded-lg inline-block">
                       Motif : {ord.rejection_reason}
@@ -473,7 +450,6 @@ export default function OrdersPage() {
                 <div className="min-w-0">
                   <span className="text-[8.5px] text-slate-400 block font-semibold uppercase">Commercial</span>
                   <span className="font-medium text-slate-800 truncate block text-[10.5px]">{selectedOrder.marketer_name || "Direction Commerciale"}</span>
-                  <StockOriginBadge order={selectedOrder} />
                 </div>
                 <div className="min-w-0">
                   <span className="text-[8.5px] text-slate-400 block font-semibold uppercase">Paiement</span>
@@ -753,17 +729,3 @@ export default function OrdersPage() {
   );
 }
 
-// Origine du stock enregistrée à la création de la vente
-function StockOriginBadge({ order }: { order: any }) {
-  const origin = order?.stock_origin;
-  if (origin !== "embarked" && origin !== "mixed") return null;
-  return (
-    <span
-      className="inline-flex max-w-full items-center gap-1 truncate rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800"
-      title="Déstockage à l'approbation : stock embarqué du marketeur, jamais le dépôt"
-    >
-      {origin === "embarked" ? "STOCK EMBARQUÉ" : "STOCK EMBARQUÉ + SUR COMMANDE"}
-      {order.embarked_label ? ` · ${String(order.embarked_label).replace(/^Stock embarqué · /, "")}` : ""}
-    </span>
-  );
-}

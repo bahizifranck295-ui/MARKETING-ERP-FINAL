@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { IS_COMMERCIAL } from "@/app/edition";
 
 export function PageHeader({
   title,
@@ -161,7 +162,10 @@ export function StatusBadge({ status }: { status: string }) {
     open: { fr: "Ouvert", tone: "amber" },
     closed: { fr: "Clôturé", tone: "slate" },
   };
-  const m = map[status] || { fr: status, tone: "slate" };
+  // Gestion commerciale : les étapes logistiques (préparée, expédiée, livrée) relèvent du projet
+  // Stock & Livraison ; côté commercial, la commande est simplement « Validée »
+  const shown = IS_COMMERCIAL && (status === "prepared" || status === "shipped" || status === "delivered") ? "validated" : status;
+  const m = map[shown] || { fr: status, tone: "slate" };
   const tones = {
     slate: "bg-slate-100 text-slate-700",
     blue: "bg-[#0F3D68]/10 text-[#0F3D68]",

@@ -604,15 +604,7 @@ export function mountStockStructureRoutes(router: any, authenticate: any) {
     }
     const credits: Record<string, string | null> = {};
     for (const c of db.credits as any[]) credits[c.id] = (c.order_id && orders[c.order_id]) || clientSite(c.client_id, c.client_name) || mainSite;
-    // Valeur du stock de chaque site (dépôts du site, au prix d'achat)
-    const stock_value: Record<string, number> = {};
-    for (const l of levels()) {
-      const sid = siteOfWarehouse(l.warehouse_id);
-      const p = db.products.find((x) => x.id === l.product_id);
-      if (!sid || !p) continue;
-      stock_value[sid] = (stock_value[sid] || 0) + (Number(l.quantity) || 0) * (Number(p.cost_price) || 0);
-    }
-    res.json({ sites: sites().map((s) => ({ id: s.id, name: s.name })), main_site: mainSite, orders, cash, sessions, credits, stock_value });
+    res.json({ sites: sites().map((s) => ({ id: s.id, name: s.name })), main_site: mainSite, orders, cash, sessions, credits });
   });
 
   router.get("/stock/categories", authenticate, withStructure, (_req: any, res: any) => {

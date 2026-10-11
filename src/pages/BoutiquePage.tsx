@@ -14,7 +14,6 @@ import {
   Loader2,
   RefreshCw,
   FileText,
-  Truck,
   Shapes,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
@@ -38,7 +37,7 @@ export default function BoutiquePage() {
   const openCategories = async () => {
     setCategoriesOpen(true);
     try {
-      const { data } = await api.get("/products");
+      const { data } = await api.get("/integration/catalog");
       setStockProducts(Array.isArray(data) ? data : []);
     } catch {
       setStockProducts([]);
@@ -121,28 +120,21 @@ export default function BoutiquePage() {
       const current = prev[productId] || 0;
       const next = current + delta;
       const product = products.find((p) => p.id === productId);
-      // Produit classé « Stock embarqué » (module Livraison) : limité au camion du vendeur
-      const fromTruck = product?.stock_mode === "embarked";
-      const stock = product ? (fromTruck ? product.embarked_available : product.current_stock ?? product.stock ?? 999) : 999;
       if (next <= 0) {
         const copy = { ...prev };
         delete copy[productId];
         return copy;
       }
-      if (next > stock) {
-        toast.warning(
-          fromTruck
-            ? `Stock embarqué insuffisant : ${stock} ${product?.unit || "unités"} disponible(s) dans votre camion`
-            : `Stock disponible insuffisant (${stock} ${product?.unit || "unités"})`
-        );
-        return { ...prev, [productId]: stock };
+      // Produit marqué « Indisponible » (Boutique › Catégories) : il ne peut pas être commandé
+      if (product && product.available === false && delta > 0) {
+        toast.error(`Produit indisponible : ${product.name}. Il ne peut pas être commandé pour le moment.`);
+        return prev;
       }
       return { ...prev, [productId]: next };
     });
   };
 
   const clearCart = () => setCart({});
-  const hasTruck = products.some((p) => p.stock_mode === "embarked");
 
   const cartSummary = useMemo(() => {
     let totalUSD = 0;
@@ -376,7 +368,7 @@ export default function BoutiquePage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {filteredProducts.map((product) => {
-                    const inStock = (product.current_stock ?? product.stock ?? 0) > 0;
+                    const inStock = product.available !== false;
                     const qtyInCart = cart[product.id] || 0;
                     const categoryRate = ratesConfig?.category_rates?.[product.category] || ratesConfig?.general_rate || 2500;
                     const priceUSD = product.sell_price || 0;
@@ -419,22 +411,15 @@ export default function BoutiquePage() {
                             )}
                           </div>
                           <span
+                            data-availability-badge
                             className={`absolute top-2.5 right-2.5 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs ${
                               !inStock
                                 ? "bg-red-500 text-white"
                                 : "bg-emerald-600 text-white"
                             }`}
                           >
-                            {!inStock ? "Rupture" : `${product.stock ?? product.current_stock} en stock`}
+                            {!inStock ? "Indisponible" : "Disponible"}
                           </span>
-                          {product.stock_mode === "embarked" && (
-                            <span
-                              className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#0F3D68] text-white shadow-xs"
-                              title={`Stock embarqué réel : ${product.embarked_qty} · disponible à la vente : ${product.embarked_available}`}
-                            >
-                              <Truck className="w-3 h-3" /> Mon camion : {product.embarked_available}
-                            </span>
-                          )}
                         </div>
 
                         <div className="p-3.5 flex-1 flex flex-col justify-between">
@@ -491,7 +476,14 @@ export default function BoutiquePage() {
                                 </Button>
                               )
                             ) : (
-                              <span className="text-xs text-red-500 font-semibold">Indisponible</span>
+                              <button
+                                type="button"
+                                data-unavailable-product
+                                onClick={() => toast.error(`Produit indisponible : ${product.name}. Il ne peut pas être commandé pour le moment.`)}
+                                className="h-8 rounded-xl border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-600"
+                              >
+                                Indisponible
+                              </button>
                             )}
                           </div>
                         </div>
@@ -656,11 +648,6 @@ export default function BoutiquePage() {
                         <div className="font-semibold text-slate-900 text-xs truncate">
                           {product.name}
                         </div>
-                        {hasTruck && (
-                          <div className={`text-[10px] font-bold ${product.stock_mode === "embarked" ? "text-[#0F3D68]" : "text-slate-500"}`}>
-                            {product.stock_mode === "embarked" ? "Stock embarqué (mon camion)" : "Dépôt (sur commande)"}
-                          </div>
-                        )}
                         <div className="font-bold text-xs text-purple-900 mt-0.5">
                           {line_total_fc.toLocaleString("fr-FR")} FC
                         </div>

@@ -32,7 +32,6 @@ import {
   Mail,
   Phone,
   MapPin,
-  Warehouse as WarehouseIcon,
   Tags,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
@@ -279,7 +278,7 @@ export default function CashPage() {
   // Liste des sites (caisses) ; par défaut la caisse du site de l'utilisateur, sinon le site principal
   useEffect(() => {
     api
-      .get("/stock/sites")
+      .get("/integration/sites")
       .then(({ data }) => {
         const list = (Array.isArray(data) ? data : []).filter((x: any) => x.is_active !== false).map((x: any) => ({ id: x.id, name: x.name }));
         setCashSites(list);
@@ -1269,7 +1268,6 @@ export default function CashPage() {
                     [Phone, m.phone || "—"],
                     [Mail, m.email || "—"],
                     [MapPin, m.site_name || "—"],
-                    [WarehouseIcon, m.warehouse_name || "—"],
                     [Tags, m.departments || "—"],
                   ].map(([Icon, v]: any, i: number) => (
                     <div key={i} className="flex items-center gap-1.5 text-slate-600">

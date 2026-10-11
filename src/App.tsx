@@ -25,6 +25,9 @@ import NotificationsPage from "@/pages/NotificationsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import MorePage from "@/pages/MorePage";
 import NotFoundPage from "@/pages/NotFoundPage";
+import LogisticsDashboardPage from "@/pages/logistics/LogisticsDashboardPage";
+import LogisticsReportsPage from "@/pages/logistics/LogisticsReportsPage";
+import { IS_LOGISTICS, inThisApp } from "@/app/edition";
 
 export default function App() {
   return (
@@ -44,7 +47,8 @@ export default function App() {
             }
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard" element={IS_LOGISTICS ? <LogisticsDashboardPage /> : <DashboardPage />} />
+            {inThisApp("/boutique") && (
             <Route
               path="/boutique"
               element={
@@ -53,6 +57,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/orders") && (
             <Route
               path="/orders"
               element={
@@ -61,6 +67,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/stock") && (
             <Route
               path="/stock"
               element={
@@ -69,6 +77,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/cash") && (
             <Route
               path="/cash"
               element={
@@ -77,6 +87,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/credits") && (
             <Route
               path="/credits"
               element={
@@ -85,6 +97,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/clients") && (
             <Route
               path="/clients"
               element={
@@ -93,6 +107,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/delivery") && (
             <Route
               path="/delivery"
               element={
@@ -101,6 +117,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/accounting") && (
             <Route
               path="/accounting"
               element={
@@ -109,14 +127,18 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/reports") && (
             <Route
               path="/reports"
               element={
                 <ProtectedRoute permission="reports.read">
-                  <ReportsPage />
+                  {IS_LOGISTICS ? <LogisticsReportsPage /> : <ReportsPage />}
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/objectives") && (
             <Route
               path="/objectives"
               element={
@@ -125,6 +147,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/admin/users") && (
             <Route
               path="/admin/users"
               element={
@@ -133,6 +157,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/admin/roles") && (
             <Route
               path="/admin/roles"
               element={
@@ -141,6 +167,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
+            {inThisApp("/admin/audit") && (
             <Route
               path="/admin/audit"
               element={
@@ -149,6 +177,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            )}
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/more" element={<MorePage />} />

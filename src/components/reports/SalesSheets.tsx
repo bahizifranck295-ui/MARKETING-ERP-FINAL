@@ -105,7 +105,7 @@ const strip = (s: string) =>
     .toLowerCase()
     .trim();
 
-// Catégorie de produits (Stock › Catégories) → fiche
+// Catégorie de produits (Boutique › Catégories) → fiche
 export function sheetOfCategory(category?: string): SheetKey | null {
   const c = strip(category || "");
   if (!c) return null;
@@ -183,7 +183,7 @@ export default function SalesSheets({
 
   const load = async (silent = false) => {
     try {
-      const [o, p, c] = await Promise.all([api.get("/orders"), api.get("/products"), api.get("/stock/categories")]);
+      const [o, p, c] = await Promise.all([api.get("/orders"), api.get("/integration/catalog"), api.get("/integration/categories")]);
       setOrders(Array.isArray(o.data) ? o.data : []);
       setProducts(Array.isArray(p.data) ? p.data : []);
       const names = (Array.isArray(c.data) ? c.data : []).map((x: any) => String(x.name || x)).filter(Boolean);
@@ -454,7 +454,7 @@ export default function SalesSheets({
             {name}
           </button>
         ))}
-        {!categories.length && <span className="text-xs text-slate-500">Aucune catégorie : créez-en dans Stock › Catégories.</span>}
+        {!categories.length && <span className="text-xs text-slate-500">Aucune catégorie : créez-en dans Boutique › Catégories.</span>}
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
@@ -556,7 +556,7 @@ export default function SalesSheets({
       </div>
       <p className="text-[11px] text-slate-500">
         {rows.length} commande(s) approuvée(s) · montant total {fmtMoney(grandAmount)} · mise à jour automatique toutes les 15 secondes.
-        {!columns.length && " Aucun produit n'est encore classé dans cette catégorie (Stock › Catégories)."}
+        {!columns.length && " Aucun produit n'est encore classé dans cette catégorie (Boutique › Catégories)."}
       </p>
     </div>
   );

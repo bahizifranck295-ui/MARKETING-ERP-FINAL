@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Settings,
 } from "lucide-react";
+import { inThisApp } from "@/app/edition";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/erp-ui";
 
@@ -45,6 +46,7 @@ export default function MorePage() {
       <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-xs">
         {links.map((item) => {
           if (item.perm && !has(item.perm)) return null;
+          if (!inThisApp(item.to)) return null;
           const Icon = item.icon;
           return (
             <Link

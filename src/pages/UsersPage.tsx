@@ -33,10 +33,10 @@ export default function UsersPage() {
       const [uRes, rRes, sRes] = await Promise.all([
         api.get("/users"),
         api.get("/roles"),
-        api.get("/stock/sites").catch(() => ({ data: [] })),
+        api.get("/integration/sites").catch(() => ({ data: [] })),
       ]);
       api
-        .get("/stock/categories")
+        .get("/integration/categories")
         .then(({ data }) => setCategories((Array.isArray(data) ? data : []).map((c: any) => c.name).filter(Boolean)))
         .catch(() => setCategories([]));
       setUsers(Array.isArray(uRes.data) ? uRes.data : []);

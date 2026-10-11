@@ -130,7 +130,7 @@ export default function AccountingPage() {
     const tab = openPendingTab("Journal comptable");
     setExporting(true);
     try {
-      const modLabel: Record<string, string> = { all: "Tous les modules", cash: "Caisse", orders: "Ventes / Commandes", stock: "Stock" };
+      const modLabel: Record<string, string> = { all: "Tous les modules", cash: "Caisse", orders: "Ventes / Commandes" };
       const stLabel: Record<string, string> = { all: "Tous les statuts", recorded: "Enregistrés", pending: "Non enregistrés" };
       const fileName = await exportJournalPdf({
         movements: filteredMovements,
@@ -243,7 +243,6 @@ export default function AccountingPage() {
             <option value="all">Tous les modules</option>
             <option value="cash">Caisse</option>
             <option value="orders">Ventes / Commandes</option>
-            <option value="stock">Stock</option>
           </select>
           <select
             value={statusFilter}

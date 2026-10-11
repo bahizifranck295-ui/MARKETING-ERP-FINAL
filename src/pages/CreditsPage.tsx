@@ -79,7 +79,7 @@ export default function CreditsPage() {
 
   useEffect(() => {
     api
-      .get("/stock/sites")
+      .get("/integration/sites")
       .then(({ data }) => setDebtSites((Array.isArray(data) ? data : []).filter((x: any) => x.is_active !== false).map((x: any) => ({ id: x.id, name: x.name }))))
       .catch(() => setDebtSites([]));
   }, []);

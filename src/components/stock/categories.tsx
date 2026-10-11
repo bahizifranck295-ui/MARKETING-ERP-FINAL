@@ -6,6 +6,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney, fmtNum } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/stock/ui";
+import { IS_COMMERCIAL } from "@/app/edition";
+
+// Gestion commerciale : catégories via l'intégration (sans données de stock) ; Stock & Livraison : module Stock
+const CATEGORIES_API = IS_COMMERCIAL ? "/integration/categories" : "/stock/categories";
 
 /* Catégories de produits : liste, création, suppression confirmée */
 function useCategories() {
@@ -14,7 +18,7 @@ function useCategories() {
 
   const load = async () => {
     try {
-      const { data } = await api.get("/stock/categories");
+      const { data } = await api.get(CATEGORIES_API);
       setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Erreur de chargement des catégories"));
@@ -28,14 +32,14 @@ function useCategories() {
   }, []);
 
   const create = async (name: string) => {
-    const { data } = await api.post("/stock/categories", { name });
+    const { data } = await api.post(CATEGORIES_API, { name });
     await load();
     toast.success(`Catégorie « ${data.name} » créée`);
     return data.name as string;
   };
 
   const remove = async (name: string) => {
-    await api.delete(`/stock/categories/${encodeURIComponent(name)}`);
+    await api.delete(`${CATEGORIES_API}/${encodeURIComponent(name)}`);
     await load();
     toast.success(`Catégorie « ${name} » supprimée`);
   };
@@ -53,7 +57,41 @@ function ProductThumb({ src }: { src?: string }) {
   );
 }
 
-/* Produits d'une catégorie (photo, code, stock) avec suppression confirmée de chaque produit */
+/* Bouton Disponible / Indisponible (Gestion commerciale) : un produit indisponible ne peut pas être commandé */
+function AvailabilityToggle({ product, canEdit, onChanged }: { product: any; canEdit: boolean; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const available = product.available !== false;
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      await api.put(`/integration/catalog/${product.id}/availability`, { available: !available });
+      toast.success(`« ${product.name} » ${available ? "indisponible" : "disponible"} à la vente`);
+      onChanged();
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Modification impossible"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      data-availability={available ? "on" : "off"}
+      onClick={toggle}
+      disabled={!canEdit || busy}
+      title={available ? "Rendre ce produit indisponible à la commande" : "Rendre ce produit disponible à la commande"}
+      aria-pressed={available}
+      className={`inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[10px] font-bold disabled:cursor-default disabled:opacity-70 ${
+        available ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100" : "bg-red-50 text-red-700 ring-1 ring-red-200 hover:bg-red-100"
+      }`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${available ? "bg-emerald-500" : "bg-red-500"}`} />
+      {busy ? "…" : available ? "Disponible" : "Indisponible"}
+    </button>
+  );
+}
+
+/* Produits d'une catégorie (photo, code, stock ou prix) avec suppression confirmée de chaque produit */
 function CategoryProducts({ items, canEdit, onDeleted }: { items: any[]; canEdit: boolean; onDeleted: () => void }) {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,9 +110,18 @@ function CategoryProducts({ items, canEdit, onDeleted }: { items: any[]; canEdit
                 </div>
                 <div className="text-[10px] text-slate-500">{p.code}</div>
                 <div className="text-[11px] font-semibold tabular-nums text-slate-700">
-                  {fmtNum(qty)} {p.unit || ""} · {fmtMoney(qty * (Number(p.cost_price) || 0))}
+                  {IS_COMMERCIAL ? (
+                    <>
+                      {fmtMoney(Number(p.sell_price) || 0)} / {p.unit || "unité"}
+                    </>
+                  ) : (
+                    <>
+                      {fmtNum(qty)} {p.unit || ""} · {fmtMoney(qty * (Number(p.cost_price) || 0))}
+                    </>
+                  )}
                 </div>
               </div>
+
               {canEdit && confirm !== p.id && (
                 <button
                   type="button"
@@ -87,6 +134,12 @@ function CategoryProducts({ items, canEdit, onDeleted }: { items: any[]; canEdit
                 </button>
               )}
             </div>
+            {IS_COMMERCIAL && (
+              <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                <span className="text-[10px] font-semibold text-slate-500">Vente</span>
+                <AvailabilityToggle product={p} canEdit={canEdit} onChanged={onDeleted} />
+              </div>
+            )}
             {confirm === p.id && (
               <ConfirmDelete
                 name={p.name}
@@ -279,7 +332,7 @@ export function CategoryPicker({ name, defaultValue = "" }: { name: string; defa
   );
 }
 
-/* Onglet « Catégories » du module Stock */
+/* Onglet « Catégories » du module Stock (et Boutique › Catégories en Gestion commerciale) */
 export function CategoriesPanel({ products, onChanged }: { products: any[]; onChanged?: () => void }) {
   const { has } = useAuth();
   const canEdit = has("stock.create") || has("stock.update") || has("stock.write");
@@ -292,11 +345,13 @@ export function CategoriesPanel({ products, onChanged }: { products: any[]; onCh
   const productsOf = (name: string) =>
     products.filter((p) => p.is_active !== false && (p.category || "").trim().toLowerCase() === name.trim().toLowerCase());
 
+  // Stock & Livraison : valeur du stock par catégorie ; Gestion commerciale : produits disponibles à la vente
   const valueByCat = useMemo(() => {
     const m = new Map<string, number>();
     products.forEach((p) => {
       const k = (p.category || "").trim().toLowerCase();
-      m.set(k, (m.get(k) || 0) + (Number(p.stock) || 0) * (Number(p.cost_price) || 0));
+      const v = IS_COMMERCIAL ? (p.is_active !== false && p.available !== false ? 1 : 0) : (Number(p.stock) || 0) * (Number(p.cost_price) || 0);
+      m.set(k, (m.get(k) || 0) + v);
     });
     return m;
   }, [products]);
@@ -337,7 +392,7 @@ export function CategoriesPanel({ products, onChanged }: { products: any[]; onCh
               <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
                 <th className="px-2.5 py-3 font-semibold">Catégorie</th>
                 <th className="px-2.5 py-3 text-right font-semibold">Produits</th>
-                <th className="px-2.5 py-3 text-right font-semibold">Valeur du stock</th>
+                <th className="px-2.5 py-3 text-right font-semibold">{IS_COMMERCIAL ? "Disponibles" : "Valeur du stock"}</th>
                 {canEdit && <th className="px-2.5 py-3 text-center font-semibold">Actions</th>}
               </tr>
             </thead>
@@ -352,7 +407,7 @@ export function CategoriesPanel({ products, onChanged }: { products: any[]; onCh
                     </span>
                   </td>
                   <td className="px-2.5 py-3 text-right tabular-nums">{fmtNum(c.product_count)}</td>
-                  <td className="px-2.5 py-3 text-right font-semibold tabular-nums">{fmtMoney(valueByCat.get(c.name.toLowerCase()) || 0)}</td>
+                  <td className="px-2.5 py-3 text-right font-semibold tabular-nums">{IS_COMMERCIAL ? fmtNum(valueByCat.get(c.name.toLowerCase()) || 0) : fmtMoney(valueByCat.get(c.name.toLowerCase()) || 0)}</td>
                   {canEdit && (
                     <td className="px-2.5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       {confirm === c.name ? (
@@ -393,7 +448,7 @@ export function CategoriesPanel({ products, onChanged }: { products: any[]; onCh
                     <td colSpan={canEdit ? 4 : 3} className="bg-slate-50/70 px-2.5 py-3">
                       {canEdit && c.product_count > 0 && (
                         <p className="mb-2 text-[11px] text-amber-700">
-                          Pour supprimer cette catégorie, supprimez d'abord ses {c.product_count} produit(s). Un produit qui a encore du stock doit d'abord être vidé (ajustement ou transfert).
+                          Pour supprimer cette catégorie, supprimez d'abord ses {c.product_count} produit(s).{IS_COMMERCIAL ? "" : " Un produit qui a encore du stock doit d'abord être vidé (ajustement ou transfert)."}
                         </p>
                       )}
                       <CategoryProducts

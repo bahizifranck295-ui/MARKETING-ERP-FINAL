@@ -83,7 +83,7 @@ export default function ObjectivesPage() {
   useEffect(() => {
     loadObjectives();
     api
-      .get("/stock/categories")
+      .get("/integration/categories")
       .then(({ data }) => {
         const names = (Array.isArray(data) ? data : []).map((c: any) => c.name).filter(Boolean);
         setCategories(names);
@@ -91,11 +91,11 @@ export default function ObjectivesPage() {
       })
       .catch(() => setCategories([]));
     api
-      .get("/stock/sites")
+      .get("/integration/sites")
       .then(({ data }) => setSites((Array.isArray(data) ? data : []).map((x: any) => x.name).filter(Boolean)))
       .catch(() => setSites([]));
     api
-      .get("/products")
+      .get("/integration/catalog")
       .then(({ data }) => setProducts(Array.isArray(data) ? data.filter((p: any) => p.is_active !== false) : []))
       .catch(() => setProducts([]));
   }, []);

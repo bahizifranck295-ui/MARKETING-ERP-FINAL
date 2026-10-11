@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import { fmtMoney } from "@/components/erp-ui";
+import { compactMoney, niceScale } from "@/lib/chartScale";
+
+export { compactMoney, niceScale };
 
 /*
  * Calculs et graphiques du stock partagés entre la page Stock et le rapport
@@ -16,20 +19,6 @@ export const stockOf = (p: any) => Number(p.stock ?? p.current_stock ?? 0) || 0;
 export const costOf = (p: any) => Number(p.cost_price) || 0;
 export const thresholdOf = (p: any) => Number(p.low_stock_threshold ?? p.alert_threshold ?? 0) || 0;
 export const categoryOf = (p: any) => (p.category && String(p.category).trim()) || "Sans catégorie";
-
-export function compactMoney(n: number) {
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$`;
-  if (Math.abs(n) >= 1_000) return `${(n / 1_000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} k$`;
-  return `${n.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} $`;
-}
-
-// Échelle à 4 graduations rondes (1, 2, 2,5 ou 5 × 10^n)
-export function niceScale(v: number) {
-  const raw = Math.max(v, 1) / 4;
-  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
-  const step = ([1, 2, 2.5, 5, 10].find((s) => s * pow >= raw) || 10) * pow;
-  return { max: step * 4, ticks: [0, 1, 2, 3, 4].map((i) => i * step) };
-}
 
 export function statusOf(p: any) {
   const s = stockOf(p);

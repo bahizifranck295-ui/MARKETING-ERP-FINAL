@@ -178,9 +178,9 @@ export default function StockPage() {
 
   useEffect(() => {
     loadData();
-    // Commandes : uniquement pour la courbe d'évolution (facultatif)
+    // Ventes validées (intégration avec la Gestion commerciale) : uniquement pour la courbe d'évolution
     api
-      .get("/orders")
+      .get("/integration/sales")
       .then(({ data }) => setOrders(Array.isArray(data) ? data : []))
       .catch(() => setOrders([]));
   }, []);

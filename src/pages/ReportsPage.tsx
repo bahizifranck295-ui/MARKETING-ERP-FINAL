@@ -7,7 +7,6 @@ import {
   Loader2,
   FileSpreadsheet,
   Printer,
-  Package,
   Wallet,
   ArrowDownLeft,
   ArrowUpRight,
@@ -36,8 +35,6 @@ import { openDocumentUrl, openDocumentInNativeViewer, saveFile, openPendingTab, 
 import { exportReceivablesPdf } from "@/lib/exportReceivablesPdf";
 import { exportTablePdf } from "@/lib/exportTablePdf";
 import { useAuth } from "@/contexts/AuthContext";
-import StockReportDashboard from "@/components/reports/StockReportDashboard";
-import StockStateReport from "@/components/reports/StockStateReport";
 import SalesSheets from "@/components/reports/SalesSheets";
 import OverviewDashboard from "@/components/reports/OverviewDashboard";
 import {
@@ -57,12 +54,10 @@ export default function ReportsPage() {
   const [exportingCash, setExportingCash] = useState(false);
   // Journal des mouvements : tous, seulement les entrées ou seulement les sorties (affichage et export)
   const [cashFlow, setCashFlow] = useState<"all" | "in" | "out">("all");
-  // Barre de tri de l'état des stocks (site, dépôt, catégorie), appliquée aussi à l'historique des rapports
-  const [stockFilters, setStockFilters] = useState<{ site: string; depot: string; category: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("month");
   const [activeTab, setActiveTab] = useState<
-    "overview" | "sales" | "cash" | "credits" | "stock"
+    "overview" | "sales" | "cash" | "credits"
   >("overview");
   const [selectedBU, setSelectedBU] = useState("all");
   // Filtre par site (ou tous les sites en commun)
@@ -87,7 +82,7 @@ export default function ReportsPage() {
         api.get("/orders"),
         api.get("/cash/operations"),
         api.get("/credits"),
-        api.get("/products"),
+        api.get("/integration/catalog"),
         api.get("/cash/sessions"),
         api.get("/cash/active-session"),
       ]);
@@ -527,13 +522,6 @@ export default function ReportsPage() {
       .reduce((sum, c) => sum + (c.remaining !== undefined ? c.remaining : c.amount || 0), 0);
   }, [credits]);
 
-  const totalStockValue = useMemo(() => {
-    return products.reduce((sum, p) => sum + (p.stock || 0) * (p.cost_price || 0), 0);
-  }, [products]);
-
-  const lowStockCount = useMemo(() => {
-    return products.filter((p) => (p.stock || 0) <= (p.low_stock_threshold || 15)).length;
-  }, [products]);
 
   const handleViewCashOperationSlip = async (op: any) => {
     if (op.document_url) {
@@ -623,10 +611,6 @@ export default function ReportsPage() {
       ["CRÉANCES"],
       ["Total Créances Clients ($)", totalDebts],
       ["Clients Débiteurs", credits.filter((c) => (c.remaining || c.amount) > 0).length],
-      [""],
-      ["STOCK"],
-      ["Valeur Totale du Stock ($)", totalStockValue],
-      ["Articles en Alerte", lowStockCount],
     ];
 
     const csv = "\uFEFF" + lines.map((e) => e.join(";")).join("\n");
@@ -732,7 +716,7 @@ export default function ReportsPage() {
         })}
       </div>
       ) : (
-        /* En-tête des autres sous-modules : ventes, caisse disponible, créances, stock */
+        /* En-tête des autres sous-modules : ventes, caisse disponible, créances, ventes payées */
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
@@ -791,14 +775,17 @@ export default function ReportsPage() {
         <div className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50/80 to-white p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black uppercase tracking-wider text-purple-800 flex items-center gap-1.5">
-              <Package className="h-4 w-4 text-purple-600" /> STOCK
+              <Coins className="h-4 w-4 text-purple-600" /> VENTES PAYÉES
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+              {totalSales > 0 ? Math.round((totalPaidSales / totalSales) * 100) : 0}%
             </span>
           </div>
           <div>
             <div className="text-2xl font-black text-purple-700 tracking-tight">
-              {fmtMoney(selectedSite === "all" || !siteMap ? totalStockValue : siteMap.stock_value?.[selectedSite] || 0)}
+              {fmtMoney(totalPaidSales)}
             </div>
-            <div className="text-[11px] text-slate-500 font-medium">Valeur marchande du stock</div>
+            <div className="text-[11px] text-slate-500 font-medium">Payées au comptant · à crédit {fmtMoney(totalCreditSales)}</div>
           </div>
         </div>
       </div>
@@ -811,7 +798,6 @@ export default function ReportsPage() {
           { id: "sales", label: "Rapport des Ventes", icon: ShoppingCart },
           { id: "cash", label: "Livre de Caisse", icon: Wallet },
           { id: "credits", label: "Créances & Marketeurs", icon: Users },
-          { id: "stock", label: "État des Stocks", icon: Package },
         ].map((t) => {
           const Icon = t.icon;
           const isActive = activeTab === t.id;
@@ -1064,11 +1050,6 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
-      ) : activeTab === "stock" ? (
-        <div className="space-y-4">
-          <StockStateReport siteKey={selectedSite} historyFilter={stockFilters} />
-          <StockReportDashboard products={products} orders={orders} search={search} siteKey={selectedSite} onFiltersChange={setStockFilters} />
-        </div>
       ) : activeTab === "sales" ? (
         <SalesSheets search={search} period={period} includeOrder={(o: any) => inSite("orders", o.id)} siteKey={selectedSite} siteLabel={siteName} />
       ) : activeTab === "credits" ? (
@@ -1138,7 +1119,6 @@ export default function ReportsPage() {
           siteOfOrder={siteNameOfOrder}
           kpiCur={kpiCur}
           kpiPrev={kpiPrev}
-          stockValue={selectedSite === "all" || !siteMap ? totalStockValue : siteMap.stock_value?.[selectedSite] || 0}
           prevLabel={prevPeriodLabel}
         />
       ) : null}

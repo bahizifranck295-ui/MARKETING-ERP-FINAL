@@ -4,9 +4,7 @@ import { toast } from "sonner";
 import {
   ShoppingCart,
   Users,
-  Package,
   Wallet,
-  Truck,
   Calculator,
   BarChart3,
   ShieldCheck,
@@ -196,14 +194,14 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-3">
             <KpiCard
               label="Ventes aujourd'hui"
-              value={fmtMoney(k.sales?.total)}
-              sub={`${k.sales?.count} transaction(s)`}
+              value={fmtMoney(k.sales?.today_total)}
+              sub={`${k.sales?.today_count ?? 0} transaction(s)`}
               tone="blue"
             />
             <KpiCard
-              label="Encaissé"
-              value={fmtMoney(k.sales?.paid)}
-              sub={`Bénéfice est. ${fmtMoney(k.profit_estimate)}`}
+              label="Encaissé aujourd'hui"
+              value={fmtMoney(k.cash?.today_in)}
+              sub={`Sorties ${fmtMoney(k.cash?.today_out)}`}
               tone="green"
             />
             <KpiCard
@@ -213,31 +211,13 @@ export default function DashboardPage() {
               tone={k.debts?.total > 0 ? "red" : "slate"}
             />
             <KpiCard
-              label="Stock (coût)"
-              value={fmtMoney(k.stock?.value)}
-              sub={`${k.stock?.low_stock || 0} en alerte / ${k.stock?.products}`}
+              label="À approuver"
+              value={String(k.orders?.pending_approval ?? 0)}
+              sub={`${k.objectives?.active ?? 0} objectif(s) en cours`}
               tone="slate"
             />
           </div>
 
-          {k.stock?.low_stock > 0 && (
-            <Link
-              to="/stock"
-              className="block rounded-2xl bg-amber-50 border border-amber-200 p-4 hover:bg-amber-100 transition-colors shadow-xs"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-amber-900">
-                    ⚠ {k.stock.low_stock} produit(s) en alerte stock
-                  </div>
-                  <div className="text-xs text-amber-700 mt-0.5">
-                    Cliquez pour vérifier l'inventaire
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-amber-700" />
-              </div>
-            </Link>
-          )}
         </>
       ) : null}
 
@@ -256,7 +236,7 @@ export default function DashboardPage() {
             </Link>
           )}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Tile
             icon={Store}
             title="Boutique"
@@ -297,22 +277,6 @@ export default function DashboardPage() {
             enabled={has("credits.read")}
           />
           <Tile
-            icon={Package}
-            title="Stock"
-            subtitle="Produits & dépôts"
-            to="/stock"
-            tone="slate"
-            enabled={has("stock.read")}
-          />
-          <Tile
-            icon={Truck}
-            title="Livraison"
-            subtitle="Chargement & tournées"
-            to="/delivery"
-            tone="slate"
-            enabled={has("delivery.read")}
-          />
-          <Tile
             icon={Calculator}
             title="Comptabilité"
             subtitle="Écritures & synchronisation"
@@ -323,7 +287,7 @@ export default function DashboardPage() {
           <Tile
             icon={BarChart3}
             title="Rapports"
-            subtitle="Ventes, caisse, stock"
+            subtitle="Ventes, caisse, crédits"
             to="/reports"
             tone="slate"
             enabled={has("reports.read")}

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2, Landmark, Lock, Mail, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { APP_INFO } from "@/app/edition";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,7 +52,7 @@ export default function LoginPage() {
             PREMIDIS SARL
           </h1>
           <p className="text-xs text-slate-500">
-            Plateforme de gestion intégrée (CRM, Ventes, Caisse, Stock, Compta)
+            <span data-app-name className="font-bold text-[#0F3D68]">{APP_INFO.name}</span> · {APP_INFO.subtitle}
           </p>
         </div>
 

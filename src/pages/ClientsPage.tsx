@@ -94,7 +94,7 @@ export default function ClientsPage() {
     try {
       const [resClients, resProducts] = await Promise.all([
         api.get("/clients"),
-        api.get("/products").catch(() => ({ data: [] })),
+        api.get("/integration/catalog").catch(() => ({ data: [] })),
       ]);
       setClients(Array.isArray(resClients.data) ? resClients.data : []);
       setProducts(Array.isArray(resProducts.data) ? resProducts.data : []);
@@ -108,7 +108,7 @@ export default function ClientsPage() {
   useEffect(() => {
     loadClientsAndProducts();
     api
-      .get("/stock/sites")
+      .get("/integration/sites")
       .then(({ data }) => setStockSites((Array.isArray(data) ? data : []).filter((x: any) => x.is_active !== false).map((x: any) => x.name).filter(Boolean)))
       .catch(() => setStockSites([]));
   }, []);
@@ -596,7 +596,7 @@ export default function ClientsPage() {
                       data-no-translate
                       className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium"
                     >
-                      {!options.length && <option value="">Aucun site (Stock › Sites)</option>}
+                      {!options.length && <option value="">Aucun site configuré</option>}
                       {options.map((x) => (
                         <option key={x} value={x}>
                           {x}

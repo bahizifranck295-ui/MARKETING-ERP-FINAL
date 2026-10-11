@@ -21,7 +21,8 @@ import {
 } from "./db";
 import { ensureStockStructure, mountStockStructureRoutes, orderLocation, userSite } from "./stockStructure";
 import { mountStockReportRoutes } from "./stockReport";
-import { applyOrderStockOut, embarkedAvailability, mountDeliveryRoutes, productStockMode, restoreOrderStock, tagOrderStockSource } from "./delivery";
+import { appScopeGuard, mountIntegrationRoutes } from "./integration";
+import { applyOrderStockOut, mountDeliveryRoutes, restoreOrderStock, tagOrderStockSource } from "./delivery";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "erp_secret_jwt_key_2026";
 
@@ -45,6 +46,8 @@ export function authenticate(req: Request, res: Response, next: Function) {
 }
 
 export const apiRouter = express.Router();
+// Deux applications sur la même API : chacune n'accède qu'aux routes de ses modules (voir integration.ts)
+apiRouter.use(appScopeGuard);
 
 apiRouter.get("/", (req, res) => {
   res.json({ service: "ERP Distribution", status: "ok", version: "0.1.0" });
@@ -299,6 +302,8 @@ mountStockStructureRoutes(apiRouter, authenticate);
 // LIVRAISON : stock embarqué, livraisons sur commande, modes par département
 mountDeliveryRoutes(apiRouter, authenticate);
 mountStockReportRoutes(apiRouter, authenticate);
+// INTÉGRATION entre Gestion commerciale et Stock & Livraison (référentiels, catalogue, ventes)
+mountIntegrationRoutes(apiRouter, authenticate);
 
 // WAREHOUSES
 apiRouter.get("/warehouses", authenticate, (req, res) => {
@@ -999,6 +1004,16 @@ apiRouter.post("/orders", authenticate, (req, res) => {
 
   if (!client) return res.status(400).json({ detail: "Client introuvable" });
 
+  // Produit marqué « Indisponible » (Boutique › Catégories) : la commande est refusée avec un message clair
+  const unavailable = (items || [])
+    .map((it: any) => db.products.find((p) => p.id === it.product_id))
+    .filter((p: any) => p && p.available === false);
+  if (unavailable.length)
+    return res.status(409).json({
+      detail: `Produit indisponible : ${unavailable.map((p: any) => p.name).join(", ")}. Il ne peut pas être commandé pour le moment.`,
+      unavailable: unavailable.map((p: any) => p.id),
+    });
+
   let subtotalUSD = 0;
   let subtotalFC = 0;
 
@@ -1159,17 +1174,15 @@ apiRouter.post("/orders/:id/reject", authenticate, (req, res) => {
 });
 
 // BOUTIQUE
-apiRouter.get("/boutique/products", authenticate, (req, res) => {
-  // Stock embarqué du vendeur connecté : quantités réelles de son camion
-  const { es, byProduct } = embarkedAvailability(((req as any).user as User).id);
+apiRouter.get("/boutique/products", authenticate, (_req, res) => {
+  // Catalogue de vente (Gestion commerciale) : prix et disponibilité, sans quantités de stock.
+  // La source (camion / dépôt) d'une ligne vendue reste décidée par le serveur à la commande.
   res.json(
     db.products
       .filter((p) => p.is_active)
-      .map((p) => {
-        // Produit classé « Stock embarqué » : vendu uniquement depuis le camion du vendeur
-        if (productStockMode(p.id) !== "embarked") return { ...p, stock_mode: "on_order" };
-        const row = byProduct.get(p.id);
-        return { ...p, stock_mode: "embarked", embarked_id: es?.id || null, embarked_label: es?.marketer_name || null, embarked_qty: row?.quantity || 0, embarked_available: row?.available || 0 };
+      .map((p: any) => {
+        const { stock, current_stock, low_stock_threshold, alert_threshold, warehouse_id, ...rest } = p;
+        return { ...rest, available: p.available !== false };
       })
   );
 });
@@ -1986,7 +1999,9 @@ apiRouter.put("/delivery/tours/:id/status", authenticate, (req, res) => {
 
 // ACCOUNTING
 apiRouter.get("/accounting/movements", authenticate, (req, res) => {
-  res.json(db.accounting_movements);
+  // Comptabilité de la Gestion commerciale : ventes, commandes, caisse, crédits (les écritures du
+  // module Stock restent en base mais ne sont pas affichées ici)
+  res.json(db.accounting_movements.filter((m: any) => m.module !== "stock"));
 });
 
 apiRouter.post("/accounting/sync", authenticate, (req, res) => {
@@ -2060,18 +2075,28 @@ apiRouter.get("/audit/logs", authenticate, (req, res) => {
 });
 
 // DASHBOARD & REPORTS
+// Tableau de bord de la Gestion commerciale : chiffres du jour, créances et commandes (aucune donnée de stock)
 apiRouter.get("/dashboard", authenticate, (req, res) => {
-  const totalSales = db.orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
-  const totalPaid = db.orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.amount_paid, 0);
-  const totalExpenses = db.cash_operations.filter((o) => o.type === "out").reduce((s, o) => s + o.amount, 0);
-  const totalDebts = db.credits.filter((c) => c.status !== "paid").reduce((s, c) => s + (c.remaining ?? c.amount ?? 0), 0);
-  const stockValue = db.products.reduce((s, p) => s + (p.stock || 0) * (p.cost_price || 0), 0);
-
+  const today = new Date().toDateString();
+  const isToday = (d?: string) => !!d && new Date(d).toDateString() === today;
+  const live = db.orders.filter((o) => o.status !== "cancelled" && (o.status as string) !== "rejected");
+  const salesToday = live.filter((o) => isToday(o.approved_at || o.created_at));
+  const usd = (o: any) => Number(o.amount_usd) || (o.currency === "USD" ? Number(o.amount) || 0 : (Number(o.amount) || 0) / (o.exchange_rate || 2500));
+  const opsToday = db.cash_operations.filter((o) => isToday(o.created_at));
+  const cashIn = opsToday.filter((o) => o.type === "in").reduce((t, o) => t + usd(o), 0);
+  const cashOut = opsToday.filter((o) => o.type === "out").reduce((t, o) => t + usd(o), 0);
+  const openDebts = db.credits.filter((c: any) => c.status !== "cancelled" && (Number(c.remaining ?? c.balance ?? 0) || 0) > 0);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
   res.json({
-    sales: { total: totalSales, count: db.orders.length, paid: totalPaid },
-    profit_estimate: Math.max(0, totalSales - totalExpenses),
-    debts: { total: totalDebts, clients: db.credits.length },
-    stock: { products: db.products.length, low_stock: 1, value: stockValue },
+    sales: { today_total: r2(salesToday.reduce((t, o) => t + (Number(o.total) || 0), 0)), today_count: salesToday.length },
+    cash: { today_in: r2(cashIn), today_out: r2(cashOut) },
+    debts: {
+      total: r2(openDebts.reduce((t, c: any) => t + (Number(c.remaining ?? c.balance ?? 0) || 0), 0)),
+      count: openDebts.length,
+      clients: new Set(openDebts.map((c: any) => c.client_id || c.client_name)).size,
+    },
+    orders: { pending_approval: db.orders.filter((o) => o.status === "pending_approval").length },
+    objectives: { active: db.objectives.filter((o: any) => o.status !== "completed").length },
   });
 });
 

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { CategoryPicker } from "@/components/stock/categories";
+import { IS_COMMERCIAL } from "@/app/edition";
 
 /**
  * Formulaire « Nouveau produit » (module Stock), partagé avec la Boutique :
@@ -47,8 +48,9 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
       sell_price: sellPrice,
       price_fc: priceFC,
       cost_price: Number(form.elements.cost_price.value) || 0,
-      stock: Number(form.elements.stock.value) || 0,
-      alert_threshold: Number(form.elements.alert_threshold.value) || 10,
+      // Gestion commerciale : le stock initial et le seuil se saisissent dans le projet Stock & Livraison
+      stock: IS_COMMERCIAL ? 0 : Number(form.elements.stock.value) || 0,
+      alert_threshold: IS_COMMERCIAL ? undefined : Number(form.elements.alert_threshold.value) || 10,
       badge: form.elements.badge?.value?.trim() || undefined,
       image_url: imagePreview || imageUrlInput.trim() || undefined,
     };
@@ -77,7 +79,7 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
           <div className="px-2.5 py-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
             <Label className="text-xs font-bold text-slate-800 flex items-center justify-between">
               <span>Photo du Produit</span>
-              <span className="text-[11px] font-normal text-slate-500">Visible dans la Boutique & Stock</span>
+              <span className="text-[11px] font-normal text-slate-500">{IS_COMMERCIAL ? "Visible dans la Boutique" : "Visible dans la Boutique & Stock"}</span>
             </Label>
             <div className="flex items-center gap-3">
               {imagePreview ? (
@@ -168,11 +170,13 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
               <Input name="cost_price" type="number" step="0.01" defaultValue="1.00" className="mt-1 h-9 rounded-lg" />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className={`grid gap-2 ${IS_COMMERCIAL ? "grid-cols-1" : "grid-cols-3"}`}>
             <div>
               <Label className="text-xs font-semibold">Unité</Label>
               <Input name="unit" defaultValue="Bouteille" className="mt-1 h-9 rounded-lg" />
             </div>
+            {!IS_COMMERCIAL && (
+            <>
             <div>
               <Label className="text-xs font-semibold">Stock Initial</Label>
               <Input name="stock" type="number" defaultValue="100" className="mt-1 h-9 rounded-lg" />
@@ -181,6 +185,8 @@ export default function NewProductDialog({ onClose, onCreated }: { onClose: () =
               <Label className="text-xs font-semibold">Seuil d'Alerte</Label>
               <Input name="alert_threshold" type="number" defaultValue="15" className="mt-1 h-9 rounded-lg" />
             </div>
+            </>
+            )}
           </div>
           <DialogFooter className="gap-2 pt-3 border-t border-slate-100">
             <Button type="button" variant="outline" onClick={onClose}>
