@@ -97,7 +97,7 @@ export default function DashboardPage() {
         <>
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <StatCard label="Chiffre d'affaires du jour" value={fmtMoney(o.revenue.today)} k={o.revenue} icon={Wallet} tone="blue" to={has("orders.read") ? "/orders" : null} />
-            <StatCard label="Bénéfice estimé" value={fmtMoney(o.profit.today)} k={o.profit} icon={TrendingUp} tone="green" to={has("reports.read") ? "/reports" : null} />
+            <StatCard label="Bénéfice net réel" value={fmtMoney(o.net_profit.today)} k={o.net_profit} icon={TrendingUp} tone="green" to={has("reports.read") ? "/reports?period=day" : null} />
             <StatCard label="Créances" value={fmtMoney(k.debts?.total)} sub={`${k.debts?.clients ?? 0} client(s)`} icon={HandCoins} tone="red" to={has("credits.read") ? "/credits" : null} />
             <StatCard label="Nombre de ventes" value={o.sales_count.today.toLocaleString("fr-FR")} k={o.sales_count} icon={ShoppingBag} tone="orange" to={has("orders.read") ? "/orders" : null} />
             <StatCard label="Nombre de clients" value={o.clients.today.toLocaleString("fr-FR")} k={o.clients} icon={Users} tone="violet" to={has("crm.read") ? "/clients" : null} />

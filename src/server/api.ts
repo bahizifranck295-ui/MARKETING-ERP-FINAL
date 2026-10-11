@@ -2255,13 +2255,28 @@ function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessi
   const saleDay = (o: any) => dayKey(o.approved_at || o.created_at);
   const r2 = (n: number) => Math.round(n * 100) / 100;
   const productById = new Map(db.products.map((p) => [p.id, p]));
-  // Bénéfice estimé = Σ (prix de vente − prix d'achat inscrits à la création du produit) × quantité vendue
-  const profitOf = (o: any) =>
-    (o.items || []).reduce((t: number, it: any) => {
-      const p: any = productById.get(it.product_id);
-      const margin = (Number(p?.sell_price) || 0) - (Number(p?.cost_price) || 0);
-      return t + margin * (Number(it.quantity) || 0);
-    }, 0);
+  // Bénéfice net réel (même calcul que Rapports › Vue d'ensemble, période « Aujourd'hui ») :
+  // bénéfice brut Σ quantité × (prix de vente − prix de revient du produit) des ventes non annulées,
+  // moins les dépenses de caisse (sorties) du jour
+  const grossOf = (list: any[]) =>
+    list.reduce(
+      (s, o) =>
+        s +
+        (o.items || []).reduce(
+          (t: number, it: any) => t + (Number(it.quantity) || 0) * ((Number(it.unit_price) || 0) - (Number((productById.get(it.product_id) as any)?.cost_price) || 0)),
+          0
+        ),
+      0
+    );
+  const reportOrdersOn = (k: string) =>
+    db.orders.filter(
+      (o: any) => o.status !== "cancelled" && saleDay(o) === k && inSiteScope(me, orderLocation(o).site_id, "indicators") && orderInCategoryScope(me, o, "indicators")
+    );
+  const cashOutOn = (k: string) =>
+    db.cash_operations
+      .filter((o: any) => o.type === "out" && dayKey(o.created_at) === k && inSiteScope(me, sessionSite.get(o.session_id) || null, "indicators"))
+      .reduce((t: number, o: any) => t + usd(o), 0);
+  const netOn = (k: string) => r2(grossOf(reportOrdersOn(k)) - cashOutOn(k));
   const salesOn = (k: string) => live.filter((o) => saleDay(o) === k);
   const sum = (list: any[], f: (o: any) => number) => r2(list.reduce((t, o) => t + f(o), 0));
   const cashInOn = (k: string) =>
@@ -2323,7 +2338,7 @@ function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessi
       cash_balance,
       pending_deposits,
       revenue: kpi(sum(salesOn(todayKey), (o) => Number(o.total) || 0), sum(salesOn(yesterdayKey), (o) => Number(o.total) || 0)),
-      profit: kpi(sum(salesOn(todayKey), profitOf), sum(salesOn(yesterdayKey), profitOf)),
+      net_profit: kpi(netOn(todayKey), netOn(yesterdayKey)),
       receipts: kpi(cashInOn(todayKey), cashInOn(yesterdayKey)),
       sales_count: kpi(salesOn(todayKey).length, salesOn(yesterdayKey).length),
       clients: kpi(clients.length, clients.filter((c: any) => !c.created_at || new Date(c.created_at).getTime() < endOfYesterday).length),

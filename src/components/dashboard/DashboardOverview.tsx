@@ -15,7 +15,7 @@ export type Overview = {
   cash_balance: { current_usd: number; cash_usd: number; cash_cdf: number; open_count: number };
   pending_deposits: { total_usd: number; orders_count: number; marketers_count: number };
   revenue: Kpi;
-  profit: Kpi;
+  net_profit: Kpi;
   receipts: Kpi;
   sales_count: Kpi;
   clients: Kpi;

@@ -59,7 +59,11 @@ export default function ReportsPage() {
   // Journal des mouvements : tous, seulement les entrées ou seulement les sorties (affichage et export)
   const [cashFlow, setCashFlow] = useState<"all" | "in" | "out">("all");
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState("month");
+  // Période initiale : ?period=day|week|month|year (lien « Bénéfice net réel » du tableau de bord), sinon le mois
+  const [period, setPeriod] = useState(() => {
+    const p = new URLSearchParams(window.location.search).get("period");
+    return p && ["day", "week", "month", "year"].includes(p) ? p : "month";
+  });
   const [activeTab, setActiveTab] = useState<
     "overview" | "sales" | "cash" | "credits"
   >("overview");
