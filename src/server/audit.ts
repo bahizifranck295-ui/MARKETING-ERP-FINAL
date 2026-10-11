@@ -7,6 +7,7 @@ import {
   catalogTree,
   effectivePermissions,
   ensurePermissionModel,
+  ensureAddedPermissions,
   isSuperAdmin,
   permissionCoverage,
   roleOf,
@@ -293,6 +294,7 @@ function checkCoverage(router: any) {
 export function installSecurity(router: any, resolveUser: (req: any) => User | null) {
   router.use((req: any, res: any, next: any) => {
     ensurePermissionModel();
+    ensureAddedPermissions();
     checkCoverage(router);
     const user = resolveUser(req);
     req._actor = user;

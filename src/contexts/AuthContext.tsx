@@ -8,6 +8,7 @@ interface User {
   full_name: string;
   phone?: string;
   department?: string;
+  photo_url?: string;
   role_code: string;
   is_transversal?: boolean;
 }

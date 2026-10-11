@@ -66,12 +66,9 @@ export const PERMISSIONS: PermDef[] = [
     ["orders.read", "Consulter les commandes", "view", { legacy: ["orders.read"] }],
     ["orders.filter", "Filtrer, trier et rechercher les commandes", "filter", { legacy: ["orders.read"], requires: ["orders.read"], ui_only: true }],
     ["orders.create", "Créer une commande", "create", { legacy: ["orders.create"] }],
-    ["orders.update", "Modifier une commande", "update", { legacy: ["orders.update"], requires: ["orders.read"] }],
-    ["orders.validate", "Valider une commande", "approve", { legacy: ["orders.validate"], requires: ["orders.read"] }],
     ["orders.approve", "Approuver une commande (sortie de stock)", "approve", { legacy: ["orders.approve", "orders.validate"], requires: ["orders.read"], sensitive: true }],
     ["orders.reject", "Rejeter une commande", "reject", { legacy: ["orders.approve", "orders.validate"], requires: ["orders.read"], sensitive: true }],
     ["orders.override_credit", "Approuver en dérogation au plafond de crédit", "approve", { requires: ["orders.approve"], sensitive: true }],
-    ["orders.delete", "Annuler une commande", "delete", { legacy: ["orders.delete"], requires: ["orders.read"], sensitive: true }],
     ["orders.print", "Imprimer / télécharger la facture", "print", { legacy: ["orders.read", "boutique.read"], ui_only: true }],
   ]),
   ...P("commercial", "CRM Clients", "Clients", [
@@ -79,7 +76,6 @@ export const PERMISSIONS: PermDef[] = [
     ["crm.filter", "Filtrer, trier et rechercher les clients", "filter", { legacy: ["crm.read"], requires: ["crm.read"], ui_only: true }],
     ["crm.create", "Créer un client", "create", { legacy: ["crm.create"], requires: ["crm.read"] }],
     ["crm.update", "Modifier un client", "update", { legacy: ["crm.update"], requires: ["crm.read"] }],
-    ["crm.delete", "Supprimer un client", "delete", { legacy: ["crm.delete"], requires: ["crm.read"], sensitive: true }],
   ]),
   ...P("commercial", "CRM Clients", "Compte client", [
     ["crm.account", "Consulter le compte client (relevé, transactions)", "view", { legacy: ["crm.read"], requires: ["crm.read"] }],
@@ -95,13 +91,10 @@ export const PERMISSIONS: PermDef[] = [
     ["cash.open", "Ouvrir une session de caisse", "execute", { legacy: ["cash.create"], requires: ["cash.read"] }],
     ["cash.close", "Clôturer la caisse (billetage)", "execute", { legacy: ["cash.close"], requires: ["cash.read"], sensitive: true }],
     ["cash.create", "Enregistrer une entrée / sortie de caisse", "create", { legacy: ["cash.create"], requires: ["cash.read"], sensitive: true }],
-    ["cash.update", "Modifier une opération", "update", { legacy: ["cash.update"], requires: ["cash.read"], sensitive: true }],
     ["cash.deposits", "Encaisser les versements des marketeurs", "approve", { legacy: ["cash.create"], requires: ["cash.read"], sensitive: true }],
     ["cash.expense_categories", "Créer une catégorie de dépense", "create", { legacy: ["cash.create"], requires: ["cash.read"] }],
     ["cash.rates", "Modifier les taux de change", "update", { legacy: ["cash.update"], requires: ["cash.read"], sensitive: true }],
     ["cash.export", "Exporter / imprimer reçus et journaux (PDF)", "export", { legacy: ["cash.read"], requires: ["cash.read"], ui_only: true }],
-    ["billeting.read", "Consulter le billetage", "view", { legacy: ["billeting.read"] }],
-    ["billeting.manage", "Gérer le billetage numérique", "manage", { legacy: ["billeting.manage"] }],
   ]),
   ...P("commercial", "Crédits", "Crédits & créances", [
     ["credits.read", "Consulter les crédits clients", "view", { legacy: ["credits.read"] }],
@@ -125,28 +118,26 @@ export const PERMISSIONS: PermDef[] = [
     ["objectives.manage", "Créer un objectif", "create", { legacy: ["objectives.manage"], requires: ["objectives.read"], sensitive: true }],
     ["objectives.claim", "Réclamer un bonus atteint", "execute", { legacy: ["objectives.read"], requires: ["objectives.read"] }],
   ]),
-  ...P("commercial", "Administration", "Utilisateurs", [
+  ...P("commercial", "Utilisateurs", "Comptes utilisateurs", [
     ["users.read", "Consulter les utilisateurs", "view", { legacy: ["users.read"] }],
     ["users.create", "Créer un utilisateur", "create", { legacy: ["users.create"], requires: ["users.read"], sensitive: true }],
     ["users.update", "Modifier un utilisateur (profil, rôle, mot de passe)", "update", { legacy: ["users.update"], requires: ["users.read"], sensitive: true }],
     ["users.delete", "Désactiver un utilisateur", "delete", { legacy: ["users.delete"], requires: ["users.read"], sensitive: true }],
-    ["users.permissions", "Configurer les permissions individuelles", "manage", { legacy: ["roles.manage"], requires: ["users.read"], sensitive: true }],
     ["users.scope", "Attribuer les sites et départements (périmètre)", "manage", { legacy: ["users.update"], requires: ["users.read"], sensitive: true }],
   ]),
-  ...P("commercial", "Administration", "Rôles & catégories d'utilisateurs", [
+  ...P("commercial", "Rôles & permissions", "Rôles & modèles de permissions", [
     ["roles.read", "Consulter les rôles et leurs modèles de permissions", "view", { legacy: ["roles.read"] }],
     ["roles.manage", "Créer / modifier un rôle et son modèle de permissions", "manage", { legacy: ["roles.manage"], requires: ["roles.read"], sensitive: true }],
     ["roles.delete", "Désactiver / réactiver un rôle", "delete", { legacy: ["roles.manage"], requires: ["roles.read"], sensitive: true }],
   ]),
-  ...P("commercial", "Administration", "Journal d'audit", [
+  ...P("commercial", "Rôles & permissions", "Permissions individuelles", [
+    ["users.permissions", "Configurer les permissions individuelles", "manage", { legacy: ["roles.manage"], requires: ["users.read"], sensitive: true }],
+  ]),
+  ...P("commercial", "Journal d'audit", "Journal & alertes", [
     ["audit.read", "Consulter le journal d'audit et les cahiers des utilisateurs", "view", { legacy: ["audit.read"] }],
     ["audit.details", "Voir les détails sensibles (anciennes / nouvelles valeurs, IP, session)", "view", { legacy: ["audit.read"], requires: ["audit.read"], sensitive: true }],
     ["audit.alerts", "Recevoir et traiter les alertes de sécurité", "manage", { legacy: ["audit.read"], requires: ["audit.read"], sensitive: true }],
     ["audit.export", "Exporter le journal d'audit (CSV)", "export", { legacy: ["audit.read"], requires: ["audit.read"], ui_only: true }],
-  ]),
-  ...P("commercial", "Administration", "Paramètres", [
-    ["settings.read", "Consulter les paramètres", "view", { legacy: ["settings.read"] }],
-    ["settings.manage", "Gérer les paramètres", "manage", { legacy: ["settings.manage"], requires: ["settings.read"], sensitive: true }],
   ]),
   // ---------------- Stock & Livraison ----------------
   ...P("logistique", "Stock", "Produits & dépôts", [
@@ -162,6 +153,10 @@ export const PERMISSIONS: PermDef[] = [
   ...P("logistique", "Stock", "Rapports d'état de stock", [
     ["stock.reports", "Générer et consulter les rapports d'état de stock", "view", { legacy: ["stock.read"] }],
     ["stock.export", "Exporter / imprimer l'état de stock (PDF)", "export", { legacy: ["stock.read"], requires: ["stock.reports"], ui_only: true }],
+  ]),
+  ...P("logistique", "Rapports Stock & Livraison", "Rapports logistiques", [
+    ["logistics_reports.read", "Consulter les rapports Stock & Livraison", "view", { requires: ["stock.read"] }],
+    ["logistics_reports.export", "Exporter le rapport des livraisons (CSV)", "export", { requires: ["logistics_reports.read"], ui_only: true }],
   ]),
   ...P("logistique", "Livraison", "Livraisons & tournées", [
     ["delivery.read", "Consulter les livraisons", "view", { legacy: ["delivery.read"] }],
@@ -200,6 +195,32 @@ export function ensurePermissionModel() {
   (db as any).permission_model_version = MODEL_VERSION;
 }
 
+/*
+ * Permissions ajoutées après la migration : accordées une seule fois aux rôles (et exceptions
+ * individuelles) qui avaient déjà cet accès, sans rejouer la migration complète.
+ *  - Rapports Stock & Livraison : ouverts jusqu'ici par « reports.read », export par « stock.export ».
+ */
+const ADDED_PERMISSIONS: Array<[string, string]> = [
+  ["logistics_reports.read", "reports.read"],
+  ["logistics_reports.export", "stock.export"],
+];
+
+export function ensureAddedPermissions() {
+  const done: string[] = ((db as any).permission_additions ||= []);
+  for (const [code, from] of ADDED_PERMISSIONS) {
+    if (done.includes(code)) continue;
+    for (const role of db.roles as any[]) {
+      const perms: string[] = role.permissions || [];
+      if (role.code === "super_admin" || perms.includes(from)) role.permissions = Array.from(new Set([...perms, code]));
+    }
+    for (const u of db.users as any[]) {
+      if ((u.perm_grants || []).includes(from)) u.perm_grants = Array.from(new Set([...u.perm_grants, code]));
+      if ((u.perm_denies || []).includes(from)) u.perm_denies = Array.from(new Set([...u.perm_denies, code]));
+    }
+    done.push(code);
+  }
+}
+
 /* ---------------- Droits effectifs ---------------- */
 export const isSuperAdmin = (u?: User | null) => u?.role_code === "super_admin";
 
@@ -210,6 +231,7 @@ export function roleOf(u: User) {
 export function effectivePermissions(u?: User | null): string[] {
   if (!u) return [];
   ensurePermissionModel();
+  ensureAddedPermissions();
   if (isSuperAdmin(u)) return [...ALL_CODES];
   const role = roleOf(u);
   const base: string[] = role && role.is_active !== false ? role.permissions || [] : [];
@@ -351,12 +373,12 @@ export const ROUTE_RULES: Array<[string, string, Rule]> = [
   ["PUT", "/integration/catalog/:id/availability", ["products.availability"]],
   ["POST", "/integration/categories", ["categories.manage"]],
   ["DELETE", "/integration/categories/:name", ["categories.manage"]],
-  ["GET", "/integration/sales", ["stock.read", "stock.reports"]],
+  ["GET", "/integration/sales", ["stock.read", "stock.reports", "logistics_reports.read"]],
   ["POST", "/products/:id/adjust", ["stock.adjust"]],
   ["POST", "/products", ["products.create", "stock.create"]],
   ["PUT", "/products/:id", ["products.update", "stock.update"]],
   ["DELETE", "/products/:id", ["products.delete"]],
-  ["GET", "/products", ["stock.read", "delivery.read", "stock.reports"]],
+  ["GET", "/products", ["stock.read", "delivery.read", "stock.reports", "logistics_reports.read"]],
   // Commandes
   ["GET", "/orders", ["orders.read", "reports.read", "cash.read"]],
   ["POST", "/orders", ["boutique.order", "orders.create"]],
@@ -423,7 +445,7 @@ export const ROUTE_RULES: Array<[string, string, Rule]> = [
   ["GET", "/stock/categories", ["stock.read", "stock.reports", "categories.manage"]],
   ["POST", "/stock/categories", ["categories.manage", "stock.create"]],
   ["DELETE", "/stock/categories/:name", ["categories.manage"]],
-  ["GET", "/stock/embarked-summary", ["stock.read", "delivery.read"]],
+  ["GET", "/stock/embarked-summary", ["stock.read", "delivery.read", "logistics_reports.read"]],
   ["GET", "/reports/stock-state/history/:id", ["stock.reports"]],
   ["GET", "/reports/stock-state/history", ["stock.reports"]],
   ["POST", "/reports/stock-state/history", ["stock.reports"]],
@@ -440,7 +462,7 @@ export const ROUTE_RULES: Array<[string, string, Rule]> = [
   ["POST", "/delivery/embarked/load", ["delivery.embarked"]],
   ["POST", "/delivery/embarked/:id/return", ["delivery.embarked"]],
   ["POST", "/delivery/embarked/:id/adjust", ["delivery.embarked"]],
-  ["GET", "/delivery/orders", ["delivery.read"]],
+  ["GET", "/delivery/orders", ["delivery.read", "logistics_reports.read"]],
   ["POST", "/delivery/orders/:id/advance", ["delivery.create", "delivery.dispatch", "delivery.confirm"]],
   ["GET", "/delivery/departments", ["delivery.read"]],
   ["PUT", "/delivery/departments/:name", ["delivery.config"]],
@@ -489,9 +511,10 @@ export function permissionCoverage(router: any) {
 
 // Permissions vérifiées dans le code des routes (au-delà de la table) : dérogation de crédit, etc.
 export const SERVER_CHECKED_IN_CODE = ["orders.override_credit", "orders.all", "users.scope", "users.permissions", "audit.details"];
-// Permissions héritées de l'ancien catalogue sans fonctionnalité dans l'ERP actuel : conservées
-// (aucune suppression) mais signalées, car elles ne donnent accès à rien
-export const NO_FEATURE_CODES = ["orders.update", "orders.validate", "orders.delete", "crm.delete", "cash.update", "settings.read", "settings.manage", "billeting.read", "billeting.manage"];
+// Permissions sans fonctionnalité dans l'ERP actuel (n'accordent rien). Les anciennes (paramètres,
+// billetage séparé, modifier / annuler une commande, supprimer un client, modifier une opération de
+// caisse) ont été retirées du catalogue ; les codes encore stockés dans les rôles sont ignorés.
+export const NO_FEATURE_CODES: string[] = [];
 
 /** Catalogue groupé (module › page › actions) servi à l'interface */
 export function catalogTree() {

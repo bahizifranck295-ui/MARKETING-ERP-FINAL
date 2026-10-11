@@ -23,7 +23,7 @@ import {
   HandCoins,
   Target,
 } from "lucide-react";
-import { APP_INFO, IS_LOGISTICS, inThisApp } from "@/app/edition";
+import { APP_INFO, IS_LOGISTICS, REPORTS_PERM, inThisApp } from "@/app/edition";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import BrandLogo from "@/components/BrandLogo";
@@ -43,7 +43,7 @@ const BOTTOM_NAV = IS_LOGISTICS
       { to: "/dashboard", label: "Accueil", icon: Home, perm: null },
       { to: "/stock", label: "Stock", icon: Package, perm: "stock.read" },
       { to: "/delivery", label: "Livraisons", icon: Truck, perm: "delivery.read" },
-      { to: "/reports", label: "Rapports", icon: BarChart3, perm: "reports.read" },
+      { to: "/reports", label: "Rapports", icon: BarChart3, perm: REPORTS_PERM },
     ]
   : [
       { to: "/dashboard", label: "Accueil", icon: Home, perm: null },
@@ -64,7 +64,7 @@ const DESKTOP_NAV = [
   { to: "/accounting", label: "Comptabilité", icon: Calculator, perm: "accounting.read" },
   { to: "/stock", label: "Stock & Dépôts", icon: Package, perm: "stock.read" },
   { to: "/delivery", label: "Livraisons", icon: Truck, perm: "delivery.read" },
-  { to: "/reports", label: IS_LOGISTICS ? "Rapports Stock & Livraison" : "Rapports & KPIs", icon: BarChart3, perm: "reports.read" },
+  { to: "/reports", label: IS_LOGISTICS ? "Rapports Stock & Livraison" : "Rapports & KPIs", icon: BarChart3, perm: REPORTS_PERM },
   { to: "/objectives", label: "Objectifs commerciaux", icon: Target, perm: "objectives.read" },
   { to: "/admin/users", label: "Utilisateurs", icon: UserCheck, perm: "users.read" },
   { to: "/profile", label: "Mon Compte", icon: Settings, perm: null },

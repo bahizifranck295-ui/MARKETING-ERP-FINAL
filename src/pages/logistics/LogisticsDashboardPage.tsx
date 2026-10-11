@@ -217,7 +217,7 @@ export default function LogisticsDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Tile icon={Package} title="Stock" subtitle="Produits, dépôts & transferts" to="/stock" enabled={has("stock.read")} badge={lowStock.length || null} />
           <Tile icon={Truck} title="Livraison" subtitle="Chargement & tournées" to="/delivery" enabled={has("delivery.read")} badge={toPrepare.length || null} />
-          <Tile icon={BarChart3} title="Rapports" subtitle="État des stocks & livraisons" to="/reports" enabled={has("reports.read")} />
+          <Tile icon={BarChart3} title="Rapports" subtitle="État des stocks & livraisons" to="/reports" enabled={has("logistics_reports.read")} />
         </div>
       </div>
 

@@ -15,7 +15,7 @@ import {
   ChevronRight,
   Settings,
 } from "lucide-react";
-import { inThisApp } from "@/app/edition";
+import { inThisApp, REPORTS_PERM } from "@/app/edition";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/erp-ui";
 
@@ -32,7 +32,7 @@ export default function MorePage() {
     { to: "/clients", label: "CRM & Clients", icon: Users, perm: "crm.read" },
     { to: "/delivery", label: "Livraisons & Tournées", icon: Truck, perm: "delivery.read" },
     { to: "/accounting", label: "Comptabilité", icon: Calculator, perm: "accounting.read" },
-    { to: "/reports", label: "Rapports & Statistiques", icon: BarChart3, perm: "reports.read" },
+    { to: "/reports", label: "Rapports & Statistiques", icon: BarChart3, perm: REPORTS_PERM },
     { to: "/objectives", label: "Objectifs Commerciaux", icon: Target, perm: "objectives.read" },
     { to: "/admin/users", label: "Gestion Utilisateurs", icon: Users, perm: "users.read" },
     { to: "/admin/roles", label: "Rôles & Permissions", icon: ShieldCheck, perm: "roles.read" },

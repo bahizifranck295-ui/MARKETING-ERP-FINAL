@@ -168,7 +168,7 @@ export default function LogisticsReportsPage() {
                 </button>
               ))}
             </div>
-            {has("stock.export") && <Button size="sm" onClick={exportDeliveries} disabled={!delivered.length} className="rounded-xl bg-brand hover:bg-brand-strong text-white text-xs">
+            {has("logistics_reports.export") && <Button size="sm" onClick={exportDeliveries} disabled={!delivered.length} className="rounded-xl bg-brand hover:bg-brand-strong text-white text-xs">
               <Download className="h-4 w-4 mr-1.5" /> Exporter (CSV)
             </Button>}
           </div>

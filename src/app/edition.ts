@@ -16,6 +16,9 @@ export const APP_INFO = IS_LOGISTICS
   ? { name: "Stock & Livraison", subtitle: "Dépôts, transferts, tournées et rapports logistiques" }
   : { name: "Gestion commerciale", subtitle: "Ventes, caisse, crédits, comptabilité et objectifs" };
 
+/** Permission d'accès au module Rapports : chaque application a ses propres rapports */
+export const REPORTS_PERM = IS_LOGISTICS ? "logistics_reports.read" : "reports.read";
+
 // Modules (routes) appartenant à chaque application
 const COMMERCIAL_ROUTES = ["/boutique", "/orders", "/clients", "/cash", "/credits", "/accounting", "/objectives", "/admin"];
 const LOGISTICS_ROUTES = ["/stock", "/delivery"];

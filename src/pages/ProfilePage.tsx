@@ -46,9 +46,13 @@ export default function ProfilePage() {
         subtitle="Informations de votre compte utilisateur"
       />
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col sm:flex-row items-center gap-5">
-        <div className="h-20 w-20 rounded-2xl bg-brand text-white font-black text-2xl flex items-center justify-center shadow-md">
-          {initials}
-        </div>
+        {user?.photo_url ? (
+          <img src={user.photo_url} alt={user?.full_name || ""} className="h-20 w-20 rounded-2xl object-cover shadow-md" data-profile-photo />
+        ) : (
+          <div className="h-20 w-20 rounded-2xl bg-brand text-white font-black text-2xl flex items-center justify-center shadow-md">
+            {initials}
+          </div>
+        )}
         <div className="text-center sm:text-left space-y-1">
           <h2 className="text-xl font-bold text-slate-900">{user?.full_name}</h2>
           <p className="text-xs text-slate-500">{user?.email}</p>

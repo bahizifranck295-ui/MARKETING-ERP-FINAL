@@ -28,7 +28,7 @@ import MorePage from "@/pages/MorePage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import LogisticsDashboardPage from "@/pages/logistics/LogisticsDashboardPage";
 import LogisticsReportsPage from "@/pages/logistics/LogisticsReportsPage";
-import { IS_LOGISTICS, inThisApp } from "@/app/edition";
+import { IS_LOGISTICS, REPORTS_PERM, inThisApp } from "@/app/edition";
 
 export default function App() {
   const { theme } = useTheme();
@@ -134,7 +134,7 @@ export default function App() {
             <Route
               path="/reports"
               element={
-                <ProtectedRoute permission="reports.read">
+                <ProtectedRoute permission={REPORTS_PERM}>
                   {IS_LOGISTICS ? <LogisticsReportsPage /> : <ReportsPage />}
                 </ProtectedRoute>
               }
