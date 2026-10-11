@@ -4,7 +4,11 @@
  * chaque has("…"), hasAny([…]), permission="…", anyOf={[…]} et perm: "…" est recensé avec son fichier.
  * Ainsi un nouveau bouton protégé par un code inconnu du catalogue est signalé automatiquement.
  */
-const sources = import.meta.glob("../../**/*.{tsx,ts}", { query: "?raw", import: "default" }) as Record<string, () => Promise<string>>;
+// Uniquement le code des écrans : le code du serveur n'est jamais embarqué dans le site
+const sources = import.meta.glob(["../../**/*.{tsx,ts}", "!../../server/**", "!../../i18n/**", "!../../**/*.d.ts"], { query: "?raw", import: "default" }) as Record<
+  string,
+  () => Promise<string>
+>;
 
 const PATTERNS = [
   /\bhas\(\s*["']([a-z_]+\.[a-z_]+)["']\s*\)/g,

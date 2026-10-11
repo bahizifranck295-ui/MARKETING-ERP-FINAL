@@ -74,12 +74,9 @@ apiRouter.post("/auth/login", (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = (email || "").toLowerCase().trim();
   const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
-  const isMatch =
-    user &&
-    (bcrypt.compareSync(password, user.password_hash) ||
-      password === "Admin1234!" ||
-      password === "Admin@2026" ||
-      password === "password123");
+  // Seul le mot de passe propre au compte est accepté (aucun mot de passe universel : il contournerait
+  // toutes les permissions en ouvrant n'importe quel compte, super administrateur compris)
+  const isMatch = !!user && typeof password === "string" && bcrypt.compareSync(password, user.password_hash);
 
   const loginCtx = {
     ip: String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip || "aperçu navigateur",
