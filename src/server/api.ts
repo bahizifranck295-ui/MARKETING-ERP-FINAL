@@ -2252,12 +2252,12 @@ function dashboardOverview(me: User, live: any[], usd: (o: any) => number, sessi
   const saleDay = (o: any) => dayKey(o.approved_at || o.created_at);
   const r2 = (n: number) => Math.round(n * 100) / 100;
   const productById = new Map(db.products.map((p) => [p.id, p]));
-  // Bénéfice estimé = prix de vente des lignes − coût d'achat des quantités sorties (bonus compris)
+  // Bénéfice estimé = Σ (prix de vente − prix d'achat inscrits à la création du produit) × quantité vendue
   const profitOf = (o: any) =>
     (o.items || []).reduce((t: number, it: any) => {
-      const cost = Number((productById.get(it.product_id) as any)?.cost_price) || 0;
-      const qty = Number(it.total_qty ?? it.quantity) || 0;
-      return t + (Number(it.line_total) || 0) - cost * qty;
+      const p: any = productById.get(it.product_id);
+      const margin = (Number(p?.sell_price) || 0) - (Number(p?.cost_price) || 0);
+      return t + margin * (Number(it.quantity) || 0);
     }, 0);
   const salesOn = (k: string) => live.filter((o) => saleDay(o) === k);
   const sum = (list: any[], f: (o: any) => number) => r2(list.reduce((t, o) => t + f(o), 0));
