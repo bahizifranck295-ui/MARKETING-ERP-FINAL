@@ -15,6 +15,7 @@ import {
   RefreshCw,
   FileText,
   Truck,
+  Shapes,
 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,9 +26,24 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import InvoiceModal from "@/components/InvoiceModal";
+import NewProductDialog from "@/components/stock/NewProductDialog";
+import { CategoriesPanel } from "@/components/stock/categories";
 
 export default function BoutiquePage() {
-  const { user } = useAuth();
+  const { user, has } = useAuth();
+  // Mêmes formulaires que le module Stock : nouveau produit et catégories
+  const [newProductOpen, setNewProductOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [stockProducts, setStockProducts] = useState<any[]>([]);
+  const openCategories = async () => {
+    setCategoriesOpen(true);
+    try {
+      const { data } = await api.get("/products");
+      setStockProducts(Array.isArray(data) ? data : []);
+    } catch {
+      setStockProducts([]);
+    }
+  };
   const [tab, setTab] = useState("catalog");
   const [products, setProducts] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -228,7 +244,32 @@ export default function BoutiquePage() {
       <PageHeader
         title="Boutique"
         subtitle="Catalogue produits, vente directe & suivi de mes commandes"
+        right={
+          has("stock.write") && (
+            <div className="flex flex-wrap items-center gap-2" data-boutique-stock-actions>
+              <Button size="sm" variant="outline" onClick={openCategories} className="h-9 rounded-xl border-slate-200 font-bold text-[#0F3D68]">
+                <Shapes className="mr-1.5 h-4 w-4" /> Catégories
+              </Button>
+              <Button size="sm" onClick={() => setNewProductOpen(true)} className="h-9 rounded-xl bg-[#0F3D68] font-bold text-white hover:bg-[#0B2F52]">
+                <Plus className="mr-1.5 h-4 w-4" /> Nouveau produit
+              </Button>
+            </div>
+          )
+        }
       />
+      {newProductOpen && <NewProductDialog onClose={() => setNewProductOpen(false)} onCreated={loadData} />}
+      {categoriesOpen && (
+        <Dialog open onOpenChange={() => setCategoriesOpen(false)}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base flex items-center gap-2">
+                <Shapes className="w-5 h-5 text-[#0F3D68]" /> Catégories de produits
+              </DialogTitle>
+            </DialogHeader>
+            <CategoriesPanel products={stockProducts} onChanged={() => { loadData(); openCategories(); }} />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Floating cart bubble */}
       {cartSummary.totalItemsCount > 0 && (
