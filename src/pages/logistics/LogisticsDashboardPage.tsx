@@ -61,15 +61,21 @@ export default function LogisticsDashboardPage() {
   useEffect(() => {
     let ok = true;
     const safe = (p: Promise<any>, fallback: any) => p.then((r) => r.data).catch(() => fallback);
+    // Seules les données autorisées sont demandées (mêmes permissions que le serveur) : pas de refus
+    // inutile ni d'alerte de sécurité pour un compte sans accès au stock ou aux livraisons
+    const can = (...codes: string[]) => codes.some((c) => has(c));
+    const skip = (fallback: any) => Promise.resolve(fallback);
     Promise.all([
-      api.get("/products").then((r) => r.data).catch((e) => {
-        toast.error(extractErrorMessage(e, "Stock indisponible"));
-        return [];
-      }),
-      safe(api.get("/stock/depots"), []),
-      safe(api.get("/delivery/overview"), null),
-      safe(api.get("/stock/embarked-summary"), null),
-      safe(api.get("/delivery/orders"), []),
+      can("stock.read", "delivery.read", "stock.reports", "logistics_reports.read")
+        ? api.get("/products").then((r) => r.data).catch((e) => {
+            toast.error(extractErrorMessage(e, "Stock indisponible"));
+            return [];
+          })
+        : skip([]),
+      can("stock.read", "warehouse.read", "delivery.read", "stock.reports") ? safe(api.get("/stock/depots"), []) : skip([]),
+      can("delivery.read", "stock.read") ? safe(api.get("/delivery/overview"), null) : skip(null),
+      can("stock.read", "delivery.read", "logistics_reports.read") ? safe(api.get("/stock/embarked-summary"), null) : skip(null),
+      can("delivery.read", "logistics_reports.read") ? safe(api.get("/delivery/orders"), []) : skip([]),
       safe(api.get("/notifications", { params: { unread_only: true, limit: 50 } }), []),
     ]).then(([p, d, o, e, ord, n]) => {
       if (!ok) return;

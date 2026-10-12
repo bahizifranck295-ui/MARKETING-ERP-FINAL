@@ -284,7 +284,7 @@ export default function CreditsPage() {
         >
           <option value="all">Tous les marketeurs</option>
           {marketers.map((m) => (
-            <option key={m.marketer_id} value={m.marketer_name}>
+            <option key={`${m.marketer_id}-${m.marketer_name}`} value={m.marketer_name}>
               {m.marketer_name} ({fmtMoney(m.total_remaining)})
             </option>
           ))}
@@ -409,7 +409,7 @@ export default function CreditsPage() {
               )
               .map((m) => (
                 <div
-                  key={m.marketer_id || m.marketer_name}
+                  key={`${m.marketer_id}-${m.marketer_name}`}
                   className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs"
                 >
                   <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
