@@ -1,0 +1,11 @@
+/* Indique à Tailwind où se trouvent les fichiers de l'application */
+@import "tailwindcss" source(none);
+@source "../src";
+/* Couleurs du thème de l'application (brand, surfaces…) : sans elles, les classes bg-brand,
+   text-brand, border-brand… ne seraient pas générées dans l'aperçu */
+@import "../src/theme/theme.css";
+
+/* Le bandeau de l'aperçu ne recouvre pas le bouton « Passer l'introduction » */
+body:has([data-login-intro]) > .no-print {
+  display: none !important;
+}
