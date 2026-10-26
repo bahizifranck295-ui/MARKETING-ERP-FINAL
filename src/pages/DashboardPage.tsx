@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { BackButton } from "@/components/erp-ui";
 import { MULTI_SITE } from "@/app/edition";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ShoppingBag, TrendingUp, HandCoins, Users, Wallet, Loader2 } from "lucide-react";
 import { api, extractErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtMoney, KpiCard } from "@/components/erp-ui";
 import { CardLink, DASH_RANGES, OutOfStockPanel, SalesDonut, SalesLineChart, StatCard, type DashRange, type Overview } from "@/components/dashboard/DashboardOverview";
+import { CashFlowPanel } from "@/components/reports/OverviewDashboard";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Bell } from "lucide-react";
@@ -28,6 +29,17 @@ export default function DashboardPage() {
     }
   });
   const R = DASH_RANGES.find((x) => x.id === range) || DASH_RANGES[0];
+  const navigate = useNavigate();
+  // Opérations de caisse du graphique « Livre de caisse » (seulement avec un droit sur la caisse)
+  const canCash = has("reports.cash") || has("cash.read");
+  const [cashOps, setCashOps] = useState<any[]>([]);
+  useEffect(() => {
+    if (!canCash) return;
+    api
+      .get("/cash/operations")
+      .then((r) => setCashOps(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setCashOps([]));
+  }, [canCash]);
 
   useEffect(() => {
     let ok = true;
@@ -69,7 +81,8 @@ export default function DashboardPage() {
   const o: Overview | undefined = k?.overview;
 
   return (
-    <div className="space-y-5">
+    // La page occupe toute la hauteur de l'écran : le Livre de caisse remplit l'espace restant
+    <div className="flex min-h-[calc(100dvh-3rem)] flex-col gap-5" data-dash-page>
       {/* En-tête : titre, langue, thème, notifications et utilisateur */}
       <div className="flex flex-wrap items-center justify-between gap-3" data-dash-header>
         <div className="flex min-w-0 items-center gap-2">
@@ -132,20 +145,20 @@ export default function DashboardPage() {
         </div>
       ) : o ? (
         <>
-          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <StatCard label={`Chiffre d'affaires ${R.of}`} value={fmtMoney(o.revenue.today)} k={o.revenue} vs={R.vs} icon={Wallet} tone="blue" to={has("orders.read") ? "/orders" : null} />
             <StatCard label={`Bénéfice net réel ${R.of}`} value={fmtMoney(o.net_profit.today)} k={o.net_profit} vs={R.vs} icon={TrendingUp} tone="green" to={has("reports.read") ? `/reports?period=${range}` : null} />
             <StatCard label="Créances" value={fmtMoney(k.debts?.total)} sub={`${k.debts?.clients ?? 0} client(s)`} icon={HandCoins} tone="red" to={has("credits.read") ? "/credits" : null} />
             <StatCard label={`Nombre de ventes ${R.of}`} value={o.sales_count.today.toLocaleString("fr-FR")} k={o.sales_count} vs={R.vs} icon={ShoppingBag} tone="orange" to={has("orders.read") ? "/orders" : null} />
             <StatCard label="Nombre de clients" value={o.clients.today.toLocaleString("fr-FR")} k={o.clients} icon={Users} tone="violet" to={has("crm.read") ? "/clients" : null} />
           </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
             <SalesLineChart data={o.series} days={o.days} onDays={setDays} />
             <OutOfStockPanel items={o.out_of_stock} />
             <SalesDonut byCategory={o.by_category} total={o.period_total} days={o.days} />
           </div>
           {/* Suivi : solde de caisse, versements en attente, sorties de caisse */}
-          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3" data-dash-follow>
+          <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-3" data-dash-follow>
             <CardLink to={has("cash.read") ? "/cash" : null} className="block rounded-2xl">
               <KpiCard
                 label="Solde actuel en caisse"
@@ -166,6 +179,8 @@ export default function DashboardPage() {
               <KpiCard label="Sorties de caisse" value={fmtMoney(k.cash?.today_out)} sub="Aujourd'hui" tone="slate" />
             </CardLink>
           </div>
+          {/* Graphique « Livre de caisse » (entrées et sorties) en pleine largeur : remplit le bas de la page */}
+          {canCash && <CashFlowPanel cashOps={cashOps} onOpen={() => navigate("/reports?tab=cash&sub=operations")} />}
         </>
       ) : null}
     </div>

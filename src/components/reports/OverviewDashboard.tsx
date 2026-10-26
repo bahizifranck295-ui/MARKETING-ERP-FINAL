@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MULTI_SITE } from "@/app/edition";
 import { BarChart3, Layers, LineChart, MapPin, PieChart, ShoppingCart, Tag, TrendingDown, TrendingUp, Trophy, Wallet, Package } from "lucide-react";
 import { fmtMoney } from "@/components/erp-ui";
@@ -112,15 +112,16 @@ function Legend({ items }: { items: Array<[string, string]> }) {
 const W = 560, H = 230, L = 52, R = 10, T = 12, B = 26;
 const plotW = W - L - R, plotH = H - T - B;
 
-function Axes({ ticks, max, labels }: { ticks: number[]; max: number; labels: string[] }) {
+function Axes({ ticks, max, labels, w = W, h = H }: { ticks: number[]; max: number; labels: string[]; w?: number; h?: number }) {
+  const plotW = w - L - R, plotH = h - T - B;
   const y = (v: number) => T + plotH - (v / max) * plotH;
   const slot = plotW / Math.max(labels.length, 1);
-  const every = Math.max(1, Math.ceil(labels.length / 7));
+  const every = Math.max(1, Math.ceil(labels.length / (w > 900 ? 15 : 7)));
   return (
     <>
       {ticks.map((t) => (
         <g key={t}>
-          <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="var(--color-slate-200)" />
+          <line x1={L} x2={w - R} y1={y(t)} y2={y(t)} stroke="var(--color-slate-200)" />
           <text x={L - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="var(--color-slate-500)">
             {compactMoney(t)}
           </text>
@@ -128,7 +129,7 @@ function Axes({ ticks, max, labels }: { ticks: number[]; max: number; labels: st
       ))}
       {labels.map((l, i) =>
         i % every === 0 || i === labels.length - 1 ? (
-          <text key={i} x={L + slot * i + slot / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="var(--color-slate-500)">
+          <text key={i} x={L + slot * i + slot / 2} y={h - 8} textAnchor="middle" fontSize={10} fill="var(--color-slate-500)">
             {l}
           </text>
         ) : null
@@ -187,23 +188,25 @@ function SalesProfitChart({ rows }: { rows: Array<{ label: string; sales: number
 }
 
 // Entrées (vert) et sorties (rouge) de caisse par tranche
-function CashChart({ rows }: { rows: Array<{ label: string; inn: number; out: number }> }) {
+// Taille libre (w, h) : graphique pleine largeur du tableau de bord ; onPick : clic sur une tranche
+function CashChart({ rows, w = W, h: ch = H, onPick }: { rows: Array<{ label: string; inn: number; out: number }>; w?: number; h?: number; onPick?: () => void }) {
   const [hover, setHover] = useState<number | null>(null);
+  const plotW = w - L - R, plotH = ch - T - B;
   const { max, ticks } = niceScale(Math.max(0, ...rows.map((r) => Math.max(r.inn, r.out))));
   const slot = plotW / Math.max(rows.length, 1);
-  const barW = Math.max(1.5, Math.min(14, slot * 0.32));
+  const barW = Math.max(1.5, Math.min(w > 900 ? 22 : 14, slot * 0.32));
   const y = (v: number) => T + plotH - (v / max) * plotH;
   const h = hover !== null ? rows[hover] : null;
   return (
     <div className="relative">
       <Tip lines={h ? [h.label, `Entrées : ${fmtMoney(h.inn)}`, `Sorties : ${fmtMoney(h.out)}`] : null} />
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Entrées et sorties de caisse">
-        <Axes ticks={ticks} max={max} labels={rows.map((r) => r.label)} />
+      <svg viewBox={`0 0 ${w} ${ch}`} className={w === W ? "h-auto w-full" : "block"} width={w === W ? undefined : w} height={w === W ? undefined : ch} role="img" aria-label="Entrées et sorties de caisse">
+        <Axes ticks={ticks} max={max} labels={rows.map((r) => r.label)} w={w} h={ch} />
         {rows.map((r, i) => {
           const c = L + slot * i + slot / 2;
           const o = hover === null || hover === i ? 1 : 0.55;
           return (
-            <g key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+            <g key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={onPick} style={onPick ? { cursor: "pointer" } : undefined} data-cashflow-bar>
               <rect x={c - slot / 2} y={T} width={slot} height={plotH} fill="transparent" />
               <rect x={c - barW - 1} y={y(r.inn)} width={barW} height={T + plotH - y(r.inn)} rx={Math.min(2, barW / 3)} fill={GREEN} opacity={o} />
               <rect x={c + 1} y={y(r.out)} width={barW} height={T + plotH - y(r.out)} rx={Math.min(2, barW / 3)} fill={RED} opacity={o} />
@@ -296,6 +299,64 @@ function Delta({ cur, prev, goodUp = true, points = false }: { cur: number; prev
   );
 }
 
+// Entrées et sorties de caisse par tranche de la période choisie
+function cashFlowRows(cashOps: any[], range: RangeId) {
+  const bs = buckets(range).map((b) => ({ ...b, inn: 0, out: 0 }));
+  for (const c of cashOps) {
+    const t = new Date(c.created_at).getTime();
+    const b = bs.find((x) => t >= x.from && t <= x.to);
+    if (!b) continue;
+    if (c.type === "in") b.inn += usdOf(c);
+    else if (c.type === "out") b.out += usdOf(c);
+  }
+  return bs;
+}
+
+/*
+ * Graphique « Livre de caisse » (entrées et sorties d'argent) en pleine largeur pour le tableau de bord :
+ * même calcul que dans Rapports, étiré sur toute la largeur et la hauteur disponibles ; un clic ouvre le livre de caisse.
+ */
+export function CashFlowPanel({ cashOps, onOpen }: { cashOps: any[]; onOpen?: () => void }) {
+  const [range, setRange] = useState<RangeId>("30j");
+  const rows = useMemo(() => cashFlowRows(cashOps, range), [cashOps, range]);
+  const box = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    if (!box.current) return;
+    const ro = new ResizeObserver(([e]) => setSize({ w: Math.floor(e.contentRect.width), h: Math.floor(e.contentRect.height) }));
+    ro.observe(box.current);
+    return () => ro.disconnect();
+  }, []);
+  const totIn = rows.reduce((t, r) => t + r.inn, 0), totOut = rows.reduce((t, r) => t + r.out, 0);
+  return (
+    <Card
+      title="Livre de caisse"
+      sub={`Entrées et sorties d'argent · ${range} · entrées ${fmtMoney(totIn)} · sorties ${fmtMoney(totOut)}`}
+      icon={Wallet}
+      className="flex min-h-[340px] flex-1 flex-col"
+      right={
+        <div className="flex items-center gap-2">
+          <RangeTabs value={range} onChange={setRange} />
+          {onOpen && (
+            <button type="button" onClick={onOpen} className="h-8 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-brand/60 hover:text-brand">
+              Ouvrir le livre de caisse →
+            </button>
+          )}
+        </div>
+      }
+    >
+      <Legend items={[["Entrées", GREEN], ["Sorties", RED]]} />
+      <div ref={box} className="relative min-h-[240px] flex-1" data-dash-cashflow>
+        {size.w > 0 && size.h > 0 && (
+          <div className="absolute inset-0">
+            <CashChart rows={rows} w={Math.max(size.w, 300)} h={Math.max(size.h, 200)} onPick={onOpen} />
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default function OverviewDashboard({ orders, periodOrders, cashOps, products, siteOfOrder, kpiCur, kpiPrev, prevLabel }: Props) {
   const avgBasket = periodOrders.length ? periodOrders.reduce((t: number, o: any) => t + (Number(o.total) || 0), 0) / periodOrders.length : 0;
   const [salesRange, setSalesRange] = useState<RangeId>("30j");
@@ -316,17 +377,7 @@ export default function OverviewDashboard({ orders, periodOrders, cashOps, produ
     return bs;
   }, [orders, salesRange, cost]);
 
-  const cashRows = useMemo(() => {
-    const bs = buckets(cashRange).map((b) => ({ ...b, inn: 0, out: 0 }));
-    for (const c of cashOps) {
-      const t = new Date(c.created_at).getTime();
-      const b = bs.find((x) => t >= x.from && t <= x.to);
-      if (!b) continue;
-      if (c.type === "in") b.inn += usdOf(c);
-      else if (c.type === "out") b.out += usdOf(c);
-    }
-    return bs;
-  }, [cashOps, cashRange]);
+  const cashRows = useMemo(() => cashFlowRows(cashOps, cashRange), [cashOps, cashRange]);
 
   const siteSlices = useMemo(() => {
     const m = new Map<string, number>();

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { BackButton } from "@/components/erp-ui";
 import { MULTI_SITE } from "@/app/edition";
 import { toast } from "sonner";
@@ -64,8 +65,11 @@ export default function ReportsPage() {
   const [cashFlow, setCashFlow] = useState<"all" | "in" | "out">("all");
   const [loading, setLoading] = useState(true);
   // Période initiale : ?period=day|week|month|year (lien « Bénéfice net réel » du tableau de bord), sinon le mois
+  // Paramètres d'ouverture (liens du tableau de bord) : lus dans l'adresse du routeur
+  const routerSearch = useLocation().search;
+  const urlParam = (k: string) => new URLSearchParams(routerSearch || window.location.search).get(k);
   const [period, setPeriod] = useState(() => {
-    const p = new URLSearchParams(window.location.search).get("period");
+    const p = urlParam("period");
     return p && ["day", "week", "month", "year"].includes(p) ? p : "month";
   });
   // Date de référence de la période : un jour précis, la semaine qui le contient, son mois ou son année
@@ -74,12 +78,12 @@ export default function ReportsPage() {
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
   };
   const [refDate, setRefDate] = useState(() => {
-    const d = new URLSearchParams(window.location.search).get("date");
+    const d = urlParam("date");
     return d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : todayIso();
   });
   const [activeTab, setActiveTab] = useState<
     "overview" | "sales" | "cash" | "credits"
-  >("overview");
+  >(() => (urlParam("tab") === "cash" ? "cash" : "overview")); // ?tab=cash : Livre de caisse
   const [selectedBU, setSelectedBU] = useState("all");
   // Filtre par site (ou tous les sites en commun)
   const [selectedSite, setSelectedSite] = useState("all");
@@ -92,7 +96,7 @@ export default function ReportsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [cashSessions, setCashSessions] = useState<any[]>([]);
   const [activeCashSession, setActiveCashSession] = useState<any>(null);
-  const [cashSubTab, setCashSubTab] = useState<"closings" | "operations">("closings");
+  const [cashSubTab, setCashSubTab] = useState<"closings" | "operations">(() => (urlParam("sub") === "operations" ? "operations" : "closings"));
   const [viewingBilletageSession, setViewingBilletageSession] = useState<any>(null);
 
   const loadAllReports = async () => {

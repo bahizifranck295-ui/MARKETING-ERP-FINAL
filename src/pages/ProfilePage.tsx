@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { Lock, LogOut, Loader2, Monitor, Moon, Palette, Sun } from "lucide-react";
+import { ChevronRight, ClipboardList, Lock, LogOut, Loader2, Monitor, Moon, Palette, ShieldCheck, Sun, UserCheck } from "lucide-react";
 import { useTheme, type ThemePref } from "@/theme/theme";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { inThisApp } from "@/app/edition";
 import { api, extractErrorMessage } from "@/lib/api";
 import { PageHeader } from "@/components/erp-ui";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function ProfilePage() {
-  const { user, role, logout } = useAuth();
+  const { user, role, logout, has } = useAuth();
+  // Sous-modules de « Mon Compte » (retirés du menu latéral), selon les droits de l'utilisateur
+  const subModules = [
+    { to: "/admin/users", label: "Utilisateurs", hint: "Comptes, rôles attribués et accès", icon: UserCheck, perm: "users.read" },
+    { to: "/admin/roles", label: "Rôles & permissions", hint: "Droits de chaque rôle, module par module", icon: ShieldCheck, perm: "roles.read" },
+    { to: "/admin/audit", label: "Journal d'audit", hint: "Historique des actions et alertes de sécurité", icon: ClipboardList, perm: "audit.read" },
+  ].filter((m) => inThisApp(m.to) && has(m.perm));
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
 
@@ -68,6 +75,34 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {subModules.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-3" data-account-submodules>
+          <h3 className="font-bold text-slate-900 text-sm">Administration</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {subModules.map((m) => {
+              const Icon = m.icon;
+              return (
+                <Link
+                  key={m.to}
+                  to={m.to}
+                  data-account-submodule={m.to}
+                  className="group flex items-center gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-brand/60 hover:bg-brand/5"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-slate-900">{m.label}</span>
+                    <span className="block text-[11px] text-slate-500">{m.hint}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <ThemePreference />
 

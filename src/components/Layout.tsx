@@ -69,9 +69,7 @@ const DESKTOP_NAV = [
   { to: "/delivery", label: "Livraisons", icon: Truck, perm: "delivery.read" },
   { to: "/reports", label: IS_LOGISTICS ? "Rapports Stock & Livraison" : "Rapports & KPIs", icon: BarChart3, perm: REPORTS_PERM },
   { to: "/objectives", label: "Objectifs commerciaux", icon: Target, perm: "objectives.read" },
-  { to: "/admin/users", label: "Utilisateurs", icon: UserCheck, perm: "users.read" },
-  { to: "/admin/roles", label: "Rôles & permissions", icon: ShieldCheck, perm: "roles.read" },
-  { to: "/admin/audit", label: "Journal d'audit", icon: ClipboardList, perm: "audit.read" },
+  // Utilisateurs, Rôles & permissions et Journal d'audit sont des sous-modules de « Mon Compte »
   { to: "/profile", label: "Mon Compte", icon: Settings, perm: null },
 ].filter((item) => inThisApp(item.to));
 
@@ -171,7 +169,7 @@ export default function Layout() {
                 title={sidebarCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                    isActive
+                    isActive || (item.to === "/profile" && location.pathname.startsWith("/admin/"))
                       ? "bg-brand text-white font-semibold shadow-[var(--shadow-glow)]"
                       : "nav-item text-sidebar-fg hover:bg-sidebar-hover hover:text-brand dark:hover:text-white"
                   } ${sidebarCollapsed ? "justify-center px-0" : ""}`
@@ -311,6 +309,8 @@ export default function Layout() {
           className={`flex-1 ${
             isFullWidthPage
               ? "p-3 sm:p-5 lg:p-6"
+              : location.pathname === "/dashboard"
+              ? "px-4 pt-4 pb-28 lg:px-6 lg:pb-6 max-w-[600px] lg:max-w-none w-full mx-auto" // tableau de bord : toute la largeur
               : "px-4 pt-4 pb-28 lg:pb-8 max-w-[600px] lg:max-w-6xl w-full mx-auto"
           }`}
         >
