@@ -809,8 +809,71 @@ export function getClientAccountData(clientId: string) {
     credit_limit: creditLimit,
     credit_disponible: creditDisponible,
     transactions: txList,
-    ventes_par_produit: [],
+    ventes_par_produit: clientSalesByProduct(orders),
   };
+}
+
+// Ventes du client regroupées par produit (commandes validées) : quantités, montants, commandes et évolution sur 6 mois
+function clientSalesByProduct(orders: any[]) {
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, k) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 5 + k, 1);
+    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: d.toLocaleDateString("fr-FR", { month: "short" }) };
+  });
+  const map = new Map<string, any>();
+  for (const o of orders) {
+    const mk = String(o.created_at || "").slice(0, 7);
+    for (const it of o.items || []) {
+      const key = it.product_id || it.product_name;
+      if (!key) continue;
+      const prod = db.products.find((x) => x.id === it.product_id);
+      const qty = Number(it.quantity) || 0;
+      const amount = Number(it.line_total ?? qty * (Number(it.unit_price) || 0)) || 0;
+      let e = map.get(key);
+      if (!e) {
+        e = {
+          product_id: it.product_id,
+          product_name: it.product_name || prod?.name || "Produit",
+          product_code: it.product_code || prod?.code || "",
+          unit: it.unit || prod?.unit || "",
+          category: prod?.category || "",
+          size: prod?.size || "",
+          image_url: prod?.image_url || "",
+          sell_price: prod?.sell_price ?? (Number(it.unit_price) || 0),
+          quantity: 0,
+          total_amount: 0,
+          orders: [] as any[],
+          monthly: months.map((m) => ({ ...m, amount: 0, quantity: 0 })),
+        };
+        map.set(key, e);
+      }
+      e.quantity += qty;
+      e.total_amount += amount;
+      e.orders.push({ order_id: o.id, code: o.code, date: o.created_at, quantity: qty, unit_price: Number(it.unit_price) || 0, amount, status: o.status, payment_method: o.payment_method });
+      const m = e.monthly.find((x: any) => x.key === mk);
+      if (m) {
+        m.amount += amount;
+        m.quantity += qty;
+      }
+    }
+  }
+  const list = [...map.values()];
+  const grand = list.reduce((t, e) => t + e.total_amount, 0);
+  return list
+    .map((e) => {
+      e.orders.sort((a: any, b: any) => String(b.date).localeCompare(String(a.date)));
+      const count = new Set(e.orders.map((x: any) => x.order_id)).size;
+      return {
+        ...e,
+        total_amount: Math.round(e.total_amount * 100) / 100,
+        orders_count: count,
+        avg_price: e.quantity > 0 ? Math.round((e.total_amount / e.quantity) * 100) / 100 : 0,
+        share: grand > 0 ? Math.round((e.total_amount / grand) * 1000) / 10 : 0,
+        last_date: e.orders[0]?.date || null,
+        first_date: e.orders[e.orders.length - 1]?.date || null,
+      };
+    })
+    .sort((a, b) => b.total_amount - a.total_amount);
 }
 
 export function getClientFinancialSnapshot(clientId: string, orderTotalUSD: number, paymentMethod: string) {
