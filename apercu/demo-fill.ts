@@ -58,13 +58,7 @@ export async function fillDemo(api: Api, db: any) {
   const dBukavu = await must("POST", "/stock/depots", { name: "Dépôt Ndosho", code: "DND", site_id: goma.id, location: "Quartier Ndosho, Goma", capacity: 20000 }, A);
   const dKadutu = await must("POST", "/stock/depots", { name: "Dépôt Katindo", code: "DKT", site_id: goma.id, location: "Quartier Katindo, Goma", capacity: 8000 }, A);
 
-  for (const cat of ["Farine", "Riz"]) await must("POST", "/stock/categories", { name: cat }, A);
-  // Produits complémentaires (ceux du jeu de base ne sont pas dupliqués)
-  const newProducts = [
-    { name: "Farine de Maïs 10kg", code: "PRD-MAIS-10", category: "Farine", unit: "Sac", cost_price: 6.2, sell_price: 8.5, size: "10kg" },
-    { name: "Riz Long Grain 25kg", code: "PRD-RIZ-25", category: "Riz", unit: "Sac", cost_price: 21, sell_price: 27.5, size: "25kg" },
-  ];
-  for (const p of newProducts) await must("POST", "/products", { ...p, stock: 0, alert_threshold: 20, warehouse_id: dCentral.id }, A);
+  // Catalogue : les 10 produits PREMIDIS du jeu de base (aucun produit ajouté)
   let products: any[] = await must("GET", "/products", null, A);
 
   const receive = async (depot: any, qtyFor: (p: any) => number, note: string) => {
@@ -73,10 +67,10 @@ export async function fillDemo(api: Api, db: any) {
       if (q > 0) await must("POST", `/stock/depots/${depot.id}/adjust`, { product_id: p.id, quantity: q, reason: "reception", note }, A);
     }
   };
-  await receive(dCentral, (p) => (/MAIS|RIZ|HUILE/.test(p.code) ? 600 : 400), "Arrivage initial");
-  await receive(dBirere, (p) => (/MAIS|HUILE/.test(p.code) ? 250 : 120), "Arrivage initial");
-  await receive(dBukavu, (p) => (/MAIS|RIZ|HUILE/.test(p.code) ? 450 : 260), "Arrivage initial");
-  await receive(dKadutu, (p) => (/MAIS|EAU/.test(p.code) ? 200 : 80), "Arrivage initial");
+  await receive(dCentral, (p) => (/UNGA|LAVIE/.test(p.code) ? 600 : 400), "Arrivage initial");
+  await receive(dBirere, (p) => (/UNGA|SIMBA/.test(p.code) ? 250 : 120), "Arrivage initial");
+  await receive(dBukavu, (p) => (/UNGA|LAVIE/.test(p.code) ? 450 : 260), "Arrivage initial");
+  await receive(dKadutu, (p) => (/UNGA|LAVIE/.test(p.code) ? 200 : 80), "Arrivage initial");
 
   const users = await must("GET", "/users", null, A);
   const patrick = users.find((u: any) => u.email === "marketer@erp.local");
@@ -89,8 +83,8 @@ export async function fillDemo(api: Api, db: any) {
     must("POST", "/users", { full_name, email, password: "Admin@2026", role_code, site_id, phone: `+243 99${int(1000000, 9999999)}`, is_active: true, ...extra }, A);
   await mkUser("Grace Mwamini", "caisse.goma@erp.local", "caissier", goma.id, { all_categories: true });
   await mkUser("Esther Bisimwa", "caisse2.goma@erp.local", "caissier", bkv.id, { all_categories: true });
-  const josue = await mkUser("Josué Bahati", "josue.bahati@erp.local", "marketeur", bkv.id, { warehouse_id: dBukavu.id, categories: ["Farine", "Riz", "Huile"], all_categories: false });
-  const divine = await mkUser("Divine Furaha", "divine.furaha@erp.local", "marketeur", bkv.id, { warehouse_id: dKadutu.id, categories: ["Boisson", "Eau", "Jus", "Bière"], all_categories: false });
+  const josue = await mkUser("Josué Bahati", "josue.bahati@erp.local", "marketeur", bkv.id, { warehouse_id: dBukavu.id, categories: ["Farine", "Whisky Local", "Vin"], all_categories: false });
+  const divine = await mkUser("Divine Furaha", "divine.furaha@erp.local", "marketeur", bkv.id, { warehouse_id: dKadutu.id, categories: ["Eau", "Whisky India"], all_categories: false });
   await mkUser("Pascal Mugisho", "chef2.goma@erp.local", "chef_dept", bkv.id, { all_categories: true });
   await mkUser("Aline Kahindo", "stock2.goma@erp.local", "gestionnaire_stock", bkv.id, { warehouse_id: dBukavu.id, all_categories: true });
 
@@ -108,11 +102,13 @@ export async function fillDemo(api: Api, db: any) {
     ["CLI-B201", "Ets Mudekereza", "Grossiste", "Goma", "Josué Bahati", 4500, "Farine"],
     ["CLI-B202", "Kiosque Bahati Katindo", "Détaillant", "Goma", "Divine Furaha", 600, "Boissons"],
     ["CLI-B203", "Restaurant Le Lac Kivu", "Institutionnel", "Goma", "Divine Furaha", 2000, "Boissons"],
-    ["CLI-B204", "Alimentation Himbi", "Semi-grossiste", "Goma", "Josué Bahati", 2500, "Riz"],
-    ["CLI-B205", "Marché Virunga", "Détaillant", "Goma", "Jean Kasongo", 900, "Huile"],
+    ["CLI-B204", "Alimentation Himbi", "Semi-grossiste", "Goma", "Josué Bahati", 2500, "Whisky Local"],
+    ["CLI-B205", "Marché Virunga", "Détaillant", "Goma", "Jean Kasongo", 900, "Vin"],
   ];
   for (const [code, name, type, city, marketer_name, credit_limit, bu] of clientDefs)
-    await must("POST", "/clients", { code, name, type, city, marketer_name, credit_limit, business_unit: bu, phone: `+243 97${int(1000000, 9999999)}`, address: `${city}, RDC` }, A);
+    await must("POST", "/clients", { code, name, type, city, marketer_name, credit_limit, business_unit: bu, phone: `+243 97${int(1000000, 9999999)}`, address: `${city}, RDC`,
+      // Fiche de connaissance du client (formulaire PREMIDIS) consultable par « Vérifier »
+      document_url: `/assets/fiches/fiche_${code}.pdf`, document_name: `Fiche_de_connaissance_${code}.pdf`, document_type: "Fiche de connaissance du client", document_verified: true }, A);
   const clients: any[] = await must("GET", "/clients", null, A);
   const gomaClients = clients.filter((c) => !/Bukavu/i.test(c.city || ""));
   const bkvClients = clients.filter((c) => /Bukavu/i.test(c.city || ""));
@@ -150,7 +146,7 @@ export async function fillDemo(api: Api, db: any) {
     for (let i = 0; i < n; i++) {
       const p = pick(products);
       if (items.some((x) => x.product_id === p.id)) continue;
-      items.push({ product_id: p.id, quantity: /MAIS|RIZ/.test(p.code) ? int(2, 12) : int(6, 36) });
+      items.push({ product_id: p.id, quantity: /UNGA|LAVIE-20L/.test(p.code) ? int(2, 12) : int(6, 36) });
     }
     const credit = rnd() < 0.32;
     const order = await must("POST", "/orders", { client_id: client.id, items, payment_method: credit ? "credit" : "cash", source: rnd() < 0.5 ? "boutique" : undefined, delivery_address: client.address }, T[mk]);
@@ -238,8 +234,8 @@ export async function fillDemo(api: Api, db: any) {
     await advanceDeliveries();
     // Mouvements de stock : réapprovisionnements, transferts, avaries, dons
     if (i % 10 === 5) {
-      await receive(dCentral, (p) => (/MAIS|RIZ|HUILE/.test(p.code) ? 180 : 120), "Arrivage fournisseur");
-      await receive(dBukavu, (p) => (/MAIS|RIZ|HUILE/.test(p.code) ? 150 : 90), "Arrivage fournisseur");
+      await receive(dCentral, (p) => (/UNGA|LAVIE/.test(p.code) ? 180 : 120), "Arrivage fournisseur");
+      await receive(dBukavu, (p) => (/UNGA|LAVIE/.test(p.code) ? 150 : 90), "Arrivage fournisseur");
     }
     if (i % 12 === 7) {
       const p = pick(products);
@@ -262,14 +258,14 @@ export async function fillDemo(api: Api, db: any) {
   products = await must("GET", "/products", null, A);
   const byCode = (re: RegExp) => products.find((p) => re.test(p.code)) || products[0];
   for (const [mk, w, v, prods] of [
-    [patrick, dCentral, v1, [byCode(/COCA/), byCode(/EAU-AQUA/), byCode(/MAIS-25/)]],
-    [josue, dBukavu, v2, [byCode(/MAIS-25/), byCode(/RIZ/), byCode(/HUILE-5L/)]],
+    [patrick, dCentral, v1, [byCode(/OC-RED/), byCode(/LAVIE-600/), byCode(/UNGA/)]],
+    [josue, dBukavu, v2, [byCode(/UNGA/), byCode(/SIMBA/), byCode(/MENTOS/)]],
   ] as const)
     for (const p of prods) await must("POST", "/delivery/embarked/load", { marketer_id: mk.id, warehouse_id: w.id, vehicle_id: v.id, product_id: p.id, quantity: int(20, 60) }, A);
 
   const objectives = [
     { business_unit: "Farine", site: "Tous les sites", label: "Objectif mensuel Farine - 600 sacs", target_qty: 600, unit: "sacs", bonus_type: "money", bonus_amount: 60, bonus_unit: "USD", who: [patrick, josue], actual: 640, paid: true },
-    { business_unit: "Boisson", site: "Goma", label: "Boissons Goma - 3 000 bouteilles", target_qty: 3000, unit: "bouteilles", bonus_type: "nature", bonus_qty: 3, bonus_unit: "cartons", product: byCode(/COCA/), who: [patrick, sarah], actual: 2140, paid: false },
+    { business_unit: "Whisky India", site: "Goma", label: "Whisky India Goma - 3 000 bouteilles", target_qty: 3000, unit: "bouteilles", bonus_type: "nature", bonus_qty: 3, bonus_unit: "cartons", product: byCode(/OC-RED/), who: [patrick, sarah], actual: 2140, paid: false },
     { business_unit: "Eau", site: "Goma", label: "Eau Goma - 2 500 bouteilles", target_qty: 2500, unit: "bouteilles", bonus_type: "money", bonus_amount: 40, bonus_unit: "USD", who: [divine, jean], actual: 2620, paid: false },
   ];
   for (const o of objectives) {

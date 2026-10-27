@@ -37,10 +37,10 @@ export default function ObjectivesPage() {
   const [claimingUserId, setClaimingUserId] = useState<string | null>(null);
 
   const [availableUsers] = useState<any[]>([
-    { id: "usr_nathalie_m", name: "Nathalie Mukendi", role: "marketeur", bu: "Farine de Maïs Extra", site: "Goma" },
-    { id: "usr_patrick_k", name: "Patrick K.", role: "marketeur", bu: "Farine de Maïs Extra", site: "Goma" },
+    { id: "usr_nathalie_m", name: "Nathalie Mukendi", role: "marketeur", bu: "Unga Premidis", site: "Goma" },
+    { id: "usr_patrick_k", name: "Patrick K.", role: "marketeur", bu: "Unga Premidis", site: "Goma" },
     { id: "usr_sarah_k", name: "Sarah Kalala", role: "marketeur", bu: "Whisky & Liqueurs", site: "Goma" },
-    { id: "usr_jean_k", name: "Jean Kasongo", role: "commercial", bu: "Farine de Maïs Extra", site: "Bukavu" },
+    { id: "usr_jean_k", name: "Jean Kasongo", role: "commercial", bu: "Unga Premidis", site: "Bukavu" },
   ]);
 
   const [formBU, setFormBU] = useState("");

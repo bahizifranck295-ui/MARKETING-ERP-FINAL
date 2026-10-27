@@ -6,19 +6,20 @@ import { apiRouter, JWT_SECRET } from "../src/server/api";
 import { verify } from "./shims/jsonwebtoken";
 import { fillDemo } from "./demo-fill";
 import { ensureDemoAccounts } from "../src/server/demoAccounts";
+import bcrypt from "bcryptjs";
 
 /*
  * Deux espaces de données séparés :
  * - « demo » : jeu de démonstration complet, ouvert par les boutons « Comptes de démonstration » ;
- * - « real » : site vierge, prêt à recevoir les vraies données (connexion normale).
- * L'espace actif est mémorisé dans le navigateur et choisi au moment de la connexion.
+ * - « real » : site vierge, prêt à recevoir les vraies données, ouvert par le compte de l'entreprise (REAL_ACCOUNT).
+ * L'espace actif est mémorisé dans le navigateur et choisi au moment de la connexion selon le compte utilisé.
  */
 type DataMode = "demo" | "real";
 // Structure vide de la base (avant toute donnée), pour repartir proprement à chaque changement d'espace
 const EMPTY_DB = JSON.parse(JSON.stringify(db));
 const MODE_KEY = "erp_data_mode";
 const STORE_KEYS: Record<DataMode, string> = {
-  demo: "erp_preview_db_v3", // v3 : données de démo sur le site unique de Goma
+  demo: "erp_preview_db_v4", // v4 : catalogue des 10 produits PREMIDIS + fiches de connaissance client
   real: "erp_real_db_v1",
 };
 const readMode = (): DataMode => {
@@ -76,12 +77,27 @@ try {
   } catch {}
 }
 
+/** Compte de l'entreprise : ouvre le site vierge (aucune donnée de démonstration) */
+export const REAL_ACCOUNT = { email: "direction@premidis.cd", password: "Premidis@2026", full_name: "Direction PREMIDIS" };
+
+// Le compte de l'entreprise existe toujours dans le site vierge (aussi dans un espace déjà enregistré)
+function ensureRealAccount() {
+  if (db.users.some((u) => u.email.toLowerCase() === REAL_ACCOUNT.email)) return;
+  const now = new Date().toISOString();
+  db.users.push({
+    id: "usr_premidis_direction", email: REAL_ACCOUNT.email, full_name: REAL_ACCOUNT.full_name, phone: "",
+    department: "Direction Générale", role_code: "super_admin", is_transversal: true, all_categories: true, is_active: true,
+    password_hash: bcrypt.hashSync(REAL_ACCOUNT.password, 10), created_at: now, updated_at: now,
+  } as any);
+}
+
 // Site vierge : la configuration (rôles, permissions, dépôt, catégories, taux) et le seul compte
-// administrateur ; aucun client, produit, vente, mouvement de caisse ni journal.
+// de l'entreprise ; aucun client, produit, vente, mouvement de caisse ni journal.
 function blankDatabase() {
   seedData();
   (db as any).demo_accounts_v1 = true; // pas de comptes de démonstration dans le site vierge
-  db.users = db.users.filter((u) => u.role_code === "super_admin");
+  db.users = [];
+  ensureRealAccount();
   for (const k of ["products", "clients", "orders", "cash_sessions", "cash_operations", "deliveries", "credits", "notifications",
     "objectives", "audit_logs", "stock_movements", "stock_levels", "stock_transfers", "stock_reports", "vehicles",
     "embarked_stocks", "embarked_levels", "embarked_movements", "accounting_movements"]) (db as any)[k] = [];
@@ -105,6 +121,7 @@ function demoDatabase(): Promise<any> {
 function openStore(): Promise<any> {
   if (load()) {
     if (mode === "demo") ensureDemoAccounts();
+    else ensureRealAccount();
     return Promise.resolve();
   }
   if (mode === "demo") return demoDatabase();

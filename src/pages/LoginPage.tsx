@@ -61,8 +61,11 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Version de démonstration en ligne : bascule vers l'espace de données correspondant (sans effet ailleurs)
-      await (window as any).__erpDataMode?.set?.(demoChosen ? "demo" : "real");
+      // Version de démonstration en ligne : bascule vers l'espace de données correspondant (sans effet ailleurs).
+      // Comptes de démonstration (@erp.local) → jeu de démo ; compte de l'entreprise → site vierge.
+      const id = email.trim().toLowerCase();
+      const isDemoAccount = demoChosen || /@erp\.local$/.test(id) || [...MAIN_DEMOS, ...MORE_DEMOS].some((a) => a.email.split("@")[0] === id);
+      await (window as any).__erpDataMode?.set?.(isDemoAccount ? "demo" : "real");
       await login(email, password);
       toast.success("Connexion réussie !");
       navigate("/dashboard");
