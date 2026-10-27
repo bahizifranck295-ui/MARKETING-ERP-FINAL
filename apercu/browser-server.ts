@@ -7,7 +7,29 @@ import { verify } from "./shims/jsonwebtoken";
 import { fillDemo } from "./demo-fill";
 import { ensureDemoAccounts } from "../src/server/demoAccounts";
 
-const STORE_KEY = "erp_preview_db_v3"; // v3 : données de démo sur le site unique de Goma
+/*
+ * Deux espaces de données séparés :
+ * - « demo » : jeu de démonstration complet, ouvert par les boutons « Comptes de démonstration » ;
+ * - « real » : site vierge, prêt à recevoir les vraies données (connexion normale).
+ * L'espace actif est mémorisé dans le navigateur et choisi au moment de la connexion.
+ */
+type DataMode = "demo" | "real";
+// Structure vide de la base (avant toute donnée), pour repartir proprement à chaque changement d'espace
+const EMPTY_DB = JSON.parse(JSON.stringify(db));
+const MODE_KEY = "erp_data_mode";
+const STORE_KEYS: Record<DataMode, string> = {
+  demo: "erp_preview_db_v3", // v3 : données de démo sur le site unique de Goma
+  real: "erp_real_db_v1",
+};
+const readMode = (): DataMode => {
+  try {
+    return localStorage.getItem(MODE_KEY) === "demo" ? "demo" : "real";
+  } catch {
+    return "real";
+  }
+};
+let mode: DataMode = readMode();
+let STORE_KEY = STORE_KEYS[mode];
 
 function load(): boolean {
   try {
@@ -35,6 +57,7 @@ function save() {
 export function resetDemoData() {
   try {
     localStorage.removeItem(STORE_KEY);
+    localStorage.removeItem(MODE_KEY);
     localStorage.removeItem("erp_access_token");
     localStorage.removeItem("erp_refresh_token");
   } catch {}
@@ -53,16 +76,23 @@ try {
   } catch {}
 }
 
-// Premier chargement : données de base, puis jeu de démo complet (≈ 2 mois d’activité sur le site unique de Goma)
-let ready: Promise<any> = Promise.resolve();
-export const demoReady = () => ready;
-// Comptes de démonstration de la page de connexion (ajoutés s'ils manquent, aussi aux données enregistrées)
-if (load()) ensureDemoAccounts();
-else {
+// Site vierge : la configuration (rôles, permissions, dépôt, catégories, taux) et le seul compte
+// administrateur ; aucun client, produit, vente, mouvement de caisse ni journal.
+function blankDatabase() {
+  seedData();
+  (db as any).demo_accounts_v1 = true; // pas de comptes de démonstration dans le site vierge
+  db.users = db.users.filter((u) => u.role_code === "super_admin");
+  for (const k of ["products", "clients", "orders", "cash_sessions", "cash_operations", "deliveries", "credits", "notifications",
+    "objectives", "audit_logs", "stock_movements", "stock_levels", "stock_transfers", "stock_reports", "vehicles",
+    "embarked_stocks", "embarked_levels", "embarked_movements", "accounting_movements"]) (db as any)[k] = [];
+}
+
+// Jeu de démonstration complet (≈ 2 mois d'activité sur le site unique de Goma)
+function demoDatabase(): Promise<any> {
   seedData();
   delete (db as any).demo_accounts_v1;
   ensureDemoAccounts();
-  ready = fillDemo(
+  return fillDemo(
     (method, path, body, token, headers) =>
       dispatch(method, "/api" + path, { ...(headers || {}), ...(token ? { authorization: `Bearer ${token}` } : {}) }, body ?? undefined),
     db
@@ -70,6 +100,41 @@ else {
     .catch((e) => console.error("[démo]", e))
     .then(() => save());
 }
+
+// Ouverture de l'espace actif (enregistré, sinon créé)
+function openStore(): Promise<any> {
+  if (load()) {
+    if (mode === "demo") ensureDemoAccounts();
+    return Promise.resolve();
+  }
+  if (mode === "demo") return demoDatabase();
+  blankDatabase();
+  save();
+  return Promise.resolve();
+}
+
+let ready: Promise<any> = openStore();
+export const demoReady = () => ready;
+
+// Changement d'espace à la connexion (appelé par la page de connexion, sans rechargement)
+async function setMode(next: DataMode) {
+  await ready;
+  if (next === mode) return;
+  clearTimeout(saveTimer);
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(db));
+  } catch {}
+  for (const k of Object.keys(db)) delete (db as any)[k];
+  Object.assign(db, JSON.parse(JSON.stringify(EMPTY_DB)));
+  mode = next;
+  STORE_KEY = STORE_KEYS[mode];
+  try {
+    localStorage.setItem(MODE_KEY, mode);
+  } catch {}
+  ready = openStore();
+  await ready;
+}
+(window as any).__erpDataMode = { get: () => mode, set: setMode };
 
 function parseBody(data: any) {
   if (data == null || data === "") return {};

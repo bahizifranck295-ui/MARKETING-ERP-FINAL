@@ -51,6 +51,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  // Compte de démonstration choisi (bouton) : ouvre le jeu de démo ; identifiants saisis : site réel, vierge au départ
+  const [demoChosen, setDemoChosen] = useState(false);
   // Introduction : « playing » (page cachée) → « revealing » (le logo rejoint sa place) → « done »
   const [phase, setPhase] = useState<"playing" | "revealing" | "done">(() => (shouldPlayIntro() ? "playing" : "done"));
   const logoRef = useRef<HTMLImageElement>(null);
@@ -59,6 +61,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      // Version de démonstration en ligne : bascule vers l'espace de données correspondant (sans effet ailleurs)
+      await (window as any).__erpDataMode?.set?.(demoChosen ? "demo" : "real");
       await login(email, password);
       toast.success("Connexion réussie !");
       navigate("/dashboard");
@@ -74,6 +78,7 @@ export default function LoginPage() {
   const setCredentials = (em: string, pw: string) => {
     setEmail(em);
     setPassword(pw);
+    setDemoChosen(true);
   };
 
   const target = useCallback(() => logoRef.current, []);
@@ -157,7 +162,10 @@ export default function LoginPage() {
                   spellCheck={false}
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setDemoChosen(false);
+                  }}
                   placeholder="Nom d'utilisateur ou email"
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white/70 pl-9 pr-3 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
                 />
@@ -174,7 +182,10 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setDemoChosen(false);
+                  }}
                   placeholder="Mot de passe"
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white/70 pl-9 pr-10 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30"
                 />
